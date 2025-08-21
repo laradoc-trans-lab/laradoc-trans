@@ -68,20 +68,18 @@
 2. 若 `workspace/repo/target` 不存在則必須以 git 建立倉庫，並且也建立與使用者指定的分支一樣的分支，不管存在或不存在最後都必須切至使用者指定的分支。
 3. 判斷 `workspace/tmp/.progess` 是否存在
    - 當此檔存在的時候，代表翻譯進度未完成，必須繼續翻譯未完成翻譯的檔案。
-   - 當此檔案不存在的時候，必須檢查 `workspace/repo/target` 是否存在 `.source_commit`。
-     - 若 `workspace/repo/target` 存在 `.source_commit`則必須將其內容所含 `hash` (舊) 與 `workspace/repo/source` 當下的 `commit hash` (新) 進行比對。
-       - 如果兩者 hash 相同，代表翻譯的版本已經是最新的，不需要進行翻譯。
-       - 如果兩者 hash 不相同，則必須透過 `git diff --name-only <舊 hash> <新 hash>` 找出所有變更的檔案，並依此重建翻譯進度於 `workspace/tmp/.progress`。
-     - 若 `workspace/repo/target` 不存在 `.source_commit`，代表目標倉庫為初次翻譯，則必須將來源倉庫所有 `.md` 檔案都加入到翻譯進度，並重建翻譯進度於`workspace/tmp/.progress`。
+   - 當此檔案不存在的時候，可藉由比對  `workpace/repo/target/.source_commit` 及 `workspace/repo/source` 的 `commit hash` 來判斷是否一致會有三種狀況 :
+     1. 若 `workspace/repo/target` 不存在 `.source_commit`，代表目標倉庫為初次翻譯，則必須將來源倉庫所有 `.md` 檔案都加入到翻譯進度，並重建翻譯進度於`workspace/tmp/.progress`。
+     2. 如果兩者 hash 相同，代表翻譯的版本已經是最新的，不需要進行翻譯。
+     3. 如果兩者 hash 不相同，則必須透過 `git diff --name-only <舊 hash> <新 hash>` 找出所有變更的檔案，並依此重建翻譯進度於 `workspace/tmp/.progress` ，也要建立 `.source_commit` 紀錄來源倉庫的 `commit hash`。
 4. 依照 `workspace/tmp/.progress` 的內容有標記待翻譯的檔案，陸續將檔案交由外部命令 `gemini`進行翻譯並將翻譯結果儲存於 `workspace/tmp` 下。
 
-### 4.5 翻譯完成後流程
+### 4.5 所有檔案翻譯完成後的流程
 
 當 `workspace/tmp/.progress` 內所有檔案都完成翻譯後，程式必須執行以下收尾工作：
 
-1. 將 `workspace/tmp` 中所有翻譯好的 `.md` 檔案複製到 `workspace/repo/target` 對應的位置。
-2. 於 `workspace/repo/target` 中，建立或更新 `.source_commit` 檔案，其內容為 `workspace/repo/source` 最新的 `commit hash`。
-3. 刪除 `workspace/tmp/.progress` 檔案，代表此次翻譯週期結束。
+1. 將 `workspace/tmp` 中所有翻譯好的 `.md` 檔案與 `.source_commit` 複蓋到 `workspace/repo/target` 。
+2. 清空 `workspace/tmp` 下所有的檔案。
 
 ### 4.6 翻譯進度管理的方式
 
