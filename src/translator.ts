@@ -24,11 +24,8 @@ async function getBasePrompt(): Promise<string> {
  * @returns The cleaned, translated markdown content.
  */
 export async function translateFile(sourceFilePath: string): Promise<string> {
-  const sourceContent = await fs.readFile(sourceFilePath, 'utf-8');
   const prompt = await getBasePrompt();
-  const fullPrompt = `${prompt}\n\n以下是檔案 
-
-${sourceContent}`;
+  const fullPrompt = `${prompt}\n\n請翻譯檔案：'${sourceFilePath}'`;
 
   const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
