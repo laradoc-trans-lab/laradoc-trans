@@ -1,0 +1,31 @@
+{
+  "name": "laravel-docs-llm-translator",
+  "version": "1.0.0",
+  "description": "Translate Laravel docs using Gemini CLI.",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run build && node dist/main.js",
+    "build": "tsc",
+    "dev": "ts-node src/main.ts"
+  },
+  "keywords": [
+    "laravel",
+    "docs",
+    "translator",
+    "gemini"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
