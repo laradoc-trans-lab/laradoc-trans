@@ -34,9 +34,13 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
 
     let stdoutData = '';
     let stderrData = '';
+    let receivedBytes = 0;
 
     gemini.stdout.on('data', (data) => {
       stdoutData += data.toString();
+      receivedBytes += data.length;
+      // 使用 process.stdout.write 和 \r 來在同一行更新進度
+      process.stdout.write(`  接收中... ${receivedBytes} bytes\r`);
     });
 
     gemini.stderr.on('data', (data) => {
@@ -44,6 +48,10 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
     });
 
     gemini.on('close', (code) => {
+      // 清除進度指示器所在的行，為最終狀態訊息做準備
+      process.stdout.clearLine(0);
+      process.stdout.cursorTo(0);
+
       // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
       // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
       if (code === 0 && stdoutData) {
