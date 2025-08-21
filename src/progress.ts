@@ -3,7 +3,7 @@ import path from 'path';
 
 export type Progress = Map<string, 0 | 1 | 2>; // 0: 待處理, 1: 已完成, 2: 失敗
 
-const SOURCE_COMMIT_FILE = '.source_commit';
+const SOURCE_COMMIT_FILE = '.source_commit'; // Use a single constant
 const PROGRESS_FILE = '.progress';
 
 /**
@@ -12,7 +12,7 @@ const PROGRESS_FILE = '.progress';
  * @returns 提交雜湊值字串，如果檔案不存在則為 null。
  */
 export async function readSourceCommit(targetPath: string): Promise<string | null> {
-  const filePath = path.join(targetPath, SOURCE_COMMIT_FILE);
+  const filePath = path.join(targetPath, SOURCE_COMMIT_FILE); // Use single constant
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     return content.trim();
@@ -30,7 +30,35 @@ export async function readSourceCommit(targetPath: string): Promise<string | nul
  * @param hash 要寫入的提交雜湊值。
  */
 export async function writeSourceCommit(targetPath: string, hash: string): Promise<void> {
-  const filePath = path.join(targetPath, SOURCE_COMMIT_FILE);
+  const filePath = path.join(targetPath, SOURCE_COMMIT_FILE); // Use single constant
+  await fs.writeFile(filePath, hash);
+}
+
+/**
+ * 從 tmp 目錄中的 .source_commit 檔案讀取來源提交雜湊值。
+ * @param tmpPath tmp 目錄的絕對路徑。
+ * @returns 提交雜湊值字串，如果檔案不存在則為 null。
+ */
+export async function readTmpSourceCommit(tmpPath: string): Promise<string | null> {
+  const filePath = path.join(tmpPath, SOURCE_COMMIT_FILE); // Use single constant
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content.trim();
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return null; // 檔案不存在
+    }
+    throw error;
+  }
+}
+
+/**
+ * 將來源提交雜湊值寫入 tmp 目錄中的 .source_commit 檔案。
+ * @param tmpPath tmp 目錄的絕對路徑。
+ * @param hash 要寫入的提交雜湊值。
+ */
+export async function writeTmpSourceCommit(tmpPath: string, hash: string): Promise<void> {
+  const filePath = path.join(tmpPath, SOURCE_COMMIT_FILE); // Use single constant
   await fs.writeFile(filePath, hash);
 }
 
@@ -82,7 +110,12 @@ export async function cleanTmpDirectory(tmpPath: string): Promise<void> {
   try {
     const files = await fs.readdir(tmpPath);
     for (const file of files) {
-      await fs.unlink(path.join(tmpPath, file));
+      // Only delete .progress and translated files, not .source_commit
+      // This function is called at the START of a new session,
+      // where tmp/.source_commit might be needed for diffing.
+      if (file !== SOURCE_COMMIT_FILE) {
+        await fs.unlink(path.join(tmpPath, file));
+      }
     }
     console.log(`Cleaned tmp directory: ${tmpPath}`);
   } catch (error: any) {
