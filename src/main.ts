@@ -41,16 +41,16 @@ async function main() {
 
   const options = program.opts();
 
-  // Load environment variables
+  // 載入環境變數
   dotenv.config({ path: options.env });
 
-  // --- Argument Validation and Defaulting ---
+  // --- 參數驗證與預設值設定 ---
   if (!options.branch) {
     console.error('Error: --branch is a required argument.');
     process.exit(1);
   }
 
-  let translationCount: number | 'all' = 1; // Default to 1 file
+  let translationCount: number | 'all' = 1; // 預設翻譯 1 個檔案
   if (options.all) {
     translationCount = 'all';
   } else if (options.limit) {
@@ -67,12 +67,12 @@ async function main() {
     const paths = await initializeWorkspace();
     console.log('Workspace initialization successful.');
 
-    // --- Git Branch Synchronization ---
+    // --- Git 分支同步 ---
     await checkoutBranch(paths.source, options.branch);
     await initializeTargetRepo(paths.target, options.branch);
     console.log('Git repositories synchronized to the correct branch.');
 
-    // --- Determine Files to Translate ---
+    // --- 決定要翻譯的檔案 ---
     let progress = await readProgressFile(paths.tmp);
 
     if (progress) {
@@ -104,18 +104,18 @@ async function main() {
       await writeProgressFile(paths.tmp, progress);
     }
 
-    // Filter for pending files
+    // 過濾出待處理的檔案
     const filesToTranslate = Array.from(progress.entries())
       .filter(([, status]) => status === 0)
       .map(([file]) => file);
 
     if (filesToTranslate.length === 0) {
       console.log('All translations are complete.');
-      // TODO: Implement finalization logic (copy files, update commit hash)
+      // TODO: 實作完成邏輯（複製檔案、更新提交雜湊值）
       process.exit(0);
     }
 
-    // Apply limit
+    // 套用數量限制
     const limitedFiles =
       translationCount === 'all'
         ? filesToTranslate
@@ -126,7 +126,7 @@ async function main() {
     limitedFiles.forEach((file) => console.log(`- ${file}`));
     console.log('------------------------');
 
-    // --- Translation Loop ---
+    // --- 翻譯循環 ---
     for (const file of limitedFiles) {
       const sourcePath = path.join(paths.source, file);
       const targetPath = path.join(paths.tmp, file);
@@ -138,32 +138,32 @@ Translating: ${file}...`);
         await fs.mkdir(path.dirname(targetPath), { recursive: true });
         await fs.writeFile(targetPath, translatedContent);
 
-        progress.set(file, 1); // Mark as done
+        progress.set(file, 1); // 標記為完成
         console.log(`SUCCESS: ${file}`);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`FAILED to translate ${file}: ${message}`);
-        progress.set(file, 2); // Mark as failed
-        await writeProgressFile(paths.tmp, progress); // Save progress before exiting
-        // Log error to file
+        progress.set(file, 2); // 標記為失敗
+        await writeProgressFile(paths.tmp, progress); // 結束前儲存進度
+        // 將錯誤記錄到檔案中
         const logFilePath = path.join(paths.logs, 'error.log');
         const logMessage = `[${new Date().toISOString()}] Failed to translate ${file}:\n${message}\n\n`;
         await fs.appendFile(logFilePath, logMessage);
         console.error(`Error details logged to ${logFilePath}`);
-        process.exit(1); // Exit on first failure
+        process.exit(1); // 第一次失敗時退出
       }
 
-      // Save progress after each file
+      // 每處理完一個檔案就儲存進度
       await writeProgressFile(paths.tmp, progress);
     }
 
-    // --- Finalization ---
+    // --- 完成階段 ---
     const allFiles = Array.from(progress.keys());
     const completedFiles = allFiles.filter((file) => progress.get(file) === 1);
 
     if (completedFiles.length === allFiles.length) {
       console.log('\nAll translations complete. Finalizing...');
-      // 1. Copy files from tmp to target
+      // 1. 從 tmp 複製檔案到 target
       for (const file of completedFiles) {
         const source = path.join(paths.tmp, file);
         const destination = path.join(paths.target, file);
@@ -172,12 +172,12 @@ Translating: ${file}...`);
       }
       console.log('Copied translated files to target repository.');
 
-      // 2. Write new source commit hash
+      // 2. 寫入新的來源提交雜湊值
       const newHash = await getCurrentCommitHash(paths.source);
       await writeSourceCommit(paths.target, newHash);
       console.log(`Updated .source_commit to ${newHash}`);
 
-      // 3. Delete .progress file
+      // 3. 刪除 .progress 檔案
       await fs.unlink(path.join(paths.tmp, '.progress'));
       console.log('Translation process completed successfully!');
     } else {
@@ -203,4 +203,3 @@ main().catch((error) => {
   }
   process.exit(1);
 });
-

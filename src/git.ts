@@ -9,7 +9,7 @@ async function git(command: string, repoPath: string) {
 }
 
 /**
- * Checks if a given directory path is a Git repository.
+ * 檢查給定的目錄路徑是否為 Git 儲存庫。
  */
 export async function isGitRepository(dirPath: string): Promise<boolean> {
   if (!require('fs').existsSync(dirPath)) return false;
@@ -22,7 +22,7 @@ export async function isGitRepository(dirPath: string): Promise<boolean> {
 }
 
 /**
- * Initializes a new Git repository in the given path.
+ * 在給定路徑中初始化一個新的 Git 儲存庫。
  */
 async function init(repoPath: string): Promise<void> {
   try {
@@ -35,7 +35,7 @@ async function init(repoPath: string): Promise<void> {
 }
 
 /**
- * Switches the Git repository to a specific branch. Creates the branch if it doesn't exist.
+ * 將 Git 儲存庫切換到特定分支。如果分支不存在，則建立它。
  */
 export async function checkoutOrCreateBranch(repoPath: string, branch: string): Promise<void> {
   try {
@@ -48,7 +48,7 @@ export async function checkoutOrCreateBranch(repoPath: string, branch: string): 
 }
 
 /**
- * Switches the Git repository to a specific branch.
+ * 將 Git 儲存庫切換到特定分支。
  */
 export async function checkoutBranch(repoPath: string, branch: string): Promise<void> {
   try {
@@ -61,7 +61,7 @@ export async function checkoutBranch(repoPath: string, branch: string): Promise<
 }
 
 /**
- * Gets the current commit hash of the repository.
+ * 取得儲存庫目前的提交雜湊值。
  */
 export async function getCurrentCommitHash(repoPath: string): Promise<string> {
   try {
@@ -74,9 +74,9 @@ export async function getCurrentCommitHash(repoPath: string): Promise<string> {
 }
 
 /**
- * Lists all markdown files in the repository.
- * @param repoPath The absolute path to the repository.
- * @returns A list of markdown file paths relative to the repo root.
+ * 列出儲存庫中所有的 markdown 檔案。
+ * @param repoPath 儲存庫的絕對路徑。
+ * @returns 相對於儲存庫根目錄的 markdown 檔案路徑列表。
  */
 export async function listMarkdownFiles(repoPath: string): Promise<string[]> {
   try {
@@ -89,11 +89,11 @@ export async function listMarkdownFiles(repoPath: string): Promise<string[]> {
 }
 
 /**
- * Gets a list of changed markdown files between two commits.
- * @param repoPath The absolute path to the repository.
- * @param oldHash The old commit hash.
- * @param newHash The new commit hash.
- * @returns A list of changed markdown file paths.
+ * 取得兩個提交之間已變更的 markdown 檔案列表。
+ * @param repoPath 儲存庫的絕對路徑。
+ * @param oldHash 舊的提交雜湊值。
+ * @param newHash 新的提交雜湊值。
+ * @returns 已變更的 markdown 檔案路徑列表。
  */
 export async function getDiffFiles(repoPath: string, oldHash: string, newHash: string): Promise<string[]> {
   try {
@@ -106,7 +106,7 @@ export async function getDiffFiles(repoPath: string, oldHash: string, newHash: s
 }
 
 /**
- * Ensures the target directory is a git repo and on the correct branch.
+ * 確保目標目錄是 git 儲存庫並且在正確的分支上。
  */
 export async function initializeTargetRepo(repoPath: string, branch: string): Promise<void> {
   if (!(await isGitRepository(repoPath))) {

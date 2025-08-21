@@ -19,9 +19,9 @@ async function getBasePrompt(): Promise<string> {
 }
 
 /**
- * Translates a single markdown file using the Gemini CLI.
- * @param sourceFilePath Absolute path to the source markdown file.
- * @returns The cleaned, translated markdown content.
+ * 使用 Gemini CLI 翻譯單一 markdown 檔案。
+ * @param sourceFilePath 要翻譯的來源 markdown 檔案的絕對路徑。
+ * @returns 清理過的、已翻譯的 markdown 內容。
  */
 export async function translateFile(sourceFilePath: string): Promise<string> {
   const prompt = await getBasePrompt();
@@ -44,8 +44,8 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
     });
 
     gemini.on('close', (code) => {
-      // The Gemini CLI sometimes prints non-error info (like "Loaded cached credentials") to stderr.
-      // Therefore, we prioritize the exit code and the presence of valid stdout content.
+      // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
+      // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
       if (code === 0 && stdoutData) {
         const firstHeadingIndex = stdoutData.indexOf('#');
         if (firstHeadingIndex === -1) {
@@ -57,7 +57,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
         return resolve(cleanedOutput);
       }
 
-      // If we are here, something went wrong.
+      // 如果程式執行到這裡，表示發生了錯誤。
       if (stderrData) {
         return reject(new Error(`Gemini CLI Error (stderr): ${stderrData.trim()}`));
       }

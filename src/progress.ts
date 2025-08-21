@@ -1,15 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-export type Progress = Map<string, 0 | 1 | 2>; // 0: pending, 1: done, 2: failed
+export type Progress = Map<string, 0 | 1 | 2>; // 0: 待處理, 1: 已完成, 2: 失敗
 
 const SOURCE_COMMIT_FILE = '.source_commit';
 const PROGRESS_FILE = '.progress';
 
 /**
- * Reads the source commit hash from the .source_commit file in the target directory.
- * @param targetPath Absolute path to the target repository.
- * @returns The commit hash string, or null if the file doesn't exist.
+ * 從目標目錄中的 .source_commit 檔案讀取來源提交雜湊值。
+ * @param targetPath 目標儲存庫的絕對路徑。
+ * @returns 提交雜湊值字串，如果檔案不存在則為 null。
  */
 export async function readSourceCommit(targetPath: string): Promise<string | null> {
   const filePath = path.join(targetPath, SOURCE_COMMIT_FILE);
@@ -18,16 +18,16 @@ export async function readSourceCommit(targetPath: string): Promise<string | nul
     return content.trim();
   } catch (error: any) {
     if (error.code === 'ENOENT') {
-      return null; // File doesn't exist
+      return null; // 檔案不存在
     }
     throw error;
   }
 }
 
 /**
- * Writes the source commit hash to the .source_commit file in the target directory.
- * @param targetPath Absolute path to the target repository.
- * @param hash The commit hash to write.
+ * 將來源提交雜湊值寫入目標目錄中的 .source_commit 檔案。
+ * @param targetPath 目標儲存庫的絕對路徑。
+ * @param hash 要寫入的提交雜湊值。
  */
 export async function writeSourceCommit(targetPath: string, hash: string): Promise<void> {
   const filePath = path.join(targetPath, SOURCE_COMMIT_FILE);
@@ -35,9 +35,9 @@ export async function writeSourceCommit(targetPath: string, hash: string): Promi
 }
 
 /**
- * Reads and parses the .progress file from the tmp directory.
- * @param tmpPath Absolute path to the tmp directory.
- * @returns A Map representing the progress, or null if the file doesn't exist.
+ * 從 tmp 目錄讀取並解析 .progress 檔案。
+ * @param tmpPath tmp 目錄的絕對路徑。
+ * @returns 代表進度的 Map，如果檔案不存在則為 null。
  */
 export async function readProgressFile(tmpPath: string): Promise<Progress | null> {
   const filePath = path.join(tmpPath, PROGRESS_FILE);
@@ -53,16 +53,16 @@ export async function readProgressFile(tmpPath: string): Promise<Progress | null
     return progress;
   } catch (error: any) {
     if (error.code === 'ENOENT') {
-      return null; // File doesn't exist
+      return null; // 檔案不存在
     }
     throw error;
   }
 }
 
 /**
- * Writes the progress map to the .progress file in the tmp directory.
- * @param tmpPath Absolute path to the tmp directory.
- * @param progress The progress map to write.
+ * 將進度 map 寫入 tmp 目錄中的 .progress 檔案。
+ * @param tmpPath tmp 目錄的絕對路徑。
+ * @param progress 要寫入的進度 map。
  */
 export async function writeProgressFile(tmpPath: string, progress: Progress): Promise<void> {
   const filePath = path.join(tmpPath, PROGRESS_FILE);
@@ -74,9 +74,9 @@ export async function writeProgressFile(tmpPath: string, progress: Progress): Pr
 }
 
 /**
- * Deletes all files in the tmp directory.
- * As per spec, this is used when rebuilding the progress file.
- * @param tmpPath Absolute path to the tmp directory.
+ * 刪除 tmp 目錄中的所有檔案。
+ * 根據規格，這在重建進度檔案時使用。
+ * @param tmpPath tmp 目錄的絕對路徑。
  */
 export async function cleanTmpDirectory(tmpPath: string): Promise<void> {
   try {
@@ -87,7 +87,7 @@ export async function cleanTmpDirectory(tmpPath: string): Promise<void> {
     console.log(`Cleaned tmp directory: ${tmpPath}`);
   } catch (error: any) {
     if (error.code === 'ENOENT') {
-      return; // Directory doesn't exist, which is fine.
+      return; // 目錄不存在，這沒關係。
     }
     throw error;
   }
