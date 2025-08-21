@@ -102,4 +102,3 @@
 ### 4.6 Gemini CLI 翻譯方式與注意事項
 
 請參考 `GEMINI_CLI_TIPS.md`。
-
