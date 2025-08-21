@@ -64,14 +64,32 @@
 
 ### 4.4 翻譯流程
 
+先初步解說 `workspace` 下的 `tmp` / `repo/tartget` 及 `repo/source` 的關係。
+
+`workspace/repo/source` 這裡我稱呼為 `來源倉庫`，意思就是原始的文件，需要被翻譯的。
+
+`workspace/tmp` 主要作為翻譯過程中暫存翻譯好的 Markdown 檔案及翻譯進度追蹤的檔案，而翻譯進度追蹤的檔案會有兩個
+
+1. `.progress` : 紀錄所有需要翻譯的檔案到底翻譯沒，格式可詳見 `FILE_FORMAT.md`。
+2. `.source_commit` : 紀錄目前進度是翻譯`來源倉庫` 那一個 `commit hash` 的版本。
+
+藉由上述兩個檔案及使用 `git diff` 的方式對 `來源倉庫`與 `.source_commit` 內的 hash 進行差異比，當來源倉庫有異動，則必須更新 `.progress`，然後再依照 `.progress` 內容進行翻譯。
+
+`workspace/repo/target` 這裡我稱呼為 `目標倉庫` ，當所有翻譯進度都完成了，則把 `tmp` 底下的 `.source_commit` 及所有 Markdown 檔案會複製至 `目標倉庫` , 這樣 `目標倉庫`就會與來源倉庫的版本一致。
+
+為了達成上述目的，必須依照下列流程來處理:
+
 1. 以 `git` 切換 `workspace/repo/source` 指定的分支。
-2. 若 `workspace/repo/target` 不存在則必須以 git 建立倉庫，並且也建立與使用者指定的分支一樣的分支，不管存在或不存在最後都必須切至使用者指定的分支。
+2. 若 `workspace/repo/target` 不存在則必須以 git 建立倉庫，並且也建立與使用者指定的分支一樣的分支，最後必須切至使用者指定的分支。
 3. 判斷 `workspace/tmp/.progess` 是否存在
-   - 當此檔存在的時候，代表翻譯進度未完成，必須繼續翻譯未完成翻譯的檔案。
-   - 當此檔案不存在的時候，可藉由比對  `workpace/repo/target/.source_commit` 及 `workspace/repo/source` 的 `commit hash` 來判斷是否一致會有三種狀況 :
-     1. 若 `workspace/repo/target` 不存在 `.source_commit`，代表目標倉庫為初次翻譯，則必須將來源倉庫所有 `.md` 檔案都加入到翻譯進度，並重建翻譯進度於`workspace/tmp/.progress`。
+   - 當此檔案不存在的時候，可藉由比對  `workpace/repo/target/.source_commit` 及 `workspace/repo/source` 的 `commit hash` 來判斷是否一致，這裡會有三種狀況 :
+     1. 若 `workspace/repo/target` 不存在 `.source_commit`，代表目標倉庫沒有過去的翻譯紀錄，則必須於 `workspace/tmp/.progress` 中建立翻譯檔案的列表，並建立 `workspace/tmp/.source_commit` 紀錄要翻譯的來源倉庫的 `commit hash`。
      2. 如果兩者 hash 相同，代表翻譯的版本已經是最新的，不需要進行翻譯。
      3. 如果兩者 hash 不相同，則必須透過 `git diff --name-only <舊 hash> <新 hash>` 找出所有變更的檔案，並依此重建翻譯進度於 `workspace/tmp/.progress` ，也要建立 `.source_commit` 紀錄來源倉庫的 `commit hash`。
+   - 當此檔存在的時候，代表翻譯進度未完成，必須作以下兩個動作 :
+     1. 比對 `workspace/tmp/.source_commit` 及 `workspace/repo/source` 的 `commit hash` 來判斷是否一致, 若不一致，代表來源倉庫的檔案有更新，此時必須以 `git diff` 方式比對那些檔案有修改或新增，並更新 `.progress` 內容。
+     2. 繼續翻譯未翻譯的檔案。
+
 4. 依照 `workspace/tmp/.progress` 的內容有標記待翻譯的檔案，陸續將檔案交由外部命令 `gemini`進行翻譯並將翻譯結果儲存於 `workspace/tmp` 下。
 
 ### 4.5 所有檔案翻譯完成後的流程
@@ -81,11 +99,7 @@
 1. 將 `workspace/tmp` 中所有翻譯好的 `.md` 檔案與 `.source_commit` 複蓋到 `workspace/repo/target` 。
 2. 清空 `workspace/tmp` 下所有的檔案。
 
-### 4.6 翻譯進度管理的方式
-
-請參考 `PROGRESS_MANAGEMENT.md`。
-
-### 4.7 Gemini CLI 翻譯方式與注意事項
+### 4.6 Gemini CLI 翻譯方式與注意事項
 
 請參考 `GEMINI_CLI_TIPS.md`。
 
