@@ -49,5 +49,8 @@
   "Gemini CLI Error (stderr): {{message}}": "Gemini CLI Error (stderr): {{message}}",
   "Gemini CLI exited with code {{code}}": "Gemini CLI exited with code {{code}}",
   "Gemini CLI provided no output and no error code.": "Gemini CLI provided no output and no error code.",
-  "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?": "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?"
+  "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?": "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?",
+  "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.": "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.",
+  "Failed to check '{{toolName}}' existence: {{message}}": "Failed to check '{{toolName}}' existence: {{message}}",
+  "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}"
 }

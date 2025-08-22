@@ -21,6 +21,7 @@ import {
 } from './progress';
 import { translateFile } from './translator';
 import { initI18n, _ } from './i18n';
+import { checkToolExistence } from './toolChecker';
 
 async function main() {
   const program = new Command();
@@ -46,8 +47,23 @@ async function main() {
   // 載入環境變數
   dotenv.config({ path: options.env });
 
-  // 初始化 i18next
+  // 初始化 i18n
   await initI18n();
+
+  // 檢查外部工具是否存在
+  try {
+    await Promise.all([
+      checkToolExistence('gemini'),
+      checkToolExistence('git'),
+    ]);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(error.message);
+    } else {
+      console.error(_('An unexpected unknown error occurred.'));
+    }
+    process.exit(1);
+  }
 
   // --- 參數驗證與預設值設定 ---
   if (!options.branch) {
@@ -190,7 +206,6 @@ async function main() {
 
       // 3. 清理 tmp 目錄
       await cleanTmpDirectory(paths.tmp);
-      console.log(_('Temporary directory cleaned.'));
       console.log(_('Translation process completed successfully!'));
     } else {
       console.log(
