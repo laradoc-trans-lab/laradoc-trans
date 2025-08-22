@@ -23,8 +23,21 @@
 - npm 使用套件
   - dotenv
   - Commander.js
+  - i18next (用於國際化，所有使用者介面訊息皆應透過此套件進行翻譯)
+  - i18next-fs-backend (i18next 的檔案系統後端，用於載入翻譯檔案)
 - Gemini CLI : 此為外部命令，主要是為了翻譯的工作，系統必須安裝好
 - git : 此為外部命令，主要給程式操作 git，系統必須先安裝好
+
+### 2.1 國際化 (i18n)
+
+本專案採用 `i18next` 進行國際化。所有面向使用者的訊息（例如 `console.log`, `console.error` 的輸出）都必須透過 `i18next` 進行管理和翻譯。
+
+- **翻譯鍵 (Translation Keys)**: 翻譯鍵應直接使用原始英文字串。
+- **預設語言 (Default Language)**: 預設語言為繁體中文 (`zh-TW`)。
+- **後備語言 (Fallback Language)**: 後備語言為英文 (`en`)。
+- **翻譯檔案 (Translation Files)**: 翻譯檔案存放於 `src/i18n/` 目錄下，並以語言代碼命名 (例如 `en.json`, `zh-TW.json`)。
+- **鍵分割與命名空間 (Key Separator & Namespace)**: `i18next` 的鍵分割符號 (`keySeparator`) 和命名空間分隔符號 (`nsSeparator`) 皆已禁用，以確保原始字串能作為完整的翻譯鍵。
+- **簡化呼叫 (Simplified Calls)**: 為了簡化程式碼，`i18next.t` 函數已別名為 `_`，因此可以使用 `_("原始英文字串", { 參數 })` 的方式進行翻譯呼叫。
 
 ## 3. 目錄結構說明
 
