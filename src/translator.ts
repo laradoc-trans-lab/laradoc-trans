@@ -29,7 +29,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
   const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
   const fullPrompt = `${prompt}\n\n---\n\n${fileContent}`;
 
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   console.log(_('Using model: {{model}}', { model: geminiModel }));
 
@@ -43,8 +43,13 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
     gemini.stdout.on('data', (data) => {
       stdoutData += data.toString();
       receivedBytes += data.length;
-      // 使用 process.stdout.write 和 \r 來在同一行更新進度
-      process.stdout.write(_('Receiving... {{bytes}} bytes', { bytes: receivedBytes }) + '\r');
+      // 使用 process.stdout.write 和 \r 來在同一行更新進度。
+      // 這些操作僅在 process.stdout 連接到 TTY (終端機) 時才有效。
+      // 在非 TTY 環境 (例如測試或管道輸出) 中，這些函式不可用，呼叫它們會拋出 TypeError。
+      // 因此，我們在嘗試使用它們之前檢查 process.stdout.isTTY。
+      if (process.stdout.isTTY) {
+        process.stdout.write(_('Receiving... {{bytes}} bytes', { bytes: receivedBytes }) + '\r');
+      }
     });
 
     gemini.stderr.on('data', (data) => {
@@ -52,9 +57,13 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
     });
 
     gemini.on('close', (code) => {
-      // 清除進度指示器所在的行，為最終狀態訊息做準備
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
+      // 清除進度指示器所在的行，為最終狀態訊息做準備。
+      // 與 process.stdout.write 和 \r 類似，這些函式僅在 process.stdout 連接到 TTY 時才有效。
+      // 我們檢查 process.stdout.isTTY 以防止在非 TTY 環境中出現 TypeError。
+      if (process.stdout.isTTY) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
 
       // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
       // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
