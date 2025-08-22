@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { isGitRepository } from './git';
+import { _ } from './i18n';
 
 export interface WorkspacePaths {
   root: string;
@@ -28,7 +29,7 @@ export async function initializeWorkspace(): Promise<WorkspacePaths> {
   // 1. 檢查來源目錄是否為有效的 Git 儲存庫。
   const sourceIsRepo = await isGitRepository(paths.source);
   if (!sourceIsRepo) {
-    throw new Error(`Source directory not found or is not a valid Git repository: ${paths.source}`);
+    throw new Error(_('Source directory not found or is not a valid Git repository: {{path}}', { path: paths.source }));
   }
 
   // 2. 如果 tmp、logs 和 target 目錄不存在，則建立它們。
@@ -36,6 +37,6 @@ export async function initializeWorkspace(): Promise<WorkspacePaths> {
   await fs.mkdir(paths.tmp, { recursive: true });
   await fs.mkdir(paths.logs, { recursive: true });
 
-  console.log(`Workspace initialized at: ${workspacePath}`);
+  console.log(_('Workspace initialized at: {{path}}', { path: workspacePath }));
   return paths;
 }

@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { _ } from './i18n';
 
 export type Progress = Map<string, 0 | 1 | 2>; // 0: 待處理, 1: 已完成, 2: 失敗
 
@@ -117,7 +118,7 @@ export async function cleanTmpDirectory(tmpPath: string): Promise<void> {
         await fs.unlink(path.join(tmpPath, file));
       }
     }
-    console.log(`Cleaned tmp directory: ${tmpPath}`);
+    console.log(_('Cleaned tmp directory: {{path}}', { path: tmpPath }));
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       return; // 目錄不存在，這沒關係。

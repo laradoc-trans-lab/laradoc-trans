@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
+import { _ } from './i18n';
 
 let basePrompt: string | null = null;
 
@@ -13,7 +14,7 @@ async function getBasePrompt(): Promise<string> {
     basePrompt = await fs.readFile(promptPath, 'utf-8');
     return basePrompt;
   } catch (error) {
-    console.error('Fatal: Could not read TRANSLATE_PROMPT.md file.');
+    console.error(_('Fatal: Could not read TRANSLATE_PROMPT.md file.'));
     throw error;
   }
 }
@@ -29,7 +30,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
 
   const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-  console.log(`  使用模型: ${geminiModel}`);
+  console.log(_('Using model: {{model}}', { model: geminiModel }));
 
   return new Promise((resolve, reject) => {
     const gemini = spawn('gemini', ['-p', '-m', geminiModel], { stdio: 'pipe' });
@@ -42,7 +43,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
       stdoutData += data.toString();
       receivedBytes += data.length;
       // 使用 process.stdout.write 和 \r 來在同一行更新進度
-      process.stdout.write(`  接收中... ${receivedBytes} bytes\r`);
+      process.stdout.write(_('Receiving... {{bytes}} bytes', { bytes: receivedBytes }) + '\r');
     });
 
     gemini.stderr.on('data', (data) => {
@@ -60,7 +61,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
         const firstHeadingIndex = stdoutData.indexOf('#');
         if (firstHeadingIndex === -1) {
           return reject(
-            new Error(`Translation failed: No markdown heading found in the output. Output: ${stdoutData}`)
+            new Error(_('Translation failed: No markdown heading found in the output. Output: {{output}}', { output: stdoutData }))
           );
         }
         const cleanedOutput = stdoutData.substring(firstHeadingIndex);
@@ -69,16 +70,16 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
 
       // 如果程式執行到這裡，表示發生了錯誤。
       if (stderrData) {
-        return reject(new Error(`Gemini CLI Error (stderr): ${stderrData.trim()}`));
+        return reject(new Error(_('Gemini CLI Error (stderr): {{message}}', { message: stderrData.trim() })));
       }
       if (code !== 0) {
-        return reject(new Error(`Gemini CLI exited with code ${code}`));
+        return reject(new Error(_('Gemini CLI exited with code {{code}}', { code: code })));
       }
-      return reject(new Error('Gemini CLI provided no output and no error code.'));
+      return reject(new Error(_('Gemini CLI provided no output and no error code.')));
     });
 
     gemini.on('error', (err) => {
-      reject(new Error(`Failed to start Gemini CLI: ${err.message}. Is it installed and in your PATH?`));
+      reject(new Error(_('Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?', { message: err.message })));
     });
 
     gemini.stdin.write(fullPrompt);

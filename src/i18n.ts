@@ -9,7 +9,7 @@ export async function initI18n() {
     .use(LanguageDetector)
     .init({
       fallbackLng: 'en',
-      debug: true, // Keep debug true for now, user can disable later
+      debug: false, // Keep debug true for now, user can disable later
       backend: {
         loadPath: path.join(__dirname, 'i18n/{{lng}}.json'),
       },

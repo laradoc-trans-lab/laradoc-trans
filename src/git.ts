@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import path from 'path';
 import { promisify } from 'util';
+import { _ } from './i18n';
 
 const execAsync = promisify(exec);
 
@@ -27,10 +28,10 @@ export async function isGitRepository(dirPath: string): Promise<boolean> {
 async function init(repoPath: string): Promise<void> {
   try {
     await git('git init', repoPath);
-    console.log(`Initialized empty Git repository in ${repoPath}`);
+    console.log(_('Initialized empty Git repository in {{path}}', { path: repoPath }));
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to initialize git repository in ${repoPath}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to initialize git repository in {{path}}: {{message}}', { path: repoPath, message: message }));
   }
 }
 
@@ -40,10 +41,10 @@ async function init(repoPath: string): Promise<void> {
 export async function checkoutOrCreateBranch(repoPath: string, branch: string): Promise<void> {
   try {
     await git(`git checkout -B ${branch}`, repoPath);
-    console.log(`Switched to branch '${branch}' in ${repoPath}`);
+    console.log(_('Switched to branch \'{{branch}}\' in {{path}}', { branch: branch, path: repoPath }));
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to checkout branch '${branch}' in ${repoPath}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to checkout branch \'{{branch}}\' in {{path}}: {{message}}', { branch: branch, path: repoPath, message: message }));
   }
 }
 
@@ -53,10 +54,10 @@ export async function checkoutOrCreateBranch(repoPath: string, branch: string): 
 export async function checkoutBranch(repoPath: string, branch: string): Promise<void> {
   try {
     await git(`git checkout ${branch}`, repoPath);
-    console.log(`Switched to branch '${branch}' in ${repoPath}`);
+    console.log(_('Switched to branch \'{{branch}}\' in {{path}}', { branch: branch, path: repoPath }));
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to checkout branch '${branch}' in ${repoPath}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to checkout branch \'{{branch}}\' in {{path}}: {{message}}', { branch: branch, path: repoPath, message: message }));
   }
 }
 
@@ -68,8 +69,8 @@ export async function getCurrentCommitHash(repoPath: string): Promise<string> {
     const { stdout } = await git('git rev-parse HEAD', repoPath);
     return stdout.trim();
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to get current commit hash in ${repoPath}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to get current commit hash in {{path}}: {{message}}', { path: repoPath, message: message }));
   }
 }
 
@@ -83,8 +84,8 @@ export async function listMarkdownFiles(repoPath: string): Promise<string[]> {
     const { stdout } = await git("git ls-files '*.md'", repoPath);
     return stdout.trim().split('\n').filter(Boolean);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to list markdown files in ${repoPath}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to list markdown files in {{path}}: {{message}}', { path: repoPath, message: message }));
   }
 }
 
@@ -100,8 +101,8 @@ export async function getDiffFiles(repoPath: string, oldHash: string, newHash: s
     const { stdout } = await git(`git diff --name-only ${oldHash} ${newHash}`, repoPath);
     return stdout.trim().split('\n').filter(line => line.endsWith('.md'));
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to get diff between ${oldHash} and ${newHash}: ${message}`);
+    const message = error instanceof Error ? error.message : _('Unknown error');
+    throw new Error(_('Failed to get diff between {{oldHash}} and {{newHash}}: {{message}}', { oldHash: oldHash, newHash: newHash, message: message }));
   }
 }
 
