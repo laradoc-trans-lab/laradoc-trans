@@ -29,6 +29,8 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
 
   const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
+  console.log(`  使用模型: ${geminiModel}`);
+
   return new Promise((resolve, reject) => {
     const gemini = spawn('gemini', ['-p', '-m', geminiModel], { stdio: 'pipe' });
 
