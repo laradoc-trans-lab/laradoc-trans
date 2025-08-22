@@ -2,8 +2,6 @@ import { Command } from 'commander';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
-import i18next from 'i18next';
-import i18nextFsBackend from 'i18next-fs-backend';
 import { initializeWorkspace, WorkspacePaths } from './fileUtils';
 import {
   checkoutBranch,
@@ -22,6 +20,7 @@ import {
   writeTmpSourceCommit,
 } from './progress';
 import { translateFile } from './translator';
+import { initI18n, _ } from './i18n';
 
 async function main() {
   const program = new Command();
@@ -48,23 +47,7 @@ async function main() {
   dotenv.config({ path: options.env });
 
   // 初始化 i18next
-  await i18next
-    .use(i18nextFsBackend)
-    .init({
-      lng: 'zh-TW', // 預設語言
-      fallbackLng: 'en',
-      debug: false,
-      backend: {
-        loadPath: path.join(__dirname, 'i18n/{{lng}}.json'),
-      },
-      interpolation: {
-        escapeValue: false, // 不轉義值，因為我們不使用 React 等框架
-      },
-      keySeparator: false, // 禁用鍵分割，允許鍵中包含點
-      nsSeparator: false, // 禁用命名空間分割
-    });
-
-  const _ = i18next.t; // 將 i18next.t 別名為 _
+  await initI18n();
 
   // --- 參數驗證與預設值設定 ---
   if (!options.branch) {
@@ -215,9 +198,9 @@ async function main() {
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.error(i18next.t('An unexpected error occurred: {{message}}', { message: error.message }));
+      console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
     } else {
-      console.error(i18next.t('An unexpected unknown error occurred.'));
+      console.error(_('An unexpected unknown error occurred.'));
     }
     process.exit(1);
   }
@@ -225,9 +208,9 @@ async function main() {
 
 main().catch((error) => {
   if (error instanceof Error) {
-    console.error(i18next.t('An unexpected error occurred: {{message}}', { message: error.message }));
+    console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
   } else {
-    console.error(i18next.t('An unexpected unknown error occurred.'));
+    console.error(_('An unexpected unknown error occurred.'));
   }
   process.exit(1);
 });
