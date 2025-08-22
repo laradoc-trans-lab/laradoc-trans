@@ -17,6 +17,7 @@ import {
   writeProgressFile,
   cleanTmpDirectory,
   writeSourceCommit,
+  writeTmpSourceCommit,
 } from './progress';
 import { translateFile } from './translator';
 
@@ -102,6 +103,8 @@ async function main() {
       await cleanTmpDirectory(paths.tmp);
       progress = new Map(files.map((file) => [file, 0]));
       await writeProgressFile(paths.tmp, progress);
+      await writeTmpSourceCommit(paths.tmp, newHash); // 寫入新的來源提交雜湊值到 tmp
+      console.log(`Initialized tmp/.source_commit with ${newHash}`);
     }
 
     // 過濾出待處理的檔案
@@ -172,10 +175,11 @@ Translating: ${file}...`);
       }
       console.log('Copied translated files to target repository.');
 
-      // 2. 寫入新的來源提交雜湊值
-      const newHash = await getCurrentCommitHash(paths.source);
-      await writeSourceCommit(paths.target, newHash);
-      console.log(`Updated .source_commit to ${newHash}`);
+      // 2. 複製 tmp/.source_commit 到 target
+      const tmpSourceCommitPath = path.join(paths.tmp, '.source_commit');
+      const targetSourceCommitPath = path.join(paths.target, '.source_commit');
+      await fs.copyFile(tmpSourceCommitPath, targetSourceCommitPath);
+      console.log(`Copied .source_commit from tmp to target.`);
 
       // 3. 刪除 .progress 檔案
       await fs.unlink(path.join(paths.tmp, '.progress'));
