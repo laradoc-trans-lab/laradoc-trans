@@ -45,6 +45,7 @@
   "Using model: {{model}}": "使用模型：{{model}}",
   "Receiving... {{bytes}} bytes": "接收中... {{bytes}} 位元組",
   "Translation failed: No markdown heading found in the output. Output: {{output}}": "翻譯失敗：輸出中未找到 markdown 標題。輸出：{{output}}",
+  "Translation failed: Success marker not found in the output. Output: {{output}}": "翻譯失敗：輸出中未找到成功標記。輸出：{{output}}",
   "Gemini CLI Error (stderr): {{message}}": "Gemini CLI 錯誤 (stderr)：{{message}}",
   "Gemini CLI exited with code {{code}}": "Gemini CLI 以代碼 {{code}} 退出",
   "Gemini CLI provided no output and no error code.": "Gemini CLI 未提供輸出且無錯誤代碼。",

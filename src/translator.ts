@@ -26,9 +26,10 @@ async function getBasePrompt(): Promise<string> {
  */
 export async function translateFile(sourceFilePath: string): Promise<string> {
   const prompt = await getBasePrompt();
-  const fullPrompt = `${prompt}\n\n請翻譯檔案：'${sourceFilePath}'`;
+  const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
+  const fullPrompt = `${prompt}\n\n---\n\n${fileContent}`;
 
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   console.log(_('Using model: {{model}}', { model: geminiModel }));
 
@@ -58,14 +59,24 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
       // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
       // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
       if (code === 0 && stdoutData) {
-        const firstHeadingIndex = stdoutData.indexOf('#');
-        if (firstHeadingIndex === -1) {
+        const successMarker = '<!-- GEMINI_TRANSLATION_SUCCESS -->';
+        const markerIndex = stdoutData.indexOf(successMarker);
+
+        if (markerIndex !== -1) {
+          const cleanedOutput = stdoutData
+            .substring(markerIndex + successMarker.length)
+            .trimStart();
+          return resolve(cleanedOutput);
+        } else {
           return reject(
-            new Error(_('Translation failed: No markdown heading found in the output. Output: {{output}}', { output: stdoutData }))
+            new Error(
+              _(
+                'Translation failed: Success marker not found in the output. Output: {{output}}',
+                { output: stdoutData }
+              )
+            )
           );
         }
-        const cleanedOutput = stdoutData.substring(firstHeadingIndex);
-        return resolve(cleanedOutput);
       }
 
       // 如果程式執行到這裡，表示發生了錯誤。
