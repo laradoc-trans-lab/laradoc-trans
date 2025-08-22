@@ -153,7 +153,7 @@ async function main() {
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : _('An unexpected unknown error occurred.');
         console.error(_('FAILED to translate {{file}}: {{message}}', { file: file, message: message }));
-        progress.set(file, 2); // 標記為失敗
+        // progress.set(file, 2); // 標記為失敗
         await writeProgressFile(paths.tmp, progress); // 結束前儲存進度
         // 將錯誤記錄到檔案中
         const logFilePath = path.join(paths.logs, 'error.log');
@@ -188,8 +188,9 @@ async function main() {
       await fs.copyFile(tmpSourceCommitPath, targetSourceCommitPath);
       console.log(_('Copied .source_commit from tmp to target.'));
 
-      // 3. 刪除 .progress 檔案
-      await fs.unlink(path.join(paths.tmp, '.progress'));
+      // 3. 清理 tmp 目錄
+      await cleanTmpDirectory(paths.tmp);
+      console.log(_('Temporary directory cleaned.'));
       console.log(_('Translation process completed successfully!'));
     } else {
       console.log(
