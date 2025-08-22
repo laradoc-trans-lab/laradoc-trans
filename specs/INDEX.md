@@ -69,6 +69,7 @@
 - GEMINI_MODEL : 使用 gemini cli 時指定的 model , 若沒有指定，則預設為 `gemini-2.5-flash`
 - GEMINI_API_KEY : 使用 gemini cli 時指定的 api key，此為必須的參數。
 - WORKSPACE_PATH : 工作區路徑，若沒指定則預設是專案根目錄的 `workspace`。
+- LANG / LC_ALL : 系統語系環境變數，用於自動偵測程式介面語言。若未設定或偵測失敗，預設為英文 (`en`)。
 
 ### 4.3 初始化
 
