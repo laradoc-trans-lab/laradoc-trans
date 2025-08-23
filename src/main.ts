@@ -23,7 +23,7 @@ import { translateFile } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence } from './toolChecker';
 
-async function main() {
+export async function main(argv: string[]) {
   const program = new Command();
 
   program
@@ -40,7 +40,7 @@ async function main() {
     .option('--all', 'Translate all remaining files.', false)
     .option('--env <path>', 'Path to the .env file.');
 
-  program.parse(process.argv);
+  program.parse(argv);
 
   const options = program.opts();
 
@@ -222,11 +222,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  if (error instanceof Error) {
-    console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
-  } else {
-    console.error(_('An unexpected unknown error occurred.'));
-  }
-  process.exit(1);
-});
+if (process.env.NODE_ENV !== 'test') {
+  main(process.argv).catch((error) => {
+    if (error instanceof Error) {
+      console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
+    } else {
+      console.error(_('An unexpected unknown error occurred.'));
+    }
+    process.exit(1);
+  });
+}
