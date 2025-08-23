@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# This is a fake gemini executable for testing purposes.
+# It can be controlled by the GEMINI_MOCK_BEHAVIOR environment variable.
+# GEMINI_MOCK_BEHAVIOR=success: returns a successful translation
+# GEMINI_MOCK_BEHAVIOR=error: returns an error
+
+if [ "$GEMINI_MOCK_BEHAVIOR" == "error" ]; then
+  echo "Gemini API error: Rate limit exceeded." >&2
+  exit 1
+elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
+  # Simulate a successful translation
+  # The actual content doesn't matter much for this test, just that it's not empty
+  echo "Translated content for: $@"
+  exit 0
+else
+  # Default to error if not specified, or for unexpected behavior
+  echo "Gemini mock behavior not specified or invalid." >&2
+  exit 1
+fi
