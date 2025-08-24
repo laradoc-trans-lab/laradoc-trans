@@ -10,8 +10,6 @@ print_data_collection_disabled() {
   echo "Data collection is disabled."
 }
 
-touch .gemini_mock_called
-echo "date: $(date)" > .gemini_mock_called
 
 if [ "$GEMINI_MOCK_BEHAVIOR" == "error" ]; then
   print_data_collection_disabled;
