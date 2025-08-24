@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { isGitRepository } from './git';
+import { isGitRepository, RepositoryNotFoundError } from './git';
 import { _ } from './i18n';
 
 export interface WorkspacePaths {
@@ -14,6 +14,7 @@ export interface WorkspacePaths {
 /**
  * 透過驗證來源儲存庫並建立必要的目錄來初始化工作區。
  * @returns 一個包含工作區目錄絕對路徑的物件。
+ * @throws {RepositoryNotFoundError} If the source directory is not a valid Git repository.
  */
 export async function initializeWorkspace(): Promise<WorkspacePaths> {
   const workspacePath = process.env.WORKSPACE_PATH || path.resolve(process.cwd(), 'workspace');
@@ -29,7 +30,8 @@ export async function initializeWorkspace(): Promise<WorkspacePaths> {
   // 1. 檢查來源目錄是否為有效的 Git 儲存庫。
   const sourceIsRepo = await isGitRepository(paths.source);
   if (!sourceIsRepo) {
-    throw new Error(_('Source directory not found or is not a valid Git repository: {{path}}', { path: paths.source }));
+    // We throw the specific error here for the main process to catch.
+    throw new RepositoryNotFoundError(paths.source);
   }
 
   // 2. 如果 tmp、logs 和 target 目錄不存在，則建立它們。

@@ -9,19 +9,21 @@ import {
   getCurrentCommitHash,
   getDiffFiles,
   listMarkdownFiles,
+  GitError,
+  RepositoryNotFoundError,
+  CheckoutFailedError,
 } from './git';
 import {
-  Progress,
   readProgressFile,
-  readSourceCommit,
   writeProgressFile,
   cleanTmpDirectory,
   writeSourceCommit,
+  readSourceCommit,
   writeTmpSourceCommit,
 } from './progress';
 import { translateFile } from './translator';
 import { initI18n, _ } from './i18n';
-import { checkToolExistence } from './toolChecker';
+import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 
 export async function main(argv: string[]) {
   const program = new Command();
@@ -55,14 +57,12 @@ export async function main(argv: string[]) {
     await Promise.all([
       checkToolExistence('gemini'),
       checkToolExistence('git'),
-    ]);
+    ])
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    } else {
-      console.error(_('An unexpected unknown error occurred.'));
+    if (error instanceof ToolNotFoundError) {
+      console.error(_('Error: Required tool \'{{toolName}}\' is not installed. Please install it and make sure it is in your PATH.', { toolName: error.toolName }));
     }
-    process.exit(1);
+    throw error;
   }
 
   // --- 參數驗證與預設值設定 ---
@@ -78,6 +78,21 @@ export async function main(argv: string[]) {
     translationCount = options.limit;
   }
 
+  // --- 初始化工作目錄 ---
+  let paths: WorkspacePaths;
+  try {
+    paths = await initializeWorkspace();
+    console.log(_('Workspace initialization successful.'));
+  } catch (error: unknown) {
+    if (error instanceof RepositoryNotFoundError) {
+      console.error(error.message);
+    } 
+    throw error;
+
+  }
+
+
+
   console.log(_('--- Translation Job Configuration ---'));
   console.log(_('Branch: {{branch}}', { branch: options.branch }));
   console.log(
@@ -88,147 +103,142 @@ export async function main(argv: string[]) {
   console.log(_('Using .env path: {{path}}', { path: options.env || './.env' }));
   console.log(_('------------------------------------'));
 
-  try {
-    const paths = await initializeWorkspace();
-    console.log(_('Workspace initialization successful.'));
 
-    // --- Git 分支同步 ---
+  // --- Git 分支同步 ---
+  try{
     await checkoutBranch(paths.source, options.branch);
-    await initializeTargetRepo(paths.target, options.branch);
-    console.log(_('Git repositories synchronized to the correct branch.'));
-
-    // --- 決定要翻譯的檔案 ---
-    let progress = await readProgressFile(paths.tmp);
-
-    if (progress) {
-      console.log(_('Resuming previous translation session.'));
-    } else {
-      console.log(
-        _('No existing progress file. Determining files to translate...')
-      );
-      const newHash = await getCurrentCommitHash(paths.source);
-      const oldHash = await readSourceCommit(paths.target);
-
-      if (oldHash === newHash) {
-        console.log(_('Target repository is already up to date.'));
-        process.exit(0);
-      }
-
-      const files = oldHash
-        ? await getDiffFiles(paths.source, oldHash, newHash)
-        : await listMarkdownFiles(paths.source);
-
-      if (files.length === 0) {
-        console.log(_('No markdown files have changed.'));
-        process.exit(0);
-      }
-
-      console.log(_('Found {{count}} files to translate.', { count: files.length }));
-      await cleanTmpDirectory(paths.tmp);
-      progress = new Map(files.map((file) => [file, 0]));
-      await writeProgressFile(paths.tmp, progress);
-      await writeTmpSourceCommit(paths.tmp, newHash); // 寫入新的來源提交雜湊值到 tmp
-      console.log(_('Initialized tmp/.source_commit with {{hash}}', { hash: newHash }));
+  } catch (error: unknown) {
+    if(error instanceof CheckoutFailedError) {
+      console.error(_('Error: Failed to checkout branch \'{{branch}}\': {{message}}', { branch: options.branch, message: error.message }));
     }
+    throw error;
+  }
+  
+  await initializeTargetRepo(paths.target, options.branch);
+  console.log(_('Git repositories synchronized to the correct branch.'));
 
-    // 過濾出待處理的檔案
-    const filesToTranslate = Array.from(progress.entries())
-      .filter(([, status]) => status === 0)
-      .map(([file]) => file);
 
-    if (filesToTranslate.length === 0) {
-      console.log(_('All translations are complete.'));
-      // TODO: 實作完成邏輯（複製檔案、更新提交雜湊值）
+  // --- 決定要翻譯的檔案 ---
+  let progress = await readProgressFile(paths.tmp);
+
+  if (progress) {
+    console.log(_('Resuming previous translation session.'));
+  } else {
+    console.log(
+      _('No existing progress file. Determining files to translate...')
+    );
+    const newHash = await getCurrentCommitHash(paths.source);
+    const oldHash = await readSourceCommit(paths.target);
+
+    if (oldHash === newHash) {
+      console.log(_('Target repository is already up to date.'));
       process.exit(0);
     }
 
-    // 套用數量限制
-    const limitedFiles =
-      translationCount === 'all'
-        ? filesToTranslate
-        : filesToTranslate.slice(0, translationCount);
+    const files = oldHash
+      ? await getDiffFiles(paths.source, oldHash, newHash)
+      : await listMarkdownFiles(paths.source);
 
-    console.log(_('--- Translation Plan ---'));
-    console.log(_('{{count}} file(s) will be translated in this run:', { count: limitedFiles.length }));
-    limitedFiles.forEach((file) => console.log(_('- {{file}}', { file: file })));
-    console.log(_('------------------------------------'));
+    if (files.length === 0) {
+      console.log(_('No markdown files have changed.'));
+      process.exit(0);
+    }
 
-    // --- 翻譯循環 ---
-    for (const file of limitedFiles) {
-      const sourcePath = path.join(paths.source, file);
-      const targetPath = path.join(paths.tmp, file);
+    console.log(_('Found {{count}} files to translate.', { count: files.length }));
+    await cleanTmpDirectory(paths.tmp);
+    progress = new Map(files.map((file) => [file, 0]));
+    await writeProgressFile(paths.tmp, progress);
+    await writeTmpSourceCommit(paths.tmp, newHash);
+    console.log(_('Initialized tmp/.source_commit with {{hash}}', { hash: newHash }));
+  }
 
-      try {
-        console.log(_('\nTranslating: {{file}}...', { file: file }));
-        const translatedContent = await translateFile(sourcePath);
-        await fs.mkdir(path.dirname(targetPath), { recursive: true });
-        await fs.writeFile(targetPath, translatedContent);
+  // 過濾出待處理的檔案
+  const filesToTranslate = Array.from(progress.entries())
+    .filter(([, status]) => status === 0)
+    .map(([file]) => file);
 
-        progress.set(file, 1); // 標記為完成
-        console.log(_('SUCCESS: {{file}}', { file: file }));
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : _('An unexpected unknown error occurred.');
-        console.error(_('FAILED to translate {{file}}: {{message}}', { file: file, message: message }));
-        // progress.set(file, 2); // 標記為失敗
-        await writeProgressFile(paths.tmp, progress); // 結束前儲存進度
-        // 將錯誤記錄到檔案中
-        const logFilePath = path.join(paths.logs, 'error.log');
-        const logMessage = `[${new Date().toISOString()}] ${_('FAILED to translate {{file}}: {{message}}', { file: file, message: message })}\n\n`;
-        await fs.appendFile(logFilePath, logMessage);
-        console.error(_('Error details logged to {{path}}', { path: logFilePath }));
-        process.exit(1); // 第一次失敗時退出
-      }
+  if (filesToTranslate.length === 0) {
+    console.log(_('All translations are complete.'));
+    process.exit(0);
+  }
 
-      // 每處理完一個檔案就儲存進度
+  // 套用數量限制
+  const limitedFiles =
+    translationCount === 'all'
+      ? filesToTranslate
+      : filesToTranslate.slice(0, translationCount);
+
+  console.log(_('--- Translation Plan ---'));
+  console.log(_('{{count}} file(s) will be translated in this run:', { count: limitedFiles.length }));
+  limitedFiles.forEach((file) => console.log(_('- {{file}}', { file: file })));
+  console.log(_('------------------------------------'));
+
+  // --- 翻譯循環 ---
+  for (const file of limitedFiles) {
+    const sourcePath = path.join(paths.source, file);
+    const targetPath = path.join(paths.tmp, file);
+
+    try {
+      console.log(_('\nTranslating: {{file}}...', { file: file }));
+      const translatedContent = await translateFile(sourcePath);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, translatedContent);
+
+      progress.set(file, 1); // 標記為完成
+      console.log(_('SUCCESS: {{file}}', { file: file }));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : _('An unexpected unknown error occurred.');
+      console.error(_('FAILED to translate {{file}}: {{message}}', { file: file, message: message }));
       await writeProgressFile(paths.tmp, progress);
+      const logFilePath = path.join(paths.logs, 'error.log');
+      const logMessage = `[${new Date().toISOString()}] ${_('FAILED to translate {{file}}: {{message}}', { file: file, message: message })}\n\n`;
+      await fs.appendFile(logFilePath, logMessage);
+      console.error(_('Error details logged to {{path}}', { path: logFilePath }));
+      process.exit(1);
     }
 
-    // --- 完成階段 ---
-    const allFiles = Array.from(progress.keys());
-    const completedFiles = allFiles.filter((file) => progress.get(file) === 1);
+    await writeProgressFile(paths.tmp, progress);
+  }
 
-    if (completedFiles.length === allFiles.length) {
-      console.log(_('\nAll translations complete. Finalizing...'));
-      // 1. 從 tmp 複製檔案到 target
-      for (const file of completedFiles) {
-        const source = path.join(paths.tmp, file);
-        const destination = path.join(paths.target, file);
-        await fs.mkdir(path.dirname(destination), { recursive: true });
-        await fs.copyFile(source, destination);
-      }
-      console.log(_('Copied translated files to target repository.'));
+  // --- 完成階段 ---
+  const allFiles = Array.from(progress.keys());
+  const completedFiles = allFiles.filter((file) => progress.get(file) === 1);
 
-      // 2. 複製 tmp/.source_commit 到 target
-      const tmpSourceCommitPath = path.join(paths.tmp, '.source_commit');
-      const targetSourceCommitPath = path.join(paths.target, '.source_commit');
-      await fs.copyFile(tmpSourceCommitPath, targetSourceCommitPath);
-      console.log(_('Copied .source_commit from tmp to target.'));
-
-      // 3. 清理 tmp 目錄
-      await cleanTmpDirectory(paths.tmp);
-      console.log(_('Translation process completed successfully!'));
-    } else {
-      console.log(
-        _('\nTranslation run finished. Not all files are complete. Run again to continue.')
-      );
+  if (completedFiles.length === allFiles.length) {
+    console.log(_('\nAll translations complete. Finalizing...'));
+    for (const file of completedFiles) {
+      const source = path.join(paths.tmp, file);
+      const destination = path.join(paths.target, file);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.copyFile(source, destination);
     }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
-    } else {
-      console.error(_('An unexpected unknown error occurred.'));
-    }
-    process.exit(1);
+    console.log(_('Copied translated files to target repository.'));
+
+    const tmpSourceCommitPath = path.join(paths.tmp, '.source_commit');
+    const targetSourceCommitPath = path.join(paths.target, '.source_commit');
+    await fs.copyFile(tmpSourceCommitPath, targetSourceCommitPath);
+    console.log(_('Copied .source_commit from tmp to target.'));
+
+    await cleanTmpDirectory(paths.tmp);
+    console.log(_('Translation process completed successfully!'));
+  } else {
+    console.log(
+      _('\nTranslation run finished. Not all files are complete. Run again to continue.')
+    );
   }
 }
 
-if (process.env.NODE_ENV !== 'test') {
+
+export function debug(message?: any, ...optionalParams: any[]) {
+  if (process.env.DEBUG || process.env.NODE_ENV === 'test') {
+    console.debug(message);
+  }
+}
+
+if(require.main === module) {
   main(process.argv).catch((error) => {
-    if (error instanceof Error) {
-      console.error(_('An unexpected error occurred: {{message}}', { message: error.message }));
-    } else {
-      console.error(_('An unexpected unknown error occurred.'));
-    }
-    process.exit(1);
+      debug(error);
+      process.exit(1);
   });
 }
+
