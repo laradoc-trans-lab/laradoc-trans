@@ -21,7 +21,7 @@ import {
   readSourceCommit,
   writeTmpSourceCommit,
 } from './progress';
-import { translateFile } from './translator';
+import { translateFile, TranslationError, GeminiCliError } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 
@@ -187,14 +187,26 @@ export async function main(argv: string[]) {
       progress.set(file, 1); // 標記為完成
       console.log(_('SUCCESS: {{file}}', { file: file }));
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : _('An unexpected unknown error occurred.');
-      console.error(_('FAILED to translate {{file}}: {{message}}', { file: file, message: message }));
+      let errorMessage: string;
+      if (error instanceof TranslationError) {
+        errorMessage = _('Translation failed: {{errorName}} - {{message}}', { errorName: error.name, message: error.message });
+        // Optionally, add more details for specific error types if needed
+        if (error instanceof GeminiCliError && error.stderr) {
+          errorMessage += _('\nCLI Stderr: {{stderr}}', { stderr: error.stderr });
+        }
+      } else if (error instanceof Error) {
+        errorMessage = _('An unexpected error occurred: {{message}}', { message: error.message });
+      } else {
+        errorMessage = _('An unknown error occurred.');
+      }
+
+      console.error(_('FAILED to translate {{file}}: {{message}}', { file: file, message: errorMessage }));
       await writeProgressFile(paths.tmp, progress);
       const logFilePath = path.join(paths.logs, 'error.log');
-      const logMessage = `[${new Date().toISOString()}] ${_('FAILED to translate {{file}}: {{message}}', { file: file, message: message })}\n\n`;
+      const logMessage = `[${new Date().toISOString()}] ${_('FAILED to translate {{file}}: {{message}}', { file: file, message: errorMessage })}\n\n`;
       await fs.appendFile(logFilePath, logMessage);
       console.error(_('Error details logged to {{path}}', { path: logFilePath }));
-      process.exit(1);
+      throw error;
     }
 
     await writeProgressFile(paths.tmp, progress);

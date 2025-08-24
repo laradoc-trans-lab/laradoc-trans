@@ -3,6 +3,57 @@ import fs from 'fs/promises';
 import path from 'path';
 import { _ } from './i18n';
 
+// Custom Error Classes
+export class TranslationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TranslationError';
+  }
+}
+
+export class PromptFileReadError extends TranslationError {
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'PromptFileReadError';
+    if (originalError) {
+      this.stack = originalError.stack; // Preserve original stack trace
+    }
+  }
+}
+
+export class GeminiCliError extends TranslationError {
+  constructor(message: string, public code?: number | null, public stderr?: string) {
+    super(message);
+    this.name = 'GeminiCliError';
+  }
+}
+
+export class TranslationMarkerNotFoundError extends GeminiCliError {
+  constructor(message: string, public output: string) {
+    super(message);
+    this.name = 'TranslationMarkerNotFoundError';
+  }
+}
+
+export class GeminiCliNoOutputError extends GeminiCliError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeminiCliNoOutputError';
+  }
+}
+
+export class GeminiCliStartError extends GeminiCliError {
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'GeminiCliStartError';
+    if (originalError) {
+      this.stack = originalError.stack; // Preserve original stack trace
+    } else {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+}
+
 let basePrompt: string | null = null;
 
 async function getBasePrompt(): Promise<string> {
@@ -13,9 +64,9 @@ async function getBasePrompt(): Promise<string> {
     const promptPath = path.resolve(process.cwd(), 'TRANSLATE_PROMPT.md');
     basePrompt = await fs.readFile(promptPath, 'utf-8');
     return basePrompt;
-  } catch (error) {
+  } catch (error: any) {
     console.error(_('Fatal: Could not read TRANSLATE_PROMPT.md file.'));
-    throw error;
+    throw new PromptFileReadError(_('Failed to read TRANSLATE_PROMPT.md: {{message}}', { message: error.message }), error);
   }
 }
 
@@ -78,11 +129,12 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
           return resolve(cleanedOutput);
         } else {
           return reject(
-            new Error(
-              _(
+            new TranslationMarkerNotFoundError(
+              _( 
                 'Translation failed: Success marker not found in the output. Output: {{output}}',
                 { output: stdoutData }
-              )
+              ),
+              stdoutData
             )
           );
         }
@@ -90,16 +142,16 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
 
       // 如果程式執行到這裡，表示發生了錯誤。
       if (stderrData) {
-        return reject(new Error(_('Gemini CLI Error (stderr): {{message}}', { message: stderrData.trim() })));
+        return reject(new GeminiCliError(_('Gemini CLI Error (stderr): {{message}}', { message: stderrData.trim() }), code, stderrData));
       }
       if (code !== 0) {
-        return reject(new Error(_('Gemini CLI exited with code {{code}}', { code: code })));
+        return reject(new GeminiCliError(_('Gemini CLI exited with code {{code}}', { code: code }), code));
       }
-      return reject(new Error(_('Gemini CLI provided no output and no error code.')));
+      return reject(new GeminiCliNoOutputError(_('Gemini CLI provided no output and no error code.')));
     });
 
     gemini.on('error', (err) => {
-      reject(new Error(_('Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?', { message: err.message })));
+      reject(new GeminiCliStartError(_('Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?', { message: err.message }), err));
     });
 
     gemini.stdin.write(fullPrompt);
