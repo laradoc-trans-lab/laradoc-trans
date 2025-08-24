@@ -11,7 +11,9 @@ if [ "$GEMINI_MOCK_BEHAVIOR" == "error" ]; then
 elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
   # Simulate a successful translation
   # The actual content doesn't matter much for this test, just that it's not empty
-  echo "Translated content for: $@"
+  echo "<!-- GEMINI_TRANSLATION_SUCCESS -->"
+  echo "Translated content for file."
+  # We don't have the filename here as it's passed via stdin
   exit 0
 else
   # Default to error if not specified, or for unexpected behavior
