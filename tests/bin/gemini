@@ -1,21 +1,37 @@
 #!/bin/bash
-
+# 這隻程式是假的 gemini 可執行檔，目的是用於測試案例返回預期的結果。
 # This is a fake gemini executable for testing purposes.
 # It can be controlled by the GEMINI_MOCK_BEHAVIOR environment variable.
 # GEMINI_MOCK_BEHAVIOR=success: returns a successful translation
 # GEMINI_MOCK_BEHAVIOR=error: returns an error
 
+print_data_collection_disabled() {
+  # 模擬 gemini 預設會輸出一些訊息而非翻譯內容
+  echo "Data collection is disabled."
+}
+
+touch .gemini_mock_called
+echo "date: $(date)" > .gemini_mock_called
+
 if [ "$GEMINI_MOCK_BEHAVIOR" == "error" ]; then
+  print_data_collection_disabled;
+  # 模擬 gemini token 超出用量的錯誤訊息
   echo "Gemini API error: Rate limit exceeded." >&2
+  echo "{ \"message\": \"Rate limit exceeded.\", \"status\": 429 }" >&2
+  # Gemini 如果超出用量，並不會馬上結束
+  sleep 0.1
   exit 1
 elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
-  # Simulate a successful translation
-  # The actual content doesn't matter much for this test, just that it's not empty
+  # 模擬成功翻譯內容
+  print_data_collection_disabled;
+  # 模擬 gemini 成功翻譯的內容
   echo "<!-- GEMINI_TRANSLATION_SUCCESS -->"
-  echo "Translated content for file."
-  # We don't have the filename here as it's passed via stdin
+  echo "# 翻譯測試標題"
+  echo "這是一個翻譯測試的內容。"
+  echo "目前的時間是 $(date)."
   exit 0
 else
+  print_data_collection_disabled;
   # Default to error if not specified, or for unexpected behavior
   echo "Gemini mock behavior not specified or invalid." >&2
   exit 1
