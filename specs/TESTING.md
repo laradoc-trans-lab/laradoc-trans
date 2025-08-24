@@ -4,21 +4,18 @@
 
 `INDEX.md` 有詳細的運作說明，撰寫測試案例必須先熟知本專案怎麼運作的。
 
-為了模擬實際的運作，會直接以 `src/main.ts` 中的 `main()` 來執行以捕獲各項輸出，請勿以子程序執行本專案。
+為了模擬實際的運作，會直接以 `src/main.ts` 中的 `main()` 來執行以捕獲各項輸出，請勿以子程序執行測試。
 
 測試案例以 `jest`  開發，執行測試時可使用 `npx jest`。
 
+## 前置作業 (測試環境設定)
 
-## 前置作業
+本節描述了情境測試所需的預先設定環境。這些設定應在測試套件執行前完成，並為所有測試案例提供一致且受控的測試基礎。
 
-為了進行情境測試，需要預先準備以下環境：
-
-1.  **假的 `workspace` 工作區，或稱為 `workspace 模板`**
-    *   建立一個模擬的 `workspace` 目錄結構。
-    *   在 `workspace/repo/source` 內初始化一個 Git 倉庫。
-    *   在 `workspace/repo/source` 內建立 `test1.md` 到 `test10.md` 等假的待翻譯 Markdown 檔案。
-    *   不需要建立 `workspace/repo/target`、`workspace/tmp` 和 `workspace/logs` 。
-    *   這個假的工作區為永遠存在，可視為模板(Template)，當要進行測試前，會先複製到暫存工作目錄用於測試用。
+1.  **假的 `workspace` 工作區模板**
+    *   建立一個模擬的 `workspace` 目錄結構，作為測試時複製的基礎模板。
+    *   **此模板中的 `workspace/repo/source` 必須是一個已初始化且包含必要檔案（例如 `test1.md` 到 `test10.md`）的合法 Git 倉庫。** 這確保了測試開始時，來源倉庫已處於預期狀態。
+    *   模板中不需要包含 `workspace/repo/target`、`workspace/tmp` 和 `workspace/logs`，這些目錄將在測試執行時由程式動態建立。
 
 2.  **假的 `gemini` 命令程式**
     *   由於本專案會與外部命令 `gemini` 進行互動，為了確保測試結果的可控性，我們需要一個假的 `gemini` 命令程式。
@@ -88,4 +85,3 @@
     *   所有翻譯後的內容應被寫入 `workspace/tmp` 目錄下的對應檔案。
     *   所有檔案在 `workspace/tmp/.progress` 中的翻譯狀態都應被標記為已完成。
     *   翻譯完成後，程式應執行收尾工作：將 `workspace/tmp` 中的翻譯結果和 `.source_commit` 複製到 `workspace/repo/target`，並清空 `workspace/tmp`。
-
