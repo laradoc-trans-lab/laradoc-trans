@@ -248,7 +248,7 @@ export function debug(message?: any, ...optionalParams: any[]) {
   }
 }
 
-if(require.main === module) {
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
   main(process.argv).catch((error) => {
       debug(error);
       process.exit(1);
