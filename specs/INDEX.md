@@ -117,3 +117,24 @@
 ### 4.6 Gemini CLI 翻譯方式與注意事項
 
 請參考 `GEMINI_CLI_TIPS.md`。
+
+## 撰寫 `退出程式` 時注意原則
+
+請勿任意調用 `process.exit` , 盡可能的拋出 `自訂 Error`。
+
+因 `main.ts` 最後面有一段程式碼如下:
+
+```typescript
+  main(process.argv).catch((error) => {
+      debug(error);
+      process.exit(1);
+  });
+```
+
+`main().catch()` 本身就會捕獲例外錯誤，並且退出，這麼做的原因是為了 `jest` 也能夠捕獲 `自訂 Error`，而非依靠比對字串來測試。
+
+以下片段若用於 `jest`，就能執行 `main()` 模擬 CLI 運作，並且也可以捕獲到 `自訂 Error`。
+
+```typescript
+await expect(main(argv)).rejects.toThrow(RepositoryNotFoundError);
+```
