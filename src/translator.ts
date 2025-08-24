@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn, SpawnOptionsWithoutStdio } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { _ } from './i18n';
@@ -71,6 +71,21 @@ async function getBasePrompt(): Promise<string> {
 }
 
 /**
+ * 這是一個包裝 spawn 的函式，主要目的是為了方便在測試時替換 spawn 行為。
+ * @param command
+ * @param args 
+ * @param options 
+ * @returns 
+ */
+export function spawnWrapper (
+  command: string,
+  args?: readonly string[],
+  options?: SpawnOptionsWithoutStdio,
+): ChildProcessWithoutNullStreams {
+  return spawn(command, args, options);
+}
+
+/**
  * 使用 Gemini CLI 翻譯單一 markdown 檔案。
  * @param sourceFilePath 要翻譯的來源 markdown 檔案的絕對路徑。
  * @returns 清理過的、已翻譯的 markdown 內容。
@@ -85,7 +100,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
   console.log(_('Using model: {{model}}', { model: geminiModel }));
 
   return new Promise((resolve, reject) => {
-    const gemini = spawn('gemini', ['-p', '-m', geminiModel], { stdio: 'pipe' });
+    const gemini = spawnWrapper('gemini', ['-p', '-m', geminiModel], { stdio: 'pipe' });
 
     let stdoutData = '';
     let stderrData = '';
@@ -130,7 +145,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
         } else {
           return reject(
             new TranslationMarkerNotFoundError(
-              _( 
+              _(
                 'Translation failed: Success marker not found in the output. Output: {{output}}',
                 { output: stdoutData }
               ),
