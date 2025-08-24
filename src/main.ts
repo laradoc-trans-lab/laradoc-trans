@@ -52,6 +52,12 @@ export async function main(argv: string[]) {
   // 初始化 i18n
   await initI18n();
 
+  // --- 參數驗證與預設值設定 ---
+  if (!options.branch) {
+    console.error(_('Error: --branch is a required argument.'));
+    throw new Error('Missing required argument: --branch');
+  }
+
   // 檢查外部工具是否存在
   try {
     await Promise.all([
@@ -65,11 +71,6 @@ export async function main(argv: string[]) {
     throw error;
   }
 
-  // --- 參數驗證與預設值設定 ---
-  if (!options.branch) {
-    console.error(_('Error: --branch is a required argument.'));
-    process.exit(1);
-  }
 
   let translationCount: number | 'all' = 1; // 預設翻譯 1 個檔案
   if (options.all) {
