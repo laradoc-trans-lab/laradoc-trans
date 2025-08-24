@@ -61,7 +61,7 @@ async function getBasePrompt(): Promise<string> {
     return basePrompt;
   }
   try {
-    const promptPath = path.resolve(process.cwd(), 'TRANSLATE_PROMPT.md');
+    const promptPath = path.resolve(__dirname, '..', 'TRANSLATE_PROMPT.md');
     basePrompt = await fs.readFile(promptPath, 'utf-8');
     return basePrompt;
   } catch (error: any) {
