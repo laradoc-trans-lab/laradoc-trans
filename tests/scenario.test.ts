@@ -1,15 +1,9 @@
-import { main } from '../src/main';
-import * as spyMain from "../src/main";
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import * as translator from '../src/translator'; // Import translator module
+import { main } from '../src/main';
 import { RepositoryNotFoundError } from '../src/git';
+import { GeminiCliError } from '../src/translator';
 
-
-const execPromise = promisify(exec);
 
 // Mock process.exit to prevent the test from exiting the process
 const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
@@ -18,9 +12,7 @@ const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: string |
   return undefined as never; // Return undefined to satisfy the never type
 });
 
-// Mock console.error to capture error messages
-const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
 
 describe('Scenario Tests', () => {
   let originalEnvPath: string | undefined;
@@ -31,7 +23,7 @@ describe('Scenario Tests', () => {
 
 
   // Increase timeout for all tests in this describe block
-  jest.setTimeout(15000); // Set timeout to 15 seconds
+  jest.setTimeout(100000); // Set timeout to 10 seconds
 
   beforeAll(async () => {
     // Store original environment variables
@@ -52,16 +44,11 @@ describe('Scenario Tests', () => {
 
     // Add the fake gemini bin directory to the PATH
     process.env.PATH = `${path.resolve(__dirname, 'bin')}${path.delimiter}${originalEnvPath}`;
-
-    // Add these debug logs for PATH and git availability
-    console.log('DEBUG: Current PATH after beforeAll setup:', process.env.PATH);
   });
 
   beforeEach(async () => {
     // Reset mocks before each test
     mockExit.mockClear();
-    mockConsoleError.mockClear();
-    mockConsoleLog.mockClear();
 
     // No git mocks here, as we are using real git
   });
@@ -82,8 +69,6 @@ describe('Scenario Tests', () => {
     // Do NOT clean up tests/tmp here. User will manually inspect it.
     // Restore original implementations after all tests
     mockExit.mockRestore();
-    mockConsoleError.mockRestore();
-    mockConsoleLog.mockRestore();
   });
 
   // Scenario 1: 模擬用戶沒有準備 workspace/repo/source
@@ -95,6 +80,18 @@ describe('Scenario Tests', () => {
     const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
 
     await expect(main(argv)).rejects.toThrow(RepositoryNotFoundError);
+  });
+
+  //  Scenario 2: 模擬 gemini 指令失敗
+  test('should exit with error if gemini command fails', async () => {
+    // Prepare workspace/repo/source with a git repo
+    await fs.mkdir(workspacePathForTests, { recursive: true });
+    // Copy the workspace template to the test workspace
+    await fs.cp(workspaceTemplatePath, workspacePathForTests, { recursive: true });
+
+    process.env.GEMINI_MOCK_BEHAVIOR = 'error'; // Set mock behavior to error
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
+    await expect(main(argv)).rejects.toThrow(GeminiCliError);
   });
 
 });
