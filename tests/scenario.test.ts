@@ -92,7 +92,7 @@ describe('Scenario Tests', () => {
     await fs.rm(workspacePathForTests, { recursive: true, force: true }).catch(() => {});
     await fs.mkdir(workspacePathForTests, { recursive: true });
 
-    const argv = ['node', 'dist/main.js', '--branch', 'test-branch', '--env', '../tests/.env.test'];
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
 
     await expect(main(argv)).rejects.toThrow(RepositoryNotFoundError);
   });
