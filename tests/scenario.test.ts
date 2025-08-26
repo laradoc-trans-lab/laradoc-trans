@@ -90,6 +90,11 @@ describe('Scenario Tests', () => {
     // Copy the workspace template to the test workspace
     await fs.cp(workspaceTemplatePath, workspacePathForTests, { recursive: true });
 
+    // 將 .git-dist 更名為 .git，才能變成一個正確的 git repo
+    const gitDistPath = path.join(workspacePathForTests, 'repo', 'source', '.git-dist');
+    const gitPath = path.join(workspacePathForTests, 'repo', 'source', '.git');
+    await fs.rename(gitDistPath, gitPath);
+
     process.env.GEMINI_MOCK_BEHAVIOR = 'error'; // Set mock behavior to error
     const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
     await expect(main(argv)).rejects.toThrow(GeminiCliError);
