@@ -54,19 +54,23 @@ export class GeminiCliStartError extends GeminiCliError {
   }
 }
 
-let basePrompt: string | null = null;
+const promptCache = new Map<string, string>();
 
-async function getBasePrompt(): Promise<string> {
-  if (basePrompt) {
-    return basePrompt;
+async function getBasePrompt(promptFilePath?: string): Promise<string> {
+  const defaultPromptPath = path.resolve(__dirname, '..', 'TRANSLATE_PROMPT.md');
+  const finalPromptPath = promptFilePath ? path.resolve(promptFilePath) : defaultPromptPath;
+
+  if (promptCache.has(finalPromptPath)) {
+    return promptCache.get(finalPromptPath)!;
   }
+
   try {
-    const promptPath = path.resolve(__dirname, '..', 'TRANSLATE_PROMPT.md');
-    basePrompt = await fs.readFile(promptPath, 'utf-8');
-    return basePrompt;
+    const prompt = await fs.readFile(finalPromptPath, 'utf-8');
+    promptCache.set(finalPromptPath, prompt);
+    return prompt;
   } catch (error: any) {
-    console.error(_('Fatal: Could not read TRANSLATE_PROMPT.md file.'));
-    throw new PromptFileReadError(_('Failed to read TRANSLATE_PROMPT.md: {{message}}', { message: error.message }), error);
+    const errorMessage = _('Failed to read prompt file: {{path}}', { path: finalPromptPath });
+    throw new PromptFileReadError(`${errorMessage}: ${error.message}`, error);
   }
 }
 
@@ -96,10 +100,11 @@ export function spawnWrapper (
 /**
  * 使用 Gemini CLI 翻譯單一 markdown 檔案。
  * @param sourceFilePath 要翻譯的來源 markdown 檔案的絕對路徑。
+ * @param promptFilePath 可選的，指定一個檔案作為翻譯的提示詞。
  * @returns 清理過的、已翻譯的 markdown 內容。
  */
-export async function translateFile(sourceFilePath: string): Promise<string> {
-  const prompt = await getBasePrompt();
+export async function translateFile(sourceFilePath: string, promptFilePath?: string): Promise<string> {
+  const prompt = await getBasePrompt(promptFilePath);
   const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
   const fullPrompt = `${prompt}\n\n---\n\n${fileContent}`;
 
@@ -153,7 +158,7 @@ export async function translateFile(sourceFilePath: string): Promise<string> {
         } else {
           return reject(
             new TranslationMarkerNotFoundError(
-              _(
+              _( 
                 'Translation failed: Success marker not found in the output. Output: {{output}}',
                 { output: stdoutData }
               ),

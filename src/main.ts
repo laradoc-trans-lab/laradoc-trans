@@ -40,7 +40,8 @@ export async function main(argv: string[]) {
       (value) => parseInt(value, 10)
     )
     .option('--all', 'Translate all remaining files.', false)
-    .option('--env <path>', 'Path to the .env file.');
+    .option('--env <path>', 'Path to the .env file.')
+    .option('--prompt-file <path>', 'Path to the prompt file.');
 
   program.parse(argv);
 
@@ -181,7 +182,7 @@ export async function main(argv: string[]) {
 
     try {
       console.log(_('\nTranslating: {{file}}...', { file: file }));
-      const translatedContent = await translateFile(sourcePath);
+      const translatedContent = await translateFile(sourcePath, options.promptFile);
       await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, translatedContent);
 
