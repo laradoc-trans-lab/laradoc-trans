@@ -104,25 +104,32 @@ describe('Scenario Tests', () => {
   test('should translate a single file successfully when gemini command succeeds', async () => {
     // 設定模擬 gemini 的行為
     process.env.GEMINI_MOCK_BEHAVIOR = 'success';
+
+    // 動態找出第一個要翻譯的檔案
+    const progressBefore = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    if (!progressBefore) {
+      throw new Error('Progress file should exist for this test');
+    }
+    const firstUntranslatedFile = Array.from(progressBefore.entries())
+      .find(([, status]) => status === 0)?.[0];
+    if (!firstUntranslatedFile) {
+      throw new Error('Could not find an untranslated file to test');
+    }
+
     const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
 
     // 執行 main
     await main(argv);
 
     // 檢查進度檔案
-    const progress = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
-    expect(progress?.get('test1.md')).toBe(1);
+    const progressAfter = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    expect(progressAfter?.get(firstUntranslatedFile)).toBe(1);
 
     // 檢查翻譯後的檔案是否存在於 tmp
-    const translatedFilePath = path.join(workspacePathForTests, 'tmp', 'test1.md');
-    const translatedContent = await fs.readFile(translatedFilePath, 'utf-8');
+    await assertTranslatedFileContent(firstUntranslatedFile, path.join(workspacePathForTests, 'tmp'));
 
-    // 檢查翻譯後的內容
-    expect(translatedContent).toContain('# 翻譯測試標題');
-    expect(translatedContent).toContain('這是一個翻譯測試的內容。');
-
-    // 檢查 target 目錄不應該存在 'test1.md'
-    const targetFilePath = path.join(workspacePathForTests, 'repo', 'target', 'test1.md');
+    // 檢查 target 目錄不應該存在該檔案
+    const targetFilePath = path.join(workspacePathForTests, 'repo', 'target', firstUntranslatedFile);
     await expect(fs.access(targetFilePath)).rejects.toThrow();
   });
 
@@ -158,8 +165,9 @@ describe('Scenario Tests', () => {
     expect(finalProgress.get(untranslatedFiles[1])).toBe(1);
 
     // 檢查翻譯後的檔案內容
-    await assertTranslatedFileContent(untranslatedFiles[0], workspacePathForTests);
-    await assertTranslatedFileContent(untranslatedFiles[1], workspacePathForTests);
+    const tmpPath = path.join(workspacePathForTests, 'tmp');
+    await assertTranslatedFileContent(untranslatedFiles[0], tmpPath);
+    await assertTranslatedFileContent(untranslatedFiles[1], tmpPath);
   });
 
   // Scenario 5: 模擬翻譯所有檔案，但 gemini 返回正確的翻譯內容
@@ -179,28 +187,38 @@ describe('Scenario Tests', () => {
     await main(argv);
 
     // 檢查所有檔案是否都已翻譯並移動到 target
-    const targetRepoPath = path.join(workspacePathForTests, 'repo', 'target');
+    const targetPath = path.join(workspacePathForTests, 'repo', 'target');
     for (const filename of allFiles) {
-      const targetFilePath = path.join(targetRepoPath, filename);
-      const fileExists = await fs.access(targetFilePath).then(() => true).catch(() => false);
-      expect(fileExists).toBe(true);
-      if (fileExists) {
-        const content = await fs.readFile(targetFilePath, 'utf-8');
-        expect(content).toContain('# 翻譯測試標題');
-      }
+      await assertTranslatedFileContent(filename, targetPath);
     }
 
     // 檢查 .source_commit 是否已複製到 target
-    const targetCommitFilePath = path.join(targetRepoPath, '.source_commit');
+    const targetCommitFilePath = path.join(workspacePathForTests, 'repo', 'target', '.source_commit');
     const commitFileExists = await fs.access(targetCommitFilePath).then(() => true).catch(() => false);
     expect(commitFileExists).toBe(true);
   });
 
-  // Helper function for asserting translated file content
-  async function assertTranslatedFileContent(filename: string, workspacePath: string) {
-    const translatedFilePath = path.join(workspacePath, 'tmp', filename);
-    const translatedContent = await fs.readFile(translatedFilePath, 'utf-8');
-    expect(translatedContent).toContain('# 翻譯測試標題');
-    expect(translatedContent).toContain('這是一個翻譯測試的內容。');
+
+  /**
+   * 檢查翻譯檔內容是否是由模擬 gemini 回傳的內容
+   * 
+   * 例外情況： license.md 及 readme.md 不會被翻譯
+   * @param filename 檔案名稱
+   * @param basePath 路徑 , 要給絕對路徑
+   * @returns 
+   */
+  async function assertTranslatedFileContent(filename: string, basePath: string) {
+    const filePath = path.join(basePath, filename);
+    const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
+    expect(fileExists).toBe(true);
+    const translatedContent = await fs.readFile(filePath, 'utf-8');
+
+    if (filename === 'license.md' || filename === 'readme.md') {
+      // license.md readme.md 不會進行翻譯，不需要檢查內容
+      return;
+    } else {
+      expect(translatedContent).toContain('# 翻譯測試標題');
+      expect(translatedContent).toContain('這是一個翻譯測試的內容。');
+    }
   }
 });
