@@ -2,7 +2,7 @@
 
 一個簡單範例 `echo "你好" | gemini -p -m gemini-2.5-flash` , 可以用非交互模式單獨執行對話。
 
-因此實作時可建立子程序將提示詞透過 `pipe` 方式送到 `gemini` 的 `stdin` 進行處理，然後接收翻譯後的結果即可。提示詞已經寫在 `assets/TRANSLATE_PROMPT.md`，但必須於程式中合併一段話請 `翻譯某某檔案`，這樣 `gemini` 才知道要翻譯哪個檔案。
+因此實作時可建立子程序將提示詞透過 `pipe` 方式送到 `gemini` 的 `stdin` 進行處理，然後接收翻譯後的結果即可。提示詞已經寫在 `resources/TRANSLATE_PROMPT.md`，但必須於程式中合併一段話請 `翻譯某某檔案`，這樣 `gemini` 才知道要翻譯哪個檔案。
 
 ## 回傳內容過濾
 

@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "files": [
     "dist",
-    "assets"
+    "resources"
   ],
   "scripts": {
     "start": "node dist/main.js",

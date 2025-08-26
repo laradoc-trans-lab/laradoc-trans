@@ -77,7 +77,7 @@ npm run start -- --branch=11.x
 *   `--limit <number>`: 限制單次翻譯的檔案數量 (例如: `--limit=5`)。
 *   `--all`: 翻譯所有尚未翻譯的檔案。
 *   `--env <path>`: 指定環境變數檔案的路徑 (預設: `.env`)。
-*   `--prompt-file <path>`: 指定自訂的 AI 提示文件，若沒有指定將使用預設存放在 `assets/` 目錄下的 `TRANSLATE_PROMPT.md`。
+*   `--prompt-file <path>`: 指定自訂的 AI 提示文件，若沒有指定將使用預設存放在 `resources/` 目錄下的 `TRANSLATE_PROMPT.md`。
 
 ### 使用範例
 
