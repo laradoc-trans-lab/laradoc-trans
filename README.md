@@ -17,18 +17,23 @@ laradoc-trans 是一個命令列工具，旨在利用 Gemini CLI 將 [Laravel �
 
 ## 安裝步驟
 
-1.  **複製專案庫**:
+1.  **安裝 Gemini CLI**
+    ```bash
+    npm install -g @google/gemini-cli
+    ```
+    若系統已經有安裝了則可以忽略此步驟。
+2.  **複製專案庫**:
     ```bash
     git clone https://github.com/your-username/laradoc-trans.git
     cd laradoc-trans
     ```
 
-2.  **安裝依賴套件**:
+3.  **安裝依賴套件**:
     ```bash
     npm install
     ```
 
-3.  **編譯 TypeScript 程式碼**:
+4.  **編譯 TypeScript 程式碼**:
     ```bash
     npm run build
     ```
