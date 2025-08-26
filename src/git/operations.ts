@@ -1,4 +1,5 @@
-import fs from 'fs';
+import fs from 'fs/promises';
+import path from 'path';
 import { executeGit } from './executor';
 import {
   RepositoryNotFoundError,
@@ -13,13 +14,17 @@ import {
  * Checks if a given directory path is a Git repository.
  */
 export async function isGitRepository(dirPath: string): Promise<boolean> {
-  if (!fs.existsSync(dirPath)) {
+  try {
+    await fs.access(dirPath);
+  } catch (error) {
     return false;
   }
-  // Note: We don't throw RepositoryNotFoundError here because this function
-  // is often used just to check a condition without causing a failure.
-  const { stdout, exitCode } = await executeGit(['rev-parse', '--is-inside-work-tree'], dirPath);
-  return exitCode === 0 && stdout.trim() === 'true';
+
+  // A more robust check for a git repository. This command will fail if it's
+  // not a git repository, and the output will be different if it's not the
+  // root of the repository.
+  const { stdout, exitCode } = await executeGit(['rev-parse', '--git-dir'], dirPath);
+  return exitCode === 0 && stdout.trim() === '.git';
 }
 
 /**
