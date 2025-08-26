@@ -159,14 +159,26 @@ export async function main(argv: string[]) {
   console.log(_('------------------------------------'));
 
   // --- 翻譯循環 ---
+  await fs.mkdir(paths.tmp, { recursive: true }); // 確保 tmp 目錄存在
+
   for (const file of limitedFiles) {
     const sourcePath = path.join(paths.source, file);
     const targetPath = path.join(paths.tmp, file);
 
+    if (file === 'license.md') {
+      // 特例處理 license.md，直接複製並標記為完成
+      const sourceLicensePath = path.join(paths.source, 'license.md');
+      const targetLicensePath = path.join(paths.tmp, 'license.md');
+      await fs.copyFile(sourceLicensePath, targetLicensePath);
+      progress.set(file, 1); // 標記為完成
+      console.log(_('Skipped translation for license.md. Copied directly and marked as completed.'));
+      await writeProgressFile(paths.tmp, progress); // Save progress immediately for skipped file
+      continue; // Skip to the next file
+    }
+
     try {
       console.log(_('\nTranslating: {{file}}...', { file: file }));
       const translatedContent = await translateFile(sourcePath, options.promptFile);
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, translatedContent);
 
       progress.set(file, 1); // 標記為完成

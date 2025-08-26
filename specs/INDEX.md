@@ -108,6 +108,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
      2. 繼續翻譯未翻譯的檔案。
 
 4. 依照 `workspace/tmp/.progress` 的內容有標記待翻譯的檔案，陸續將檔案交由外部命令 `gemini`進行翻譯並將翻譯結果儲存於 `workspace/tmp` 下。
+5. **特殊檔案處理**: 對於 `license.md` 檔案，不進行翻譯。程式應直接將其從 `workspace/repo/source` 複製到 `workspace/tmp`，並在 `.progress` 中將其標記為已翻譯。
 
 ### 4.5 所有檔案翻譯完成後的流程
 
