@@ -54,19 +54,21 @@ export class GeminiCliStartError extends GeminiCliError {
   }
 }
 
-const promptCache = new Map<string, string>();
+let cachedPromptPath: string | null = null;
+let cachedPrompt: string | null = null;
 
 async function getBasePrompt(promptFilePath?: string): Promise<string> {
   const defaultPromptPath = path.resolve(__dirname, '..', 'TRANSLATE_PROMPT.md');
   const finalPromptPath = promptFilePath ? path.resolve(promptFilePath) : defaultPromptPath;
 
-  if (promptCache.has(finalPromptPath)) {
-    return promptCache.get(finalPromptPath)!;
+  if (cachedPromptPath === finalPromptPath && cachedPrompt) {
+    return cachedPrompt;
   }
 
   try {
     const prompt = await fs.readFile(finalPromptPath, 'utf-8');
-    promptCache.set(finalPromptPath, prompt);
+    cachedPromptPath = finalPromptPath;
+    cachedPrompt = prompt;
     return prompt;
   } catch (error: any) {
     const errorMessage = _('Failed to read prompt file: {{path}}', { path: finalPromptPath });
@@ -158,7 +160,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
         } else {
           return reject(
             new TranslationMarkerNotFoundError(
-              _( 
+              _(
                 'Translation failed: Success marker not found in the output. Output: {{output}}',
                 { output: stdoutData }
               ),
