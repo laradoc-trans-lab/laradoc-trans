@@ -1,4 +1,3 @@
-import { Command } from 'commander';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
@@ -24,28 +23,10 @@ import {
 import { translateFile, TranslationError, GeminiCliError } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
+import { parseCliArgs, CliOptions } from './cli';
 
 export async function main(argv: string[]) {
-  const program = new Command();
-
-  program
-    .name('laravel-docs-llm-translator')
-    .description('Translate Laravel docs using Gemini CLI.');
-
-  program
-    .option('--branch <branch>', 'The branch to translate.')
-    .option(
-      '--limit <number>',
-      'Limit the number of files to translate.',
-      (value) => parseInt(value, 10)
-    )
-    .option('--all', 'Translate all remaining files.', false)
-    .option('--env <path>', 'Path to the .env file.')
-    .option('--prompt-file <path>', 'Path to the prompt file.');
-
-  program.parse(argv);
-
-  const options = program.opts();
+  const options: CliOptions = await parseCliArgs(argv);
 
   // 載入環境變數
   dotenv.config({ path: options.env });
@@ -76,7 +57,8 @@ export async function main(argv: string[]) {
   let translationCount: number | 'all' = 1; // 預設翻譯 1 個檔案
   if (options.all) {
     translationCount = 'all';
-  } else if (options.limit) {
+  }
+  else if (options.limit) {
     translationCount = options.limit;
   }
 
@@ -111,7 +93,7 @@ export async function main(argv: string[]) {
     await checkoutBranch(paths.source, options.branch);
   } catch (error: unknown) {
     if(error instanceof CheckoutFailedError) {
-      console.error(_('Error: Failed to checkout branch \'{{branch}}\': {{message}}', { branch: options.branch, message: error.message }));
+      console.error(_('Error: Failed to checkout branch \'{{branch}}\'\: {{message}}', { branch: options.branch, message: error.message }));
     }
     throw error;
   }
@@ -125,7 +107,8 @@ export async function main(argv: string[]) {
 
   if (progress) {
     console.log(_('Resuming previous translation session.'));
-  } else {
+  }
+  else {
     console.log(
       _('No existing progress file. Determining files to translate...')
     );
@@ -198,7 +181,8 @@ export async function main(argv: string[]) {
         }
       } else if (error instanceof Error) {
         errorMessage = _('An unexpected error occurred: {{message}}', { message: error.message });
-      } else {
+      }
+      else {
         errorMessage = _('An unknown error occurred.');
       }
 
@@ -255,4 +239,3 @@ if (process.env.NODE_ENV !== 'test' && require.main === module) {
       process.exit(1);
   });
 }
-
