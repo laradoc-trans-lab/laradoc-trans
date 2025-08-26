@@ -58,6 +58,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 程式執行時可以用 `node dist/main.js` 或 `npm run start` 的方式搭配一些參數來使用，以下是參數說明:
 
+- `-v, --version` : 顯示程式版本。
 - `--branch` : 例如 `--branch 12.x` 代表要翻譯 `workspace/repo/source` 的 `12.x` 分支，且這是必要參數。
 - `--limit` : 例如 `--limit 5` 代表只需要翻譯尚未翻譯的5個檔案。
 - `--all` : 翻譯全部尚未完成翻譯的檔案。
