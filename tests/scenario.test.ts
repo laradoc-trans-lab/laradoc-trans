@@ -3,6 +3,7 @@ import * as path from 'path';
 import { main } from '../src/main';
 import { RepositoryNotFoundError } from '../src/git';
 import { GeminiCliError } from '../src/translator';
+import { readProgressFile } from '../src/progress';
 
 
 // Mock process.exit to prevent the test from exiting the process
@@ -94,4 +95,31 @@ describe('Scenario Tests', () => {
     await expect(main(argv)).rejects.toThrow(GeminiCliError);
   });
 
+  // Scenario 3: 模擬翻譯一個檔案，但 gemini 返回正確的翻譯內容
+  test('should translate a single file successfully when gemini command succeeds', async () => {
+    // 設定模擬 gemini 的行為
+    process.env.GEMINI_MOCK_BEHAVIOR = 'success';
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
+
+    // 執行 main
+    await main(argv);
+
+    // 檢查進度檔案
+    const progress = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    expect(progress?.get('test1.md')).toBe(1);
+
+    // 檢查翻譯後的檔案是否存在於 tmp
+    const translatedFilePath = path.join(workspacePathForTests, 'tmp', 'test1.md');
+    const translatedContent = await fs.readFile(translatedFilePath, 'utf-8');
+
+    // 檢查翻譯後的內容
+    expect(translatedContent).toContain('# 翻譯測試標題');
+    expect(translatedContent).toContain('這是一個翻譯測試的內容。');
+
+    // 檢查 target 目錄不應該存在 'test1.md'
+    const targetFilePath = path.join(workspacePathForTests, 'repo', 'target', 'test1.md');
+    await expect(fs.access(targetFilePath)).rejects.toThrow();
+  });
 });
+
+ 

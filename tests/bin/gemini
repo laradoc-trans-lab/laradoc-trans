@@ -17,7 +17,7 @@ if [ "$GEMINI_MOCK_BEHAVIOR" == "error" ]; then
   echo "Gemini API error: Rate limit exceeded." >&2
   echo "{ \"message\": \"Rate limit exceeded.\", \"status\": 429 }" >&2
   # Gemini 如果超出用量，並不會馬上結束
-  sleep 0.1
+  sleep 5
   exit 1
 elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
   # 模擬成功翻譯內容
