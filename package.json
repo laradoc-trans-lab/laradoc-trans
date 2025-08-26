@@ -1,5 +1,5 @@
 {
-  "name": "laravel-docs-llm-translator",
+  "name": "laradoc-trans",
   "version": "1.0.0",
   "description": "Translate Laravel docs using Gemini CLI.",
   "main": "dist/main.js",
@@ -7,11 +7,12 @@
     "start": "node dist/main.js",
     "build": "tsc && node scripts/copy-assets.js",
     "dev": "ts-node src/main.ts",
-    "prepare": "node -e \"require('fs').writeFileSync('dist/main.js', '#!/usr/bin/env node\\n' + require('fs').readFileSync('dist/main.js'))\""
+    "prepare": "node -e \"require('fs').writeFileSync('dist/main.js', '#!/usr/bin/env node\n' + require('fs').readFileSync('dist/main.js'))\""
   },
   "bin": {
-    "laravel-docs-llm-translator": "dist/main.js"
+    "laradoc-trans": "dist/main.js"
   },
+
   "keywords": [
     "laravel",
     "docs",

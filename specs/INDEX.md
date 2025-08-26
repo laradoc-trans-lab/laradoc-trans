@@ -1,8 +1,8 @@
-# Laravel Docs LLM Translator 專案規格 (SPECS)
+# laradoc-trans 專案規格 (SPECS)
 
 ## 專案目的
 
-本專案目的是為了將 [Laravel 官方文件](https://github.com/laravel/docs) 進行繁體中文化的翻譯，翻譯的工作主要是交給 `Gemini CLI` 進行。
+laradoc-trans 的目的是為了將 [Laravel 官方文件](https://github.com/laravel/docs) 進行繁體中文化的翻譯，翻譯的工作主要是交給 `Gemini CLI` 進行。
 
 程式運作的方式主要是提供 CLI 給用戶操作，例如 `npm run start [args.....]`就可以進行自動化翻譯。
 
@@ -16,7 +16,7 @@
 
 ## 2. 技術棧
 
-本專案主要是以 nodeJS 運作並使用 TypeScript 來開發最後進行編譯成 Javascript。
+laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進行編譯成 Javascript。
 
 - 程式語言 : TypeScript
 - 執行環境 : Node.js v22+
