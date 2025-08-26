@@ -157,6 +157,40 @@ describe('Scenario Tests', () => {
     await assertTranslatedFileContent(untranslatedFiles[1], workspacePathForTests);
   });
 
+  // Scenario 5: 模擬翻譯所有檔案，但 gemini 返回正確的翻譯內容
+  test('should translate all remaining files and move them to target', async () => {
+    // 讀取進度檔案以獲取所有需要翻譯的檔案列表
+    const progressBefore = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    if (!progressBefore) {
+      throw new Error('Progress file should exist before running scenario 5');
+    }
+    const allFiles = Array.from(progressBefore.keys());
+
+    // 設定模擬 gemini 的行為
+    process.env.GEMINI_MOCK_BEHAVIOR = 'success';
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
+
+    // 執行 main
+    await main(argv);
+
+    // 檢查所有檔案是否都已翻譯並移動到 target
+    const targetRepoPath = path.join(workspacePathForTests, 'repo', 'target');
+    for (const filename of allFiles) {
+      const targetFilePath = path.join(targetRepoPath, filename);
+      const fileExists = await fs.access(targetFilePath).then(() => true).catch(() => false);
+      expect(fileExists).toBe(true);
+      if (fileExists) {
+        const content = await fs.readFile(targetFilePath, 'utf-8');
+        expect(content).toContain('# 翻譯測試標題');
+      }
+    }
+
+    // 檢查 .source_commit 是否已複製到 target
+    const targetCommitFilePath = path.join(targetRepoPath, '.source_commit');
+    const commitFileExists = await fs.access(targetCommitFilePath).then(() => true).catch(() => false);
+    expect(commitFileExists).toBe(true);
+  });
+
   // Helper function for asserting translated file content
   async function assertTranslatedFileContent(filename: string, workspacePath: string) {
     const translatedFilePath = path.join(workspacePath, 'tmp', filename);
@@ -165,5 +199,3 @@ describe('Scenario Tests', () => {
     expect(translatedContent).toContain('這是一個翻譯測試的內容。');
   }
 });
-
- 
