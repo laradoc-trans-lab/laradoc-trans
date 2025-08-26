@@ -52,12 +52,12 @@
   "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.": "工具 '{{toolName}}' 未找到。請確保它已安裝並在您的系統 PATH 中。",
   "Failed to check '{{toolName}}' existence: {{message}}": "檢查工具 '{{toolName}}' 存在性失敗：{{message}}",
   "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "檢查工具 '{{toolName}}' 存在性失敗。退出代碼：{{code}}。輸出：{{output}}。錯誤：{{errorOutput}}",
-  "Git repositories synchronized to the correct branch.": "",
-  "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "",
-  "Error: Failed to checkout branch '{{branch}}': {{message}}": "",
-  "Skipped translation for license.md. Copied directly and marked as completed.": "",
-  "Translation failed: {{errorName}} - {{message}}": "",
-  "\nCLI Stderr: {{stderr}}": "",
-  "An unknown error occurred.": "",
-  "Failed to read prompt file: {{path}}": ""
+  "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "錯誤：必要工具 '{{toolName}}' 未安裝。請安裝它並確保它在您的 PATH 中。",
+  "Error: Failed to checkout branch '{{branch}}': {{message}}": "錯誤：無法切換分支 '{{branch}}'：{{message}}",
+  "Git repositories synchronized to the correct branch.": "Git 儲存庫已同步到正確的分支。",
+  "Skipped translation for license.md. Copied directly and marked as completed.": "已跳過 license.md 的翻譯。直接複製並標記為完成。",
+  "Translation failed: {{errorName}} - {{message}}": "翻譯失敗：{{errorName}} - {{message}}",
+  "\nCLI Stderr: {{stderr}}": "\nCLI 標準錯誤輸出：{{stderr}}",
+  "An unknown error occurred.": "發生未知錯誤。",
+  "Failed to read prompt file: {{path}}": "讀取提示詞檔案失敗：{{path}}"
 }
