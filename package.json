@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "description": "Translate Laravel docs using Gemini CLI.",
   "main": "dist/main.js",
+  "files": [
+    "dist",
+    "assets"
+  ],
   "scripts": {
     "start": "node dist/main.js",
-    "build": "tsc && node scripts/copy-assets.js",
+    "build": "tsc",
     "dev": "ts-node src/main.ts",
     "prepare": "node -e \"require('fs').writeFileSync('dist/main.js', '#!/usr/bin/env node\n' + require('fs').readFileSync('dist/main.js'))\""
   },
   "bin": {
     "laradoc-trans": "dist/main.js"
   },
-
   "keywords": [
     "laravel",
     "docs",
@@ -21,7 +24,9 @@
   ],
   "author": "Pigo Chu <pigochu@gmail.com>",
   "license": "CC-BY-NC-SA-4.0",
-  "os": [ "!win32" ],
+  "os": [
+    "!win32"
+  ],
   "engines": {
     "node": ">=22.0.0"
   },

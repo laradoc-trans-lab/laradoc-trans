@@ -58,7 +58,7 @@ let cachedPromptPath: string | null = null;
 let cachedPrompt: string | null = null;
 
 async function getBasePrompt(promptFilePath?: string): Promise<string> {
-  const defaultPromptPath = path.resolve(__dirname, '..', 'TRANSLATE_PROMPT.md');
+  const defaultPromptPath = path.resolve(__dirname, '..', 'assets', 'TRANSLATE_PROMPT.md');
   const finalPromptPath = promptFilePath ? path.resolve(promptFilePath) : defaultPromptPath;
 
   if (cachedPromptPath === finalPromptPath && cachedPrompt) {

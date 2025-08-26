@@ -11,7 +11,7 @@ export async function initI18n() {
       fallbackLng: 'en',
       debug: false, // Keep debug true for now, user can disable later
       backend: {
-        loadPath: path.join(__dirname, 'i18n/{{lng}}.json'),
+        loadPath: path.join(__dirname, '..', 'assets', 'i18n', '{{lng}}.json'),
       },
       interpolation: {
         escapeValue: false,

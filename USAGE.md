@@ -46,7 +46,7 @@ npm install
     *   **範例**：`--env .env.production`
 
 *   `--prompt-file <path>`:
-    *   **說明**：指定翻譯時使用的提示詞檔案路徑。若未指定，預設為專案根目錄下的 `TRANSLATE_PROMPT.md`。
+    *   **說明**：指定翻譯時使用的提示詞檔案路徑。若未指定，預設為專案根目錄 `assets/` 下的 `TRANSLATE_PROMPT.md`。
     *   **範例**：`--prompt-file custom_prompt.md`
 
 *   `-v, --version`:
