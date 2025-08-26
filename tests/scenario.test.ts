@@ -120,6 +120,50 @@ describe('Scenario Tests', () => {
     const targetFilePath = path.join(workspacePathForTests, 'repo', 'target', 'test1.md');
     await expect(fs.access(targetFilePath)).rejects.toThrow();
   });
+
+  // Scenario 4: 模擬翻譯二個檔案，但 gemini 返回正確的翻譯內容 (動態判斷檔案)
+  test('should translate two files successfully when gemini command succeeds (dynamic)', async () => {
+    // 設定模擬 gemini 的行為
+    process.env.GEMINI_MOCK_BEHAVIOR = 'success';
+
+    // 讀取目前的進度檔案，找出未翻譯的檔案
+    const initialProgress = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    if (!initialProgress) {
+      throw new Error('initialProgress should not be null in this test scenario.');
+    }
+    const untranslatedFiles = Array.from(initialProgress.entries())
+      .filter(([, status]) => status === 0)
+      .map(([filename]) => filename)
+      .sort(); // 排序以確保順序一致性，避免測試不穩定
+
+    // 確保至少有兩個未翻譯的檔案
+    expect(untranslatedFiles.length).toBeGreaterThanOrEqual(2);
+
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--limit', '2'];
+
+    // 執行 main
+    await main(argv);
+
+    // 檢查進度檔案
+    const finalProgress = await readProgressFile(path.join(workspacePathForTests, 'tmp'));
+    if (!finalProgress) {
+      throw new Error('finalProgress should not be null in this test scenario.');
+    }
+    expect(finalProgress.get(untranslatedFiles[0])).toBe(1);
+    expect(finalProgress.get(untranslatedFiles[1])).toBe(1);
+
+    // 檢查翻譯後的檔案內容
+    await assertTranslatedFileContent(untranslatedFiles[0], workspacePathForTests);
+    await assertTranslatedFileContent(untranslatedFiles[1], workspacePathForTests);
+  });
+
+  // Helper function for asserting translated file content
+  async function assertTranslatedFileContent(filename: string, workspacePath: string) {
+    const translatedFilePath = path.join(workspacePath, 'tmp', filename);
+    const translatedContent = await fs.readFile(translatedFilePath, 'utf-8');
+    expect(translatedContent).toContain('# 翻譯測試標題');
+    expect(translatedContent).toContain('這是一個翻譯測試的內容。');
+  }
 });
 
  
