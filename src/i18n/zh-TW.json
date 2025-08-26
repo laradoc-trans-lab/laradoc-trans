@@ -7,7 +7,6 @@
   "Using .env path: {{path}}": "使用 .env 路徑：{{path}}",
   "------------------------------------": "------------------------------------",
   "Workspace initialization successful.": "工作區初始化成功。",
-  "Git repositories synchronized to the correct branch.": "Git 儲存庫已同步至正確分支。",
   "Resuming previous translation session.": "恢復先前的翻譯會話。",
   "No existing progress file. Determining files to translate...": "無現有進度檔案。正在判斷待翻譯檔案...",
   "Target repository is already up to date.": "目標儲存庫已是最新。",
@@ -52,5 +51,13 @@
   "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?": "啟動 Gemini CLI 失敗：{{message}}。是否已安裝並在您的 PATH 中？",
   "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.": "工具 '{{toolName}}' 未找到。請確保它已安裝並在您的系統 PATH 中。",
   "Failed to check '{{toolName}}' existence: {{message}}": "檢查工具 '{{toolName}}' 存在性失敗：{{message}}",
-  "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "檢查工具 '{{toolName}}' 存在性失敗。退出代碼：{{code}}。輸出：{{output}}。錯誤：{{errorOutput}}"
+  "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "檢查工具 '{{toolName}}' 存在性失敗。退出代碼：{{code}}。輸出：{{output}}。錯誤：{{errorOutput}}",
+  "Git repositories synchronized to the correct branch.": "",
+  "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "",
+  "Error: Failed to checkout branch '{{branch}}': {{message}}": "",
+  "Skipped translation for license.md. Copied directly and marked as completed.": "",
+  "Translation failed: {{errorName}} - {{message}}": "",
+  "\nCLI Stderr: {{stderr}}": "",
+  "An unknown error occurred.": "",
+  "Failed to read prompt file: {{path}}": ""
 }

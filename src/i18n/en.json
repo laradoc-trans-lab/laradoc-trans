@@ -52,5 +52,13 @@
   "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?": "Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?",
   "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.": "Tool '{{toolName}}' not found. Please ensure it is installed and in your system's PATH.",
   "Failed to check '{{toolName}}' existence: {{message}}": "Failed to check '{{toolName}}' existence: {{message}}",
-  "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}"
+  "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}": "Failed to check '{{toolName}}' existence. Exit code: {{code}}. Output: {{output}}. Error: {{errorOutput}}",
+  "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.",
+  "Error: Failed to checkout branch '{{branch}}': {{message}}": "Error: Failed to checkout branch '{{branch}}': {{message}}",
+  "Git repositories synchronized to the correct branch.": "Git repositories synchronized to the correct branch.",
+  "Skipped translation for license.md. Copied directly and marked as completed.": "Skipped translation for license.md. Copied directly and marked as completed.",
+  "Translation failed: {{errorName}} - {{message}}": "Translation failed: {{errorName}} - {{message}}",
+  "\nCLI Stderr: {{stderr}}": "\nCLI Stderr: {{stderr}}",
+  "An unknown error occurred.": "An unknown error occurred.",
+  "Failed to read prompt file: {{path}}": "Failed to read prompt file: {{path}}"
 }
