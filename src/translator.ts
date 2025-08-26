@@ -83,9 +83,12 @@ export function spawnWrapper (
   options?: SpawnOptionsWithoutStdio,
 ): ChildProcessWithoutNullStreams {
   if(process.env.GEMINI_MOCK_BEHAVIOR !== undefined) {
-    // 沒辦法通過 jest 測試，只好這樣搞了
-    console.debug("DEBUG: GEMINI_MOCK_BEHAVIOR is set, using mock gemini binary.");
-    return spawn(path.resolve(__dirname, '../tests/bin/gemini'), args || [], options);
+    // JEST 無法 mock 這個 function , 所以取巧地用環境變數來判斷
+    // 在測試環境中，使用模擬的 gemini 可執行檔
+    const mergedEnv = { ...process.env, ...options?.env, 'GEMINI_MOCK_BEHAVIOR': process.env.GEMINI_MOCK_BEHAVIOR };
+    const newOptions = { ...options, env: mergedEnv };
+
+    return spawn(path.resolve(__dirname, '../tests/bin/gemini'), args, newOptions);
   }
   return spawn(command, args, options);
 }
