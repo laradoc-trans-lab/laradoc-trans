@@ -165,13 +165,14 @@ export async function main(argv: string[]) {
     const sourcePath = path.join(paths.source, file);
     const targetPath = path.join(paths.tmp, file);
 
-    if (file === 'license.md') {
-      // 特例處理 license.md，直接複製並標記為完成
-      const sourceLicensePath = path.join(paths.source, 'license.md');
-      const targetLicensePath = path.join(paths.tmp, 'license.md');
-      await fs.copyFile(sourceLicensePath, targetLicensePath);
+    const filesToSkip = ['license.md', 'readme.md'];
+    if (filesToSkip.includes(file)) {
+      // 特例處理不需翻譯的檔案，直接複製並標記為完成
+      const sourceFilePath = path.join(paths.source, file);
+      const targetFilePath = path.join(paths.tmp, file);
+      await fs.copyFile(sourceFilePath, targetFilePath);
       progress.set(file, 1); // 標記為完成
-      console.log(_('Skipped translation for license.md. Copied directly and marked as completed.'));
+      console.log(_('Skipped translation for {{file}}. Copied directly and marked as completed.', { file: file }));
       await writeProgressFile(paths.tmp, progress); // Save progress immediately for skipped file
       continue; // Skip to the next file
     }

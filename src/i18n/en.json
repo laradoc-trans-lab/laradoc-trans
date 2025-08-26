@@ -56,7 +56,7 @@
   "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.",
   "Error: Failed to checkout branch '{{branch}}': {{message}}": "Error: Failed to checkout branch '{{branch}}': {{message}}",
   "Git repositories synchronized to the correct branch.": "Git repositories synchronized to the correct branch.",
-  "Skipped translation for license.md. Copied directly and marked as completed.": "Skipped translation for license.md. Copied directly and marked as completed.",
+  "Skipped translation for {{file}}. Copied directly and marked as completed.": "Skipped translation for {{file}}. Copied directly and marked as completed.",
   "Translation failed: {{errorName}} - {{message}}": "Translation failed: {{errorName}} - {{message}}",
   "\nCLI Stderr: {{stderr}}": "\nCLI Stderr: {{stderr}}",
   "An unknown error occurred.": "An unknown error occurred.",

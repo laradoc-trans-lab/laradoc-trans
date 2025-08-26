@@ -55,7 +55,7 @@
   "Error: Required tool '{{toolName}}' is not installed. Please install it and make sure it is in your PATH.": "錯誤：必要工具 '{{toolName}}' 未安裝。請安裝它並確保它在您的 PATH 中。",
   "Error: Failed to checkout branch '{{branch}}': {{message}}": "錯誤：無法切換分支 '{{branch}}'：{{message}}",
   "Git repositories synchronized to the correct branch.": "Git 儲存庫已同步到正確的分支。",
-  "Skipped translation for license.md. Copied directly and marked as completed.": "已跳過 license.md 的翻譯。直接複製並標記為完成。",
+  "Skipped translation for {{file}}. Copied directly and marked as completed.": "已跳過 {{file}} 的翻譯。直接複製並標記為完成。",
   "Translation failed: {{errorName}} - {{message}}": "翻譯失敗：{{errorName}} - {{message}}",
   "\nCLI Stderr: {{stderr}}": "\nCLI 標準錯誤輸出：{{stderr}}",
   "An unknown error occurred.": "發生未知錯誤。",

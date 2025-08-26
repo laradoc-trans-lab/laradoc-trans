@@ -70,6 +70,10 @@ npm install
     npm start -- --branch 12.x --all
     ```
 
+> **特殊檔案處理**
+>
+> 請注意，`license.md` 與 `readme.md` 這兩個檔案**不會**被翻譯。程式會自動將這些檔案從來源直接複製到目標位置，並在進度中標記為已完成。因為版權宣告或原始的readme若由 AI 翻譯怕翻譯錯誤，所以保留原始內容。
+
 ## 翻譯進度管理
 
 本工具會自動管理翻譯進度。它會在 `.tmp/.progress` 檔案中記錄每個檔案的翻譯狀態。
@@ -85,6 +89,8 @@ npm install
 此外，如果 LLM 返回的翻譯結果不符合預期的 Markdown 格式（例如，缺少 Markdown 標題），程式會將原始的 LLM 輸出記錄到 `logs/error.log` 以供偵錯，並將該檔案標記為翻譯失敗。
 
 ## 注意事項
+
+
 
 *   請確保您的環境中已正確設定 `gemini` CLI，並且 `GEMINI_API_KEY` 已正確設定。
 *   本工具會嘗試從翻譯結果中提取 Markdown 內容。如果 LLM 輸出不包含有效的 Markdown 標題，該翻譯將被視為失敗。
