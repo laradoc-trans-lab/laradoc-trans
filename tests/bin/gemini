@@ -4,6 +4,7 @@
 # It can be controlled by the GEMINI_MOCK_BEHAVIOR environment variable.
 # GEMINI_MOCK_BEHAVIOR=success: returns a successful translation
 # GEMINI_MOCK_BEHAVIOR=error: returns an error
+# GEMINI_MOCK_BEHAVIOR=diff: returns a successful translation with "已修改" for diff testing
 
 print_data_collection_disabled() {
   # 模擬 gemini 預設會輸出一些訊息而非翻譯內容
@@ -27,6 +28,15 @@ elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
   echo "# 翻譯測試標題"
   echo "這是一個翻譯測試的內容。"
   echo "目前的時間是 $(date)."
+  exit 0
+elif [ "$GEMINI_MOCK_BEHAVIOR" == "diff" ]; then
+  # 模擬差異化翻譯成功內容
+  print_data_collection_disabled;
+  echo "<!-- GEMINI_TRANSLATION_SUCCESS -->"
+  echo "# 翻譯測試標題"
+  echo "這是一個翻譯測試的內容。"
+  echo "目前的時間是 $(date)."
+  echo "已修改"
   exit 0
 else
   print_data_collection_disabled;
