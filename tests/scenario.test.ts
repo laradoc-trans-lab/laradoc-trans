@@ -4,6 +4,8 @@ import { main } from '../src/main';
 import { RepositoryNotFoundError } from '../src/git';
 import { GeminiCliError } from '../src/translator';
 import { readProgressFile } from '../src/progress';
+import { executeGit } from '../src/git/executor';
+import { listMarkdownFiles, getCurrentCommitHash } from '../src/git';
 
 
 // Mock process.exit to prevent the test from exiting the process
@@ -207,7 +209,7 @@ describe('Scenario Tests', () => {
    * @param basePath 路徑 , 要給絕對路徑
    * @returns 
    */
-  async function assertTranslatedFileContent(filename: string, basePath: string) {
+  async function assertTranslatedFileContent(filename: string, basePath: string, expectedContent: string = '# 翻譯測試標題') {
     const filePath = path.join(basePath, filename);
     const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
     expect(fileExists).toBe(true);
@@ -217,8 +219,79 @@ describe('Scenario Tests', () => {
       // license.md readme.md 不會進行翻譯，不需要檢查內容
       return;
     } else {
-      expect(translatedContent).toContain('# 翻譯測試標題');
+      expect(translatedContent).toContain(expectedContent);
       expect(translatedContent).toContain('這是一個翻譯測試的內容。');
     }
   }
+
+  // Scenario 6: 模擬 `workspace/repo/source` 有更新，進行差異化翻譯，使用參數 `--all`
+  test('should translate only changed files when source is updated', async () => {
+    // 環境設定：使用情境 5 留下的的 `workspace`。
+    // 由於測試是依序執行的，情境 5 應該已經完成並留下了一個完整的翻譯狀態。
+
+    const sourceRepoPath = path.join(workspacePathForTests, 'repo', 'source');
+    const targetRepoPath = path.join(workspacePathForTests, 'repo', 'target');
+
+    // 獲取情境 5 結束時，source 倉庫的所有 markdown 檔案列表
+    const allFiles = await listMarkdownFiles(sourceRepoPath);
+
+    // 測試程式內需先行提交(`git commit`) `workspace/repo/target` ，並切換至 `test1-branch` 分支。
+    // 假設 targetRepoPath 已經是一個合法的 Git 倉庫，且情境 5 已經將 .source_commit 複製過去
+    // 所以這裡只需要確保它在正確的分支上並進行一次提交。
+    const { exitCode: targetAddExitCode } = await executeGit(['add', '.'], targetRepoPath);
+    expect(targetAddExitCode).toBe(0);
+    const { exitCode: targetCommitExitCode } = await executeGit(['commit', '-m', 'Initial commit for target repo'], targetRepoPath);
+    expect(targetCommitExitCode).toBe(0);
+    const { exitCode: targetCheckoutExitCode } = await executeGit(['checkout', 'test1-branch'], targetRepoPath);
+    expect(targetCheckoutExitCode).toBe(0);
+
+    // 測試程式內需要修改 `workspace/repo/source` `test2.md` 與 `test5.md` , 增加一行 `已修改` 於最後，並提交於 `test1-branch` 分支
+    await fs.appendFile(path.join(sourceRepoPath, 'test2.md'), '\n已修改');
+    await fs.appendFile(path.join(sourceRepoPath, 'test5.md'), '\n已修改');
+    const { exitCode: sourceAddExitCode } = await executeGit(['add', 'test2.md', 'test5.md'], sourceRepoPath);
+    expect(sourceAddExitCode).toBe(0);
+    const { exitCode: sourceCommitExitCode } = await executeGit(['commit', '-m', 'Update test2.md and test5.md'], sourceRepoPath);
+    expect(sourceCommitExitCode).toBe(0);
+    const { exitCode: sourceCheckoutExitCode } = await executeGit(['checkout', 'test1-branch'], sourceRepoPath); // Ensure on correct branch
+    expect(sourceCheckoutExitCode).toBe(0);
+
+    // 設定模擬 gemini 的行為
+    process.env.GEMINI_MOCK_BEHAVIOR = 'diff';
+    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
+
+    // 執行 main
+    await main(argv);
+
+    // 預期結果：程式應成功翻譯有異動的所有檔案。
+    // 檢查 target 目錄下的檔案
+    const targetPath = path.join(workspacePathForTests, 'repo', 'target');
+    await assertTranslatedFileContent('test2.md', targetPath, '已修改');
+    await assertTranslatedFileContent('test5.md', targetPath, '已修改');
+
+    // 檢查 .source_commit 是否已複製到 target (情境 5 已檢查，這裡再次確認)
+    const targetCommitFilePath = path.join(workspacePathForTests, 'repo', 'target', '.source_commit');
+    const commitFileExists = await fs.access(targetCommitFilePath).then(() => true).catch(() => false);
+    expect(commitFileExists).toBe(true);
+
+    // 檢查 `workspace/repo/source` 的 `commit hash` 必須與 `workspace/repo/target/.source_commit` 相同。
+    const sourceCommitHash = await getCurrentCommitHash(sourceRepoPath);
+    const targetSourceCommitContent = await fs.readFile(targetCommitFilePath, 'utf-8');
+    expect(targetSourceCommitContent.trim()).toBe(sourceCommitHash);
+
+    // 檢查其他檔案不包含 "已修改"
+    const unchangedFiles = allFiles.filter(file => file !== 'test2.md' && file !== 'test5.md');
+
+    for (const filename of unchangedFiles) {
+      // license.md and readme.md are special cases, they are copied but not translated
+      if (filename === 'license.md' || filename === 'readme.md') {
+        continue;
+      }
+      const filePath = path.join(targetPath, filename);
+      const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
+      if (fileExists) {
+        const content = await fs.readFile(filePath, 'utf-8');
+        expect(content).not.toContain('已修改');
+      }
+    }
+  });
 });

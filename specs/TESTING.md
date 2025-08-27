@@ -66,9 +66,17 @@
 ### 5. 模擬翻譯所有檔案，但 `gemini` 返回正確的翻譯內容
 
 *   **情境描述**：使用 `--all` 參數，並設定假的 `gemini` 命令程式，使其在翻譯所有檔案時都返回正確的翻譯內容。
-*   **環境設定**：使用情境 3 留下的的 `workspace`。
+*   **環境設定**：使用情境 4 留下的的 `workspace`。
 *   **預期結果**：
     *   程式應成功翻譯所有檔案。
-    *   所有翻譯後的內容應被寫入 `workspace/tmp` 目錄下的對應檔案。
-    *   所有檔案在 `workspace/tmp/.progress` 中的翻譯狀態都應被標記為已完成。
-    *   翻譯完成後，程式應執行收尾工作：將 `workspace/tmp` 中的翻譯結果和 `.source_commit` 複製到 `workspace/repo/target`，並清空 `workspace/tmp`。
+    *   翻譯完成後， main() 會執行收尾工作：將 `workspace/tmp` 中的翻譯結果和 `.source_commit` 複製到 `workspace/repo/target`，並清空 `workspace/tmp`，因此只有 `workspace/repo/target` 會有翻譯好的檔案。
+
+### 6. 模擬 `workspace/repo/source` 有更新，進行差異化翻譯，使用參數 `--all`
+*   **環境設定**
+    * 使用情境 5 留下的的 `workspace`。
+    * 測試程式內需先行提交(`git commit`) `workspace/repo/target` ，並切換至 `test1-branch` 分支。
+    * 測試程式內需要修改 `workspace/repo/source` `test2.md` 與 `test5.md` , 增加一行 `已修改` 於最後，並提交於 `test1-branch` 分支，這兩個檔案所增加的`已修改`字串可作為檢查是否翻譯成功的條件。
+*   **預期結果**
+    *   程式應成功翻譯有異動的所有檔案。
+    *   翻譯完成後， main() 會執行收尾工作：將 `workspace/tmp` 中的翻譯結果和 `.source_commit` 複製到 `workspace/repo/target`，並清空 `workspace/tmp`，因此只有 `workspace/repo/target` 會有翻譯好的檔案。
+    *   `workspace/repo/source` 的 `commit hash` 必須與 `workspace/repo/target/.source_commit` 相同。
