@@ -23,12 +23,12 @@
     "gemini"
   ],
   "author": "Pigo Chu <pigochu@gmail.com>",
-  "license": "CC-BY-NC-SA-4.0",
+  "license": "AGPL V3",
   "os": [
     "!win32"
   ],
   "engines": {
-    "node": ">=22.0.0"
+    "node": "^22.0.0"
   },
   "dependencies": {
     "commander": "^14.0.0",
