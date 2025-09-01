@@ -1,6 +1,7 @@
 # laradoc-trans
 
-laradoc-trans 是一個命令列工具，旨在利用 Gemini CLI 將 [Laravel 官方文件](https://github.com/laravel/docs) 自動化翻譯成繁體中文。
+laradoc-trans 是一個命令列工具，旨在利用 `Gemini CLI` 將 [Laravel 官方文件](https://github.com/laravel/docs) 自動化翻譯成繁體中文。
+
 
 ## 主要功能
 
@@ -11,7 +12,7 @@ laradoc-trans 是一個命令列工具，旨在利用 Gemini CLI 將 [Laravel �
 
 ## 環境需求
 
-*   Node.js (v22.0.0 或更高版本)
+*   Node.js (建議 v22 或更高版本，因為開發時一開始就選這版本了，尚未測試其他版本)
 *   Git
 *   Gemini CLI
 
@@ -22,6 +23,7 @@ laradoc-trans 是一個命令列工具，旨在利用 Gemini CLI 將 [Laravel �
     npm install -g @google/gemini-cli
     ```
     若系統已經有安裝了則可以忽略此步驟。
+
 2.  **複製專案庫**:
     ```bash
     git clone https://github.com/your-username/laradoc-trans.git
@@ -68,12 +70,12 @@ laradoc-trans 是一個命令列工具，旨在利用 Gemini CLI 將 [Laravel �
 
 翻譯指定分支的單一檔案：
 ```bash
-npm run start -- --branch=11.x
+npm run start -- --branch=12.x
 ```
 
 ### 命令列參數
 
-*   `--branch <branch>`: **(必要)** 指定要翻譯的 `source` 倉庫分支 (例如: `--branch=11.x`)。
+*   `--branch <branch>`: **(必要)** 指定要翻譯的 `source` 倉庫分支 (例如: `--branch=12.x`)。
 *   `--limit <number>`: 限制單次翻譯的檔案數量 (例如: `--limit=5`)。
 *   `--all`: 翻譯所有尚未翻譯的檔案。
 *   `--env <path>`: 指定環境變數檔案的路徑 (預設: `.env`)。
@@ -112,4 +114,4 @@ npm run start -- --branch=11.x
 
 ## 授權許可
 
-本專案採用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授權。
+本專案採用 [AGPL v3](./LICENSE) 授權。
