@@ -66,6 +66,9 @@ laradoc-trans 是一個命令列工具，旨在利用 `Gemini CLI` 將 [Laravel 
 
 本工具提供了一個 `laradoc-trans` 命令（或可透過 `npm run start --` 執行）來啟動翻譯程序。
 
+> TODO : 
+> `laradoc-trans` 命令因剛出來見人，尚未進行 `npm publish`，必須自行安裝才能於全域使用，否則請使用 `npm start -- args..` 的方式。
+
 ### 基本用法
 
 翻譯指定分支的單一檔案：
