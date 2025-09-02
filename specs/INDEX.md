@@ -36,7 +36,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 - **翻譯鍵 (Translation Keys)**: 翻譯鍵應直接使用原始英文字串。
 - **語言偵測 (Language Detection)**: 程式會自動偵測系統語言環境變數 (`LANG` 或 `LC_ALL`) 來決定介面語言。若未偵測到或偵測到的語言不支援，則會回退到英文 (`en`)。
 - **後備語言 (Fallback Language)**: 後備語言為英文 (`en`)。
-- **翻譯檔案 (Translation Files)**: 翻譯檔案存放於 `src/i18n/` 目錄下，並以語言代碼命名 (例如 `en.json`, `zh-TW.json`)。
+- **翻譯檔案 (Translation Files)**: 翻譯檔案存放於 `resources/i18n/` 目錄下，並以語言代碼命名 (例如 `en.json`, `zh-TW.json`)。
 - **鍵分割與命名空間 (Key Separator & Namespace)**: `i18next` 的鍵分割符號 (`keySeparator`) 和命名空間分隔符號 (`nsSeparator`) 皆已禁用，以確保原始字串能作為完整的翻譯鍵。
 - **簡化呼叫 (Simplified Calls)**: 為了簡化程式碼，`i18next.t` 函數已別名為 `_`，因此可以使用 `_("原始英文字串", { 參數 })` 的方式進行翻譯呼叫。
 
@@ -48,7 +48,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 - `workspace/repo/source` : 使用者必須以 `git clone` 命令將官方文件下載放這。
 - `workspace/repo/target` : 翻譯完成的檔案會存放於此。
 - `workspace/tmp` : 工作暫存目錄，翻譯時會預先使用此目錄進行翻譯進度管理，待全部的進度完成才會將翻譯好的所有檔案複製到 `workspace/repo/target` 。
-- `workspace/logs` : 記錄檔存放區， `error.log` 可用於檢視錯誤，`debug.log` 可用於除錯。
+- `workspace/logs` : 記錄檔存放區， `error.log` 可用於檢視錯誤。
 
 ## 4. 核心功能與流程
 
