@@ -60,7 +60,7 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
 
   program.addHelpText('afterAll', `
 Examples:
-  $ laradoc-trans init --workspace-path ./my-workspace --branch 10.x
+  $ laradoc-trans init --workspace-path ./my-workspace
   $ laradoc-trans run --branch 10.x --limit 5
   $ laradoc-trans run --branch 11.x --all --env .env.production
 `);
