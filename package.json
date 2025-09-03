@@ -5,11 +5,15 @@
   "main": "dist/main.js",
   "files": [
     "dist",
-    "resources"
+    "resources",
+    ".env-dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "start": "node dist/main.js",
     "build": "tsc",
+    "test": "jest",
     "dev": "ts-node src/main.ts"
   },
   "bin": {
