@@ -80,7 +80,7 @@ describe('Scenario Tests', () => {
     await fs.rm(workspacePathForTests, { recursive: true, force: true }).catch(() => {});
     await fs.mkdir(workspacePathForTests, { recursive: true });
 
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
+    const argv = ['node', 'dist/main.js', 'trans', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
 
     await expect(main(argv)).rejects.toThrow(RepositoryNotFoundError);
   });
@@ -98,7 +98,7 @@ describe('Scenario Tests', () => {
     await fs.rename(gitDistPath, gitPath);
 
     process.env.GEMINI_MOCK_BEHAVIOR = 'error'; // Set mock behavior to error
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
+    const argv = ['node', 'dist/main.js',  'trans','--branch', 'test1-branch', '--env', '../tests/.env.test'];
     await expect(main(argv)).rejects.toThrow(GeminiCliError);
   });
 
@@ -118,7 +118,7 @@ describe('Scenario Tests', () => {
       throw new Error('Could not find an untranslated file to test');
     }
 
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test'];
+    const argv = ['node', 'dist/main.js',  'trans','--branch', 'test1-branch', '--env', '../tests/.env.test'];
 
     // 執行 main
     await main(argv);
@@ -153,7 +153,7 @@ describe('Scenario Tests', () => {
     // 確保至少有兩個未翻譯的檔案
     expect(untranslatedFiles.length).toBeGreaterThanOrEqual(2);
 
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--limit', '2'];
+    const argv = ['node', 'dist/main.js',  'trans','--branch', 'test1-branch', '--env', '../tests/.env.test', '--limit', '2'];
 
     // 執行 main
     await main(argv);
@@ -183,7 +183,7 @@ describe('Scenario Tests', () => {
 
     // 設定模擬 gemini 的行為
     process.env.GEMINI_MOCK_BEHAVIOR = 'success';
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
+    const argv = ['node', 'dist/main.js',  'trans','--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
 
     // 執行 main
     await main(argv);
@@ -257,7 +257,7 @@ describe('Scenario Tests', () => {
 
     // 設定模擬 gemini 的行為
     process.env.GEMINI_MOCK_BEHAVIOR = 'diff';
-    const argv = ['node', 'dist/main.js', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
+    const argv = ['node', 'dist/main.js',  'trans', '--branch', 'test1-branch', '--env', '../tests/.env.test', '--all'];
 
     // 執行 main
     await main(argv);

@@ -8,6 +8,7 @@ import {
   GetCommitHashError,
   ListFilesError,
   DiffError,
+  CloneError,
 } from './';
 
 /**
@@ -30,10 +31,20 @@ export async function isGitRepository(dirPath: string): Promise<boolean> {
 /**
  * Initializes a new Git repository in a given path.
  */
-async function init(repoPath: string): Promise<void> {
+export async function initRepository(repoPath: string): Promise<void> {
   const { stderr, exitCode } = await executeGit(['init'], repoPath);
   if (exitCode !== 0) {
     throw new InitError(stderr);
+  }
+}
+
+/**
+ * Clones a Git repository from a given URL to a target path.
+ */
+export async function cloneRepository(repoUrl: string, targetPath: string): Promise<void> {
+  const { stderr, exitCode } = await executeGit(['clone', repoUrl, targetPath], process.cwd()); // Run clone from CWD
+  if (exitCode !== 0) {
+    throw new CloneError(stderr);
   }
 }
 
@@ -96,7 +107,7 @@ export async function getDiffFiles(repoPath: string, oldHash: string, newHash: s
  */
 export async function initializeTargetRepo(repoPath: string, branch: string): Promise<void> {
   if (!(await isGitRepository(repoPath))) {
-    await init(repoPath);
+    await initRepository(repoPath);
   }
   await checkoutOrCreateBranch(repoPath, branch);
 }

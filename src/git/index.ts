@@ -6,6 +6,7 @@ import { GitExecutableNotFoundError } from './GitExecutableNotFoundError';
 import { InitError } from './InitError';
 import { ListFilesError } from './ListFilesError';
 import { RepositoryNotFoundError } from './RepositoryNotFoundError';
+import { CloneError } from './CloneError';
 
 /**
  * This module serves as the public API for all Git-related operations.
@@ -19,6 +20,8 @@ export {
   listMarkdownFiles,
   getDiffFiles,
   initializeTargetRepo,
+  initRepository,
+  cloneRepository,
 } from './operations';
 
 /**
@@ -34,4 +37,5 @@ export {
   InitError,
   ListFilesError,
   RepositoryNotFoundError,
+  CloneError,
 };

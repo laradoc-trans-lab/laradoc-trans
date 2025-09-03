@@ -16,8 +16,8 @@ export interface WorkspacePaths {
  * @returns 一個包含工作區目錄絕對路徑的物件。
  * @throws {RepositoryNotFoundError} If the source directory is not a valid Git repository.
  */
-export async function initializeWorkspace(): Promise<WorkspacePaths> {
-  const workspacePath = process.env.WORKSPACE_PATH || path.resolve(process.cwd(), 'workspace');
+export async function initializeWorkspace(customWorkspacePath?: string): Promise<WorkspacePaths> {
+  const workspacePath = customWorkspacePath || process.env.WORKSPACE_PATH || path.resolve(process.cwd(), 'workspace');
 
   const paths: WorkspacePaths = {
     root: workspacePath,
@@ -27,18 +27,12 @@ export async function initializeWorkspace(): Promise<WorkspacePaths> {
     logs: path.join(workspacePath, 'logs'),
   };
 
-  // 1. 檢查來源目錄是否為有效的 Git 儲存庫。
-  const sourceIsRepo = await isGitRepository(paths.source);
-  if (!sourceIsRepo) {
-    // We throw the specific error here for the main process to catch.
-    throw new RepositoryNotFoundError(paths.source);
-  }
-
-  // 2. 如果 tmp、logs 和 target 目錄不存在，則建立它們。
+  // Ensure all necessary directories exist
+  await fs.mkdir(paths.source, { recursive: true }); // Ensure source directory exists
   await fs.mkdir(paths.target, { recursive: true });
   await fs.mkdir(paths.tmp, { recursive: true });
   await fs.mkdir(paths.logs, { recursive: true });
 
-  console.log(_('Workspace initialized at: {{path}}', { path: workspacePath }));
+  console.log(_('Workspace paths resolved at: {{path}}', { path: workspacePath }));
   return paths;
 }

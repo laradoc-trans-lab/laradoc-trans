@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
@@ -9,8 +10,11 @@ import {
   getDiffFiles,
   listMarkdownFiles,
   GitError,
-  RepositoryNotFoundError,
+  RepositoryNotFoundError, // Keep for handleTransCommand
   CheckoutFailedError,
+  cloneRepository,
+  initRepository,
+  isGitRepository, // Added this import
 } from './git';
 import {
   readProgressFile,
@@ -23,22 +27,104 @@ import {
 import { translateFile, TranslationError, GeminiCliError } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
-import { parseCliArgs, CliOptions } from './cli';
+import { parseCliArgs, CliArgs, InitOptions, TransOptions } from './cli';
+
+const LARAVEL_DOCS_REPO = 'https://github.com/laravel/docs.git';
 
 export async function main(argv: string[]) {
-  const options: CliOptions = await parseCliArgs(argv);
-
-  // 載入環境變數
-  dotenv.config({ path: options.env });
-
-  // 初始化 i18n
+  // 初始化 i18n (放在這裡確保所有輸出都能被翻譯)
   await initI18n();
 
-  // --- 參數驗證與預設值設定 ---
-  if (!options.branch) {
-    console.error(_('Error: --branch is a required argument.'));
-    throw new Error('Missing required argument: --branch');
+  const cliArgs: CliArgs = await parseCliArgs(argv);
+
+  switch (cliArgs.command) {
+    case 'init':
+      await handleInitCommand(cliArgs.options as InitOptions);
+      break;
+    case 'trans':
+      await handleTransCommand(cliArgs.options as TransOptions);
+      break;
+    default:
+      // This case should ideally not be reached if commander is configured correctly
+      console.error(_('Unknown command: {{command}}', { command: cliArgs.command }));
+      process.exit(1);
   }
+}
+
+async function handleInitCommand(options: InitOptions) {
+  console.log(_('Initializing workspace...'));
+
+  // 檢查 git 工具是否存在
+  try {
+    await checkToolExistence('git');
+  } catch (error: unknown) {
+    if (error instanceof ToolNotFoundError) {
+      console.error(_('Error: Required tool \'{{toolName}}\' is not installed. Please install it and make sure it is in your PATH.', { toolName: error.toolName }));
+    }
+    throw error;
+  }
+
+  const workspacePath = options.workspacePath || process.env.WORKSPACE_PATH;
+  const paths: WorkspacePaths = await initializeWorkspace(workspacePath);
+
+  // Clone source repository
+  const sourceRepoUrl = options.sourceRepo || LARAVEL_DOCS_REPO;
+  try {
+    // Check if source repo already exists and is a valid git repo
+    // A more robust check would involve `git rev-parse --is-inside-work-tree`
+    try {
+      await fs.access(path.join(paths.source, '.git'));
+      console.log(_('Source repository already exists at {{path}}. Skipping clone.', { path: paths.source }));
+    } catch (e) {
+      console.log(_('Cloning Laravel documentation to {{path}}...', { path: paths.source }));
+      await cloneRepository(sourceRepoUrl, paths.source);
+      console.log(_('Laravel documentation cloned successfully.'));
+    }
+  } catch (error: unknown) {
+    console.error(_('Error cloning Laravel documentation: {{message}}', { message: (error as Error).message }));
+    throw error;
+  }
+
+  // Initialize target repository
+  try {
+    // Check if target repo already exists and is a valid git repo
+    try {
+      await fs.access(path.join(paths.target, '.git'));
+      console.log(_('Target repository already exists at {{path}}. Skipping initialization.', { path: paths.target }));
+    } catch (e) {
+      console.log(_('Initializing target repository at {{path}}...', { path: paths.target }));
+      await initRepository(paths.target);
+      console.log(_('Target repository initialized successfully.'));
+    }
+  } catch (error: unknown) {
+    console.error(_('Error initializing target repository: {{message}}', { message: (error as Error).message }));
+    throw error;
+  }
+
+  // Checkout branch if specified
+  if (options.branch) {
+    try {
+      console.log(_('Checking out branch {{branch}} in source repository...', { branch: options.branch }));
+      await checkoutBranch(paths.source, options.branch);
+      console.log(_('Branch {{branch}} checked out in source repository.', { branch: options.branch }));
+
+      console.log(_('Checking out branch {{branch}} in target repository...', { branch: options.branch }));
+      await checkoutBranch(paths.target, options.branch);
+      console.log(_('Branch {{branch}} checked out in target repository.', { branch: options.branch }));
+    } catch (error: unknown) {
+      if (error instanceof CheckoutFailedError) {
+        console.error(_('Error: Failed to checkout branch \'{{branch}}\'\: {{message}}', { branch: options.branch, message: error.message }));
+      }
+      throw error;
+    }
+  }
+
+  console.log(_('Workspace initialization complete.'));
+}
+
+async function handleTransCommand(options: TransOptions) {
+  // 載入環境變數
+  dotenv.config({ path: options.env });
 
   // 檢查外部工具是否存在
   try {
@@ -53,7 +139,6 @@ export async function main(argv: string[]) {
     throw error;
   }
 
-
   let translationCount: number | 'all' = 1; // 預設翻譯 1 個檔案
   if (options.all) {
     translationCount = 'all';
@@ -65,7 +150,12 @@ export async function main(argv: string[]) {
   // --- 初始化工作目錄 ---
   let paths: WorkspacePaths;
   try {
-    paths = await initializeWorkspace();
+    paths = await initializeWorkspace(); // No customWorkspacePath for trans command
+    // Check if source repo is valid for trans command
+    const sourceIsRepo = await isGitRepository(paths.source);
+    if (!sourceIsRepo) {
+      throw new RepositoryNotFoundError(paths.source);
+    }
     console.log(_('Workspace initialization successful.'));
   } catch (error: unknown) {
     if (error instanceof RepositoryNotFoundError) {
@@ -74,8 +164,6 @@ export async function main(argv: string[]) {
     throw error;
 
   }
-
-
 
   console.log(_('--- Translation Job Configuration ---'));
   console.log(_('Branch: {{branch}}', { branch: options.branch }));
