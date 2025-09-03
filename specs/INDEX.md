@@ -4,7 +4,7 @@
 
 laradoc-trans 的目的是為了將 [Laravel 官方文件](https://github.com/laravel/docs) 進行繁體中文化的翻譯，翻譯的工作主要是交給 `Gemini CLI` 進行。
 
-程式運作的方式主要是提供 CLI 給用戶操作，例如 `npm run start [args.....]`就可以進行自動化翻譯。
+程式運作的方式主要是提供 CLI 給用戶操作，例如 `npm run start <command> [options]`就可以進行自動化翻譯。
 
 ## 1. Features
 
@@ -56,16 +56,47 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 本工具使用 Commander.js 解析命令列參數。
 
-程式執行時可以用 `node dist/main.js` 或 `npm run start` 的方式搭配一些參數來使用，以下是參數說明:
+程式執行時可以用 `node dist/main.js <command> [options]` 或 `npm run start <command> [options]` 的方式來使用。
+
+#### `init` 命令
+
+用於初始化工作區。
+
+- **用法**:
+  - `laradoc-trans init [options]`
+
+- **選項**:
+  - `--workspace-path <path>` : 指定工作區的根目錄。若未指定，則預設為當前執行命令的目錄。
+  - `--source-repo <url>` : 指定 `workspace/repo/source` 的遠端 Git 倉庫 URL。若未指定，則預設為 `https://github.com/laravel/docs.git`。
+  - `--target-repo <url>` : 指定 `workspace/repo/target` 的遠端 Git 倉庫 URL。若未指定，則 `workspace/repo/target` 會被初始化為一個本地 Git 倉庫。
+  - `--branch <branch>` : 指定要初始化並切換到的分支。若未指定，則預設為來源倉庫的預設分支 (通常是 `main` 或 `master`)。
+
+- **功能**:
+  - 根據 `--workspace-path` 選項決定工作區的根目錄。
+  - 在工作區內建立 `tmp`, `logs` 等必要目錄。
+  - 根據 `--source-repo` 選項將 Laravel 官方文件 `git clone` 到 `workspace/repo/source`。如果 `workspace/repo/source` 已存在且是有效的 Git 倉庫，則跳過複製。
+  - 根據 `--target-repo` 選項初始化 `workspace/repo/target`：
+    - 若指定了 `--target-repo`，則會 `git clone` 該遠端倉庫到 `workspace/repo/target`。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過複製。
+    - 若未指定 `--target-repo`，則會在 `workspace/repo/target` 執行 `git init` 建立一個新的本地 Git 倉庫。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過初始化。
+  - 如果指定了 `--branch`，則在 `workspace/repo/source` 和 `workspace/repo/target` 中切換到該分支。
+
+#### `trans` 命令
+
+用於執行文件翻譯。
+
+- **用法**: `laradoc-trans trans [options]`
+
+- **選項**:
+  - `--branch <branch>` : **必要參數**。例如 `--branch 12.x` 代表要翻譯 `workspace/repo/source` 的 `12.x` 分支。
+  - `--limit <limit>` : 例如 `--limit 5` 代表只需要翻譯尚未翻譯的5個檔案。若未指定 `--all` 且未指定此參數，則預設只翻譯 1 個檔案。
+  - `--all` : 翻譯全部尚未完成翻譯的檔案。
+  - `--env <file>` : 指定環境變數檔案。若不指定，則預設會使用專案根目錄的 `.env`。`.env` 是程式運作必要的設定檔，但也可以透過直接使用環境變數來進行程式所需要的設定，可參考 [4.2 可用的環境變數](#42-可用的環境變數)。
+  - `--prompt-file <file>` : 指定一個檔案作為翻譯的提示詞。若不指定，則預設會使用專案根目錄 `resources/` 下的 `TRANSLATE_PROMPT.md`。
+
+#### 全域選項
 
 - `-v, --version` : 顯示程式版本。
-- `--branch` : 例如 `--branch 12.x` 代表要翻譯 `workspace/repo/source` 的 `12.x` 分支，且這是必要參數。
-- `--limit` : 例如 `--limit 5` 代表只需要翻譯尚未翻譯的5個檔案。
-- `--all` : 翻譯全部尚未完成翻譯的檔案。
-- `--env` : 指定環境變數檔案，若不指定，則預設會使用專案根目錄的 `.env`,`.env` 是程式運作必要的設定檔，但也可以透過直接使用環境變數來進行程式所需要的設定，可參考 [4.2 可用的環境變數](#42-可用的環境變數)。
-- `--prompt-file` : 指定一個檔案作為翻譯的提示詞，若不指定，則預設會使用專案根目錄 `resources/` 下的 `TRANSLATE_PROMPT.md`。
-
-如果使用者沒有下達 `--limit` 或 `--all` 代表只翻譯尚未完成翻譯的 1 個檔案。
+- `-h, --help` : 顯示幫助訊息。
 
 ### 4.2 可用的環境變數
 
@@ -76,8 +107,15 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 ### 4.3 初始化
 
-1. 一開始必須檢查 `workspace/repo/source` 是否已經被使用者建立了，這是必須的，且這必須是一個合法的 Git 倉庫。
-2. `workspace/` 下的 `tmp` `logs` `repo/target` 若不存在則必須由程式自行建立。
+1.  **工作區初始化**: 當執行 `init` 命令時，程式會自動處理工作區的建立與設定。
+    - 工作區的根目錄由 `--workspace-path` 選項決定。若未指定，則預設為當前執行命令的目錄。
+    - 工作區建立後，會自動將 [Laravel 官方文件](https://github.com/laravel/docs) 的最新版本 `git clone` 到 `workspace/repo/source`。如果 `workspace/repo/source` 已存在且是有效的 Git 倉庫，則跳過複製。
+    - `workspace/` 下的 `tmp`、`logs` 等必要目錄若不存在，也會由程式自行建立。
+    - `workspace/repo/target` 的初始化行為取決於 `--target-repo` 選項：
+      - 若指定了 `--target-repo <url>`，則會 `git clone` 該遠端倉庫到 `workspace/repo/target`。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過複製。
+      - 若未指定 `--target-repo`，則會在 `workspace/repo/target` 執行 `git init` 建立一個新的本地 Git 倉庫。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過初始化。
+    - 如果指定了 `--branch`，則在 `workspace/repo/source` 和 `workspace/repo/target` 中切換到該分支。
+2.  **Git 倉庫檢查**: `trans` 命令執行前，會檢查 `workspace/repo/source` 是否是一個合法的 Git 倉庫。如果不是，則會拋出錯誤。這確保了翻譯操作總是在一個有效的來源倉庫上進行。
 
 ### 4.4 翻譯流程
 
