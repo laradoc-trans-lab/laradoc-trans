@@ -11,10 +11,11 @@ import {
   listMarkdownFiles,
   GitError,
   RepositoryNotFoundError, // Keep for handleTransCommand
-  CheckoutFailedError,
-  cloneRepository,
   initRepository,
-  isGitRepository, // Added this import
+  cloneRepository,
+  CloneError,
+  isGitRepository,
+  CheckoutFailedError,
 } from './git';
 import {
   readProgressFile,
@@ -67,17 +68,15 @@ async function handleInitCommand(options: InitOptions) {
   const workspacePath = options.workspacePath || process.env.WORKSPACE_PATH;
   const paths: WorkspacePaths = await initializeWorkspace(workspacePath);
 
-  // Clone source repository
-  const sourceRepoUrl = options.sourceRepo || LARAVEL_DOCS_REPO;
+  // Clone source repository (always clone Laravel docs)
   try {
     // Check if source repo already exists and is a valid git repo
-    // A more robust check would involve `git rev-parse --is-inside-work-tree`
     try {
       await fs.access(path.join(paths.source, '.git'));
       console.log(_('Source repository already exists at {{path}}. Skipping clone.', { path: paths.source }));
     } catch (e) {
       console.log(_('Cloning Laravel documentation to {{path}}...', { path: paths.source }));
-      await cloneRepository(sourceRepoUrl, paths.source);
+      await cloneRepository(LARAVEL_DOCS_REPO, paths.source);
       console.log(_('Laravel documentation cloned successfully.'));
     }
   } catch (error: unknown) {
@@ -87,37 +86,32 @@ async function handleInitCommand(options: InitOptions) {
 
   // Initialize target repository
   try {
-    // Check if target repo already exists and is a valid git repo
-    try {
-      await fs.access(path.join(paths.target, '.git'));
-      console.log(_('Target repository already exists at {{path}}. Skipping initialization.', { path: paths.target }));
-    } catch (e) {
-      console.log(_('Initializing target repository at {{path}}...', { path: paths.target }));
-      await initRepository(paths.target);
-      console.log(_('Target repository initialized successfully.'));
+    if (options.targetRepo) {
+      // If targetRepo URL is provided, clone it
+      try {
+        await fs.access(path.join(paths.target, '.git'));
+        console.log(_('Target repository already exists at {{path}}. Skipping clone.', { path: paths.target }));
+      } catch (e) {
+        console.log(_('Cloning target repository from {{url}} to {{path}}...', { url: options.targetRepo, path: paths.target }));
+        await cloneRepository(options.targetRepo, paths.target);
+        console.log(_('Target repository cloned successfully.'));
+      }
+    } else {
+      // If targetRepo URL is not provided, initialize a local git repo
+      try {
+        await fs.access(path.join(paths.target, '.git'));
+        console.log(_('Target repository already exists at {{path}}. Skipping initialization.', { path: paths.target }));
+      } catch (e) {
+        console.log(_('Initializing target repository at {{path}}...', { path: paths.target }));
+        await initRepository(paths.target);
+        console.log(_('Target repository initialized successfully.'));
+      }
     }
   } catch (error: unknown) {
     console.error(_('Error initializing target repository: {{message}}', { message: (error as Error).message }));
     throw error;
   }
 
-  // Checkout branch if specified
-  if (options.branch) {
-    try {
-      console.log(_('Checking out branch {{branch}} in source repository...', { branch: options.branch }));
-      await checkoutBranch(paths.source, options.branch);
-      console.log(_('Branch {{branch}} checked out in source repository.', { branch: options.branch }));
-
-      console.log(_('Checking out branch {{branch}} in target repository...', { branch: options.branch }));
-      await checkoutBranch(paths.target, options.branch);
-      console.log(_('Branch {{branch}} checked out in target repository.', { branch: options.branch }));
-    } catch (error: unknown) {
-      if (error instanceof CheckoutFailedError) {
-        console.error(_('Error: Failed to checkout branch \'{{branch}}\'\: {{message}}', { branch: options.branch, message: error.message }));
-      }
-      throw error;
-    }
-  }
 
   console.log(_('Workspace initialization complete.'));
 }

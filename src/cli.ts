@@ -4,9 +4,7 @@ import path from 'path';
 
 export interface InitOptions {
   workspacePath?: string;
-  sourceRepo?: string;
   targetRepo?: string;
-  branch?: string;
 }
 
 export interface TransOptions {
@@ -39,9 +37,7 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
   program.command('init')
     .description('Initialize the workspace for translation.')
     .option('--workspace-path <path>', 'Path to the workspace directory.')
-    .option('--source-repo <url>', 'URL of the source Laravel documentation repository.')
     .option('--target-repo <url>', 'URL of the target translated documentation repository.')
-    .option('--branch <branch>', 'The branch to initialize.')
     .action((options) => {
       program.cliArgs = { command: 'init', options };
     });
