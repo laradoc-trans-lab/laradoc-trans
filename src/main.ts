@@ -2,7 +2,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
-import { initializeWorkspace, WorkspacePaths } from './fileUtils';
+import { initializeWorkspace, WorkspacePaths, ensureEnvFile } from './fileUtils';
 import {
   checkoutBranch,
   initializeTargetRepo,
@@ -10,7 +10,7 @@ import {
   getDiffFiles,
   listMarkdownFiles,
   GitError,
-  RepositoryNotFoundError, // Keep for handleTransCommand
+  RepositoryNotFoundError,
   initRepository,
   cloneRepository,
   CloneError,
@@ -28,7 +28,7 @@ import {
 import { translateFile, TranslationError, GeminiCliError } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
-import { parseCliArgs, CliArgs, InitOptions, TransOptions } from './cli';
+import { parseCliArgs, CliArgs, InitOptions, RunOptions } from './cli';
 
 const LARAVEL_DOCS_REPO = 'https://github.com/laravel/docs.git';
 
@@ -42,8 +42,8 @@ export async function main(argv: string[]) {
     case 'init':
       await handleInitCommand(cliArgs.options as InitOptions);
       break;
-    case 'trans':
-      await handleTransCommand(cliArgs.options as TransOptions);
+    case 'run':
+      await handleRunCommand(cliArgs.options as RunOptions);
       break;
     default:
       // This case should ideally not be reached if commander is configured correctly
@@ -52,6 +52,10 @@ export async function main(argv: string[]) {
   }
 }
 
+/**
+ * 處理 init 命令
+ * @param options 
+ */
 async function handleInitCommand(options: InitOptions) {
   console.log(_('Initializing workspace...'));
 
@@ -67,6 +71,8 @@ async function handleInitCommand(options: InitOptions) {
 
   const workspacePath = options.workspacePath || process.env.WORKSPACE_PATH;
   const paths: WorkspacePaths = await initializeWorkspace(workspacePath);
+
+
 
   // Clone source repository (always clone Laravel docs)
   try {
@@ -112,11 +118,17 @@ async function handleInitCommand(options: InitOptions) {
     throw error;
   }
 
-
+  // Ensure .env file exists in the workspace
+  await ensureEnvFile(paths.root);
   console.log(_('Workspace initialization complete.'));
 }
 
-async function handleTransCommand(options: TransOptions) {
+
+/**
+ * 處理 run 命令
+ * @param options 
+ */
+async function handleRunCommand(options: RunOptions) {
   // 載入環境變數
   dotenv.config({ path: options.env });
 
@@ -144,8 +156,8 @@ async function handleTransCommand(options: TransOptions) {
   // --- 初始化工作目錄 ---
   let paths: WorkspacePaths;
   try {
-    paths = await initializeWorkspace(); // No customWorkspacePath for trans command
-    // Check if source repo is valid for trans command
+    paths = await initializeWorkspace(); // No customWorkspacePath for run command
+    // Check if source repo is valid for run command
     const sourceIsRepo = await isGitRepository(paths.source);
     if (!sourceIsRepo) {
       throw new RepositoryNotFoundError(paths.source);
