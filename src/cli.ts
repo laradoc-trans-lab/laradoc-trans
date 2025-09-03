@@ -7,7 +7,7 @@ export interface InitOptions {
   targetRepo?: string;
 }
 
-export interface TransOptions {
+export interface RunOptions {
   branch: string;
   limit?: number;
   all?: boolean;
@@ -16,8 +16,8 @@ export interface TransOptions {
 }
 
 export interface CliArgs {
-  command: 'init' | 'trans';
-  options: InitOptions | TransOptions;
+  command: 'init' | 'run';
+  options: InitOptions | RunOptions;
 }
 
 export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
@@ -42,9 +42,9 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
       program.cliArgs = { command: 'init', options };
     });
 
-  // Trans Command
-  program.command('trans')
-    .description('Translate Laravel docs.')
+  // Run Command
+  program.command('run')
+    .description('Run a translation job.')
     .requiredOption('--branch <branch>', 'The branch to translate.')
     .option(
       '--limit <number>',
@@ -55,14 +55,14 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
     .option('--env <path>', 'Path to the .env file.')
     .option('--prompt-file <path>', 'Path to the prompt file.')
     .action((options) => {
-      program.cliArgs = { command: 'trans', options };
+      program.cliArgs = { command: 'run', options };
     });
 
   program.addHelpText('afterAll', `
 Examples:
   $ laradoc-trans init --workspace-path ./my-workspace --branch 10.x
-  $ laradoc-trans trans --branch 10.x --limit 5
-  $ laradoc-trans trans --branch 11.x --all --env .env.production
+  $ laradoc-trans run --branch 10.x --limit 5
+  $ laradoc-trans run --branch 11.x --all --env .env.production
 `);
 
   program.parse(argv);

@@ -36,3 +36,29 @@ export async function initializeWorkspace(customWorkspacePath?: string): Promise
   console.log(_('Workspace paths resolved at: {{path}}', { path: workspacePath }));
   return paths;
 }
+
+/**
+ * 確保工作區中存在 .env 檔案。如果不存在，則從專案根目錄複製 .env-dist。
+ * @param workspacePath 工作區的根目錄路徑。
+ */
+export async function ensureEnvFile(workspacePath: string): Promise<void> {
+  const destEnvPath = path.join(workspacePath, '.env');
+  try {
+    await fs.access(destEnvPath);
+    console.log(_('Skipping .env creation as it already exists in the workspace.'));
+  } catch {
+    // .env file doesn't exist, so create it from .env-dist
+    const sourceEnvPath = path.resolve(__dirname, '..', '.env-dist');
+    try {
+      await fs.copyFile(sourceEnvPath, destEnvPath);
+      console.log(_('Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.'));
+    } catch (copyError) {
+      const userFriendlyError = new Error(
+        _('Failed to create the required .env file in the workspace ({{path}}). Please check directory permissions.', 
+        { path: workspacePath, message: (copyError as Error).message })
+      );
+      console.error(userFriendlyError.message);
+      throw userFriendlyError;
+    }
+  }
+}
