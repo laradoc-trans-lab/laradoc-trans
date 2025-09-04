@@ -60,5 +60,12 @@
   "Translation failed: {{errorName}} - {{message}}": "Translation failed: {{errorName}} - {{message}}",
   "\nCLI Stderr: {{stderr}}": "\nCLI Stderr: {{stderr}}",
   "An unknown error occurred.": "An unknown error occurred.",
-  "Failed to read prompt file: {{path}}": "Failed to read prompt file: {{path}}"
+  "Failed to read prompt file: {{path}}": "Failed to read prompt file: {{path}}",
+  "Initializing workspace...": "Initializing workspace...",
+  "Laravel documentation cloned successfully.": "Laravel documentation cloned successfully.",
+  "Target repository cloned successfully.": "Target repository cloned successfully.",
+  "Target repository initialized successfully.": "Target repository initialized successfully.",
+  "Workspace initialization complete.": "Workspace initialization complete.",
+  "Skipping .env creation as it already exists in the workspace.": "Skipping .env creation as it already exists in the workspace.",
+  "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it."
 }
