@@ -22,11 +22,13 @@
     ```bash
     npm install -g laradoc-trans
     ```
+    > 要使用本工具也要確認 `gemini cli` 與 `git` 都有安裝好
 
 2.  **初始化工作區**:
     此命令會自動建立 `workspace` 目錄、複製官方文件（預設分支），並為您準備好 `.env` 設定檔。
     ```bash
-    laradoc-trans init
+    laradoc-trans init --workspace-path workspace
+    cd workspace
     ```
 
 3.  **填寫 API 金鑰**:
