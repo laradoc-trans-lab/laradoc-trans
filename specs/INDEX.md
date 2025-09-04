@@ -69,7 +69,6 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
   - `--workspace-path <path>` : 指定工作區的根目錄。若未指定，則預設為當前執行命令的目錄。
   - `--source-repo <url>` : 指定 `workspace/repo/source` 的遠端 Git 倉庫 URL。若未指定，則預設為 `https://github.com/laravel/docs.git`。
   - `--target-repo <url>` : 指定 `workspace/repo/target` 的遠端 Git 倉庫 URL。若未指定，則 `workspace/repo/target` 會被初始化為一個本地 Git 倉庫。
-  - `--branch <branch>` : 指定在首次複製 (clone) 倉庫時使用的分支。若未指定，則預設為來源倉庫的預設分支 (通常是 `main` 或 `master`)。
 
 - **功能**:
   - 根據 `--workspace-path` 選項決定工作區的根目錄。
@@ -114,7 +113,6 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
     - `workspace/repo/target` 的初始化行為取決於 `--target-repo` 選項：
       - 若指定了 `--target-repo <url>`，則會 `git clone` 該遠端倉庫到 `workspace/repo/target`。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過複製。
       - 若未指定 `--target-repo`，則會在 `workspace/repo/target` 執行 `git init` 建立一個新的本地 Git 倉庫。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過初始化。
-    - 如果指定了 `--branch`，則在 `workspace/repo/source` 和 `workspace/repo/target` 中切換到該分支。
 2.  **Git 倉庫檢查**: `run` 命令執行前，會檢查 `workspace/repo/source` 是否是一個合法的 Git 倉庫。如果不是，則會拋出錯誤。這確保了翻譯操作總是在一個有效的來源倉庫上進行。
 
 ### 4.4 翻譯流程
