@@ -60,10 +60,10 @@ laradoc-trans init
 ```
 
 執行後，程式會：
-1.  在當前目錄下建立一個 `workspace` 資料夾。
-2.  自動從 GitHub 複製最新的 Laravel 官方文件（使用預設主分支）到 `workspace/repo/source`。
-3.  在 `workspace/repo/target` 建立一個本地的 Git 倉庫，用來存放您的翻譯成果。
-4.  為您建立 `workspace/.env` 設定檔，您只需開啟它並填入 API 金鑰即可。
+1.  在當前目錄下建立一個工作區的目錄結構。
+2.  自動從 GitHub 複製最新的 Laravel 官方文件（使用預設主分支）到 `repo/source`。
+3.  在 `repo/target` 建立一個本地的 Git 倉庫，用來存放您的翻譯成果。
+4.  為您建立 `.env` 設定檔，您只需開啟它並填入 API 金鑰即可。
 
 ### `init` 命令選項詳解
 
@@ -91,7 +91,7 @@ laradoc-trans init
 laradoc-trans run --branch 12.x --all
 ```
 
-程式會自動讀取 `workspace/tmp` 中的進度，並在需要時切換到您指定的分支，只翻譯未完成的檔案。
+程式會自動讀取 `tmp` 中的進度，並在需要時切換到您指定的分支，只翻譯未完成的檔案。
 
 ### `run` 命令選項詳解
 
@@ -117,7 +117,7 @@ laradoc-trans run --branch 12.x --all
 
 ## 5. 環境變數設定
 
-`laradoc-trans` 透過 `.env` 檔案來讀取您的設定。此檔案應位於工作區的根目錄 (`workspace/.env`)。
+`laradoc-trans` 透過 `.env` 檔案來讀取您的設定。此檔案應位於工作區的根目錄。
 
 -   `GEMINI_API_KEY` **(必要)**
     您的 Google Gemini API 金鑰。請至 [Google AI Studio](https://aistudio.google.com/app/apikey) 取得。
