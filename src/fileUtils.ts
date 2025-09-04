@@ -17,7 +17,7 @@ export interface WorkspacePaths {
  * @throws {RepositoryNotFoundError} If the source directory is not a valid Git repository.
  */
 export async function initializeWorkspace(customWorkspacePath?: string): Promise<WorkspacePaths> {
-  const workspacePath = customWorkspacePath || process.env.WORKSPACE_PATH || path.resolve(process.cwd(), 'workspace');
+  const workspacePath = customWorkspacePath || process.env.WORKSPACE_PATH || path.resolve(process.cwd(), './');
 
   const paths: WorkspacePaths = {
     root: workspacePath,

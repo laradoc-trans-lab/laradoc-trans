@@ -153,22 +153,28 @@ async function handleRunCommand(options: RunOptions) {
     translationCount = options.limit;
   }
 
-  // --- 初始化工作目錄 ---
-  let paths: WorkspacePaths;
+  // --- 驗證工作目錄 ---
+  const workspacePath = process.env.WORKSPACE_PATH || path.resolve(process.cwd(), './');
+  const paths: WorkspacePaths = {
+    root: workspacePath,
+    source: path.join(workspacePath, 'repo', 'source'),
+    target: path.join(workspacePath, 'repo', 'target'),
+    tmp: path.join(workspacePath, 'tmp'),
+    logs: path.join(workspacePath, 'logs'),
+  };
+
   try {
-    paths = await initializeWorkspace(); // No customWorkspacePath for run command
     // Check if source repo is valid for run command
     const sourceIsRepo = await isGitRepository(paths.source);
     if (!sourceIsRepo) {
       throw new RepositoryNotFoundError(paths.source);
     }
-    console.log(_('Workspace initialization successful.'));
+    console.log(_('Workspace validation successful.'));
   } catch (error: unknown) {
     if (error instanceof RepositoryNotFoundError) {
       console.error(error.message);
-    } 
+    }
     throw error;
-
   }
 
   console.log(_('--- Translation Job Configuration ---'));
@@ -253,7 +259,6 @@ async function handleRunCommand(options: RunOptions) {
   console.log(_('------------------------------------'));
 
   // --- 翻譯循環 ---
-  await fs.mkdir(paths.tmp, { recursive: true }); // 確保 tmp 目錄存在
 
   for (const file of limitedFiles) {
     const sourcePath = path.join(paths.source, file);
