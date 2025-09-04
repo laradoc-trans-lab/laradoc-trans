@@ -26,7 +26,10 @@
     "gemini"
   ],
   "author": "Pigo Chu <pigochu@gmail.com>",
-  "repository": "https://github.com/laradoc-trans-lab/laradoc-trans",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laradoc-trans-lab/laradoc-trans.git"
+  },
   "bugs": "https://github.com/laradoc-trans-lab/laradoc-trans/issues",
   "license": "AGPL V3",
   "os": [
