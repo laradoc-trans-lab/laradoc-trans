@@ -110,7 +110,7 @@ laradoc-trans run --branch 12.x --all
     > 如果 `--all` 和 `--limit` 都沒有提供，預設行為是只翻譯 1 個檔案。
 
 -   `--prompt-file <path>`
-    如果您想客製化送給 Gemini 的翻譯提示詞 (Prompt)，可以透過此選項指定一個自己的 `.md` 檔案。
+    如果您想客製化送給 Gemini 的翻譯提示詞 (Prompt)，可以透過此選項指定一個自己的 `.md` 檔案，範例可以參考本專案的 [提示詞檔案](../resources/TRANSLATE_PROMPT.md)。
 
 -   `--env <path>`
     指定 `.env` 檔案的位置。預設會自動讀取工作區根目錄下的 `.env`，通常不需要手動設定此項。
@@ -123,7 +123,7 @@ laradoc-trans run --branch 12.x --all
     您的 Google Gemini API 金鑰。請至 [Google AI Studio](https://aistudio.google.com/app/apikey) 取得。
 
 -   `GEMINI_MODEL` (可選)
-    指定要使用的 Gemini 模型。預設為 `gemini-1.5-flash`。
+    指定要使用的 Gemini 模型。預設為 `gemini-2.5-flash`。
 
 ## 6. 進階用法與範例
 
@@ -146,14 +146,14 @@ laradoc-trans run --branch 12.x --all
 
 ```bash
 # 進入 source 目錄
-cd workspace/repo/source
+cd repo/source
 
 # 拉取最新變更
 # (請確保您在正確的分支上，例如 12.x)
 git pull origin 12.x
 
 # 返回上一層目錄
-cd ../../..
+cd ../../
 ```
 
 **第二步：再次執行 `run` 命令以進行差異化更新**
