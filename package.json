@@ -1,6 +1,6 @@
 {
   "name": "laradoc-trans",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Translate Laravel docs using Gemini CLI.",
   "main": "dist/main.js",
   "files": [
