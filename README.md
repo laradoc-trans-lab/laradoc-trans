@@ -56,6 +56,10 @@
 - **想了解程式內部設計或參與開發？**
   請閱讀 ➡️ **[開發者指南 (Developer Guide)](./docs/DEVELOPER_GUIDE.md)**
 
+## 👨‍💻 作者
+
+- Pigo Chu <pigochu@gmail.com>
+
 ## 📄 授權
 
-本專案採用 [AGPL-3.0-only](LICENSE) 授權。
+本專案採用 [AGPL-3.0-only](LICENSE) 授權.
