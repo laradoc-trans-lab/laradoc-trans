@@ -41,8 +41,8 @@
   "dependencies": {
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
-    "i18next": "^25.4.0",
-    "i18next-browser-languagedetector": "^8.2.0",
+    "i18next": "^25.5.2",
+    "i18next-cli-language-detector": "^1.1.8",
     "i18next-fs-backend": "^2.6.0"
   },
   "devDependencies": {
