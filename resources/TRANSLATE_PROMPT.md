@@ -35,15 +35,17 @@
 
 ### **輸出要求**
 
-1.  在回應的最開頭，**必須**單獨輸出一行 HTML 註解標記：`<!-- GEMINI_TRANSLATION_SUCCESS -->`。
+1.  在回應的最開頭，**必須**單獨輸出一行 HTML 註解標記：`<!-- GEMINI_TRANSLATION_BEGIN -->`。
 2.  標記之後，才接著輸出翻譯後的完整 Markdown 內容。
-3.  除標記和翻譯內容外，不要包含任何額外的說明或註解。
+3.  在回應的最結尾，**必須**單獨輸出一行 HTML 註解標記：`<!-- GEMINI_TRANSLATION_END -->`。
+4.  除上述標記和翻譯內容外，不要包含任何額外的說明或註解。
 
 **正確的輸出格式範例：**
 
 ```
-<!-- GEMINI_TRANSLATION_SUCCESS -->
+<!-- GEMINI_TRANSLATION_BEGIN -->
 ## 這是標題
 
 這是翻譯後的內容...
+<!-- GEMINI_TRANSLATION_END -->
 ```

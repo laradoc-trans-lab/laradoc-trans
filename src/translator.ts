@@ -149,25 +149,39 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
       // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
       if (code === 0 && stdoutData) {
-        const successMarker = '<!-- GEMINI_TRANSLATION_SUCCESS -->';
-        const markerIndex = stdoutData.indexOf(successMarker);
+        const beginMarker = '<!-- GEMINI_TRANSLATION_BEGIN -->';
+        const endMarker = '<!-- GEMINI_TRANSLATION_END -->';
 
-        if (markerIndex !== -1) {
-          const cleanedOutput = stdoutData
-            .substring(markerIndex + successMarker.length)
-            .trimStart();
-          return resolve(cleanedOutput);
-        } else {
+        const beginIndex = stdoutData.indexOf(beginMarker);
+        const endIndex = stdoutData.lastIndexOf(endMarker);
+
+        if (beginIndex === -1) {
           return reject(
             new TranslationMarkerNotFoundError(
               _(
-                'Translation failed: Success marker not found in the output. Output: {{output}}',
+                'Translation failed: Begin marker not found in the output. Output: {{output}}',
                 { output: stdoutData }
               ),
               stdoutData
             )
           );
         }
+
+        if (endIndex === -1) {
+          return reject(
+            new TranslationMarkerNotFoundError(
+              _(
+                'Translation failed: End marker not found in the output. Output: {{output}}',
+                { output: stdoutData }
+              ),
+              stdoutData
+            )
+          );
+        }
+
+        const startIndex = beginIndex + beginMarker.length;
+        const cleanedOutput = stdoutData.substring(startIndex, endIndex).trim();
+        return resolve(cleanedOutput);
       }
 
       // 如果程式執行到這裡，表示發生了錯誤。
