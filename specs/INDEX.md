@@ -25,7 +25,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
   - Commander.js
   - i18next (用於國際化，所有使用者介面訊息皆應透過此套件進行翻譯)
   - i18next-fs-backend (i18next 的檔案系統後端，用於載入翻譯檔案)
-  - i18next-browser-languagedetector (i18next 的語言偵測器，用於自動偵測系統語言)
+  - i18next-cli-language-detector (i18next 的語言偵測器，用於自動偵測系統語言)
 - Gemini CLI : 此為外部命令，主要是為了翻譯的工作，系統必須安裝好
 - git : 此為外部命令，主要給程式操作 git，系統必須先安裝好
 

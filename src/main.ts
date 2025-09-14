@@ -33,10 +33,14 @@ import { parseCliArgs, CliArgs, InitOptions, RunOptions } from './cli';
 const LARAVEL_DOCS_REPO = 'https://github.com/laravel/docs.git';
 
 export async function main(argv: string[]) {
-  // 初始化 i18n (放在這裡確保所有輸出都能被翻譯)
-  await initI18n();
+  const cliArgs = await parseCliArgs(argv);
 
-  const cliArgs: CliArgs = await parseCliArgs(argv);
+  // Manually load .env file based on --env parameter
+  const envPath = (cliArgs.options as RunOptions).env;
+  dotenv.config({ path: envPath, override: true });
+
+  // Initialize i18n. It will now read the language from process.env internally.
+  await initI18n();
 
   switch (cliArgs.command) {
     case 'init':
@@ -129,9 +133,6 @@ async function handleInitCommand(options: InitOptions) {
  * @param options 
  */
 async function handleRunCommand(options: RunOptions) {
-  // 載入環境變數
-  dotenv.config({ path: options.env });
-
   // 檢查外部工具是否存在
   try {
     await Promise.all([
