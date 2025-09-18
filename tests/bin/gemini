@@ -24,19 +24,21 @@ elif [ "$GEMINI_MOCK_BEHAVIOR" == "success" ]; then
   # 模擬成功翻譯內容
   print_data_collection_disabled;
   # 模擬 gemini 成功翻譯的內容
-  echo "<!-- GEMINI_TRANSLATION_SUCCESS -->"
+  echo "<!-- GEMINI_TRANSLATION_BEGIN -->"
   echo "# 翻譯測試標題"
   echo "這是一個翻譯測試的內容。"
   echo "目前的時間是 $(date)."
+  echo "<!-- GEMINI_TRANSLATION_END -->"
   exit 0
 elif [ "$GEMINI_MOCK_BEHAVIOR" == "diff" ]; then
   # 模擬差異化翻譯成功內容
   print_data_collection_disabled;
-  echo "<!-- GEMINI_TRANSLATION_SUCCESS -->"
+  echo "<!-- GEMINI_TRANSLATION_BEGIN -->"
   echo "# 翻譯測試標題"
   echo "這是一個翻譯測試的內容。"
   echo "目前的時間是 $(date)."
   echo "已修改"
+  echo "<!-- GEMINI_TRANSLATION_END -->"
   exit 0
 else
   print_data_collection_disabled;
