@@ -118,7 +118,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 - `LLM_PROVIDER`: 指定要使用的 LLM 供應商。可以是 `openai` 或 `gemini`。若未指定，預設為 `gemini`。
 - `GEMINI_API_KEY` / `OPENAI_API_KEY`: 對應供應商的 API 金鑰。
 - `GEMINI_MODEL` / `OPENAI_MODEL`: 指定要使用的模型名稱。若未指定，`gemini` 預設為 `gemini-2.5-pro`，`openai` 預設為 `gpt-4o`。
-- `TRANSLATION_CONCURRENCY`: 指定翻譯任務的併發數量。若未指定，預設為 `2`。
+- `TRANSLATION_CONCURRENCY`: 指定翻譯任務的併發數量。若未指定，預設為 `3`。
 - `WORKSPACE_PATH`: 工作區路徑，若沒指定則預設是專案根目錄的 `workspace`。
 - `LANG` / `LC_ALL`: 系統語系環境變數，用於自動偵測程式介面語言。若未設定或偵測失敗，預設為英文 (`en`)。
 
@@ -128,7 +128,20 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 ### 4.4 翻譯流程
 
-(此處內容無變更)
+當 `run` 命令執行時，程式會對每一個需要翻譯的 Markdown 檔案執行以下流程：
+
+1.  **動態分批 (Dynamic Batching)**：
+    -   程式首先會將 Markdown 檔案解析成多個章節（以 H2 標題為單位）。
+    -   為了優化與語言模型的互動，程式會將這些章節組合成多個「批次」(Batches)。這個過程是動態的，基於內容的大小而非固定的章節數量。
+    -   演算法會不斷將章節加入目前的批次，直到批次的總大小超過 10KB。如果某個章節本身就超過 10KB，它會自成一個批次。
+
+2.  **併發翻譯 (Concurrent Translation)**：
+    -   程式會使用 `p-limit` 函式庫，根據 `TRANSLATION_CONCURRENCY` 環境變數（預設為 3）設定的併發數，同時對多個「批次」發起翻譯請求。
+    -   每個批次的翻譯進度會由一個獨立的進度條顯示，包含任務編號、狀態、已接收位元組、即時耗時和批次內的章節標題。
+
+3.  **儲存與進度更新**：
+    -   在單一檔案的所有「批次」都成功翻譯完畢後，程式會將組合後的完整翻譯內容寫入 `workspace/tmp` 目錄下的對應檔案。
+    -   接著，程式會更新 `workspace/tmp/.progress` 檔案，將這一個檔案的狀態標記為已完成。這個設計確保了即使中途失敗，重啟任務時也能從下一個未完成的**檔案**繼續。
 
 ### 4.5 所有檔案翻譯完成後的流程
 
