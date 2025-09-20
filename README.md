@@ -11,9 +11,10 @@
 
 ## ✨ 功能亮點
 
-- **🤖 AI 驅動翻譯**：利用 Google Gemini 強大的語言能力，提供高品質的基礎翻譯。
+- **🤖 AI 驅動翻譯**：預設使用 Google Gemini，並可透過 LangChain 彈性更換為 OpenAI GPT 等不同模型。
 - **🔄 智慧差異比對**：只翻譯官方文件更新的部分，無需重複勞動，節省時間與成本。
 - **📈 進度自動管理**：自動記錄與追蹤每個檔案的翻譯狀態，即使中斷也能無縫接續。
+- **✅ 品質驗證報告**：提供 `validate` 指令，對比原文與譯文，產生詳細的結構與內容一致性報告。
 - **⚙️ 高度可設定**：可自訂提示詞 (Prompt) 與模型，以符合您的特定翻譯風格與需求。
 
 ## 🚀 5 分鐘快速上手
@@ -22,7 +23,7 @@
     ```bash
     npm install -g laradoc-trans
     ```
-    > 要使用本工具也要確認 `gemini cli` 與 `git` 都有安裝好
+    > 要使用本工具也要確認 `git` 都有安裝好
 
 2.  **初始化工作區**:
     此命令會自動建立 `workspace` 目錄、複製官方文件（預設分支），並為您準備好 `.env` 設定檔。
@@ -31,12 +32,18 @@
     cd workspace
     ```
 
-3.  **填寫 API 金鑰**:
-    編輯 `workspace/.env` 檔案，填入您的 Google Gemini API 金鑰。
+3.  **填寫 API 金鑰**: 
+    編輯 `workspace/.env` 檔案，設定要使用的 `LLM_PROVIDER` 並填入對應的 API 金鑰。
     ```
-    GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-    ```
+    # 可選 'gemini' 或 'openai'，預設為 'gemini'
+    LLM_PROVIDER="gemini"
 
+    # 如果使用 gemini
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+
+    # 如果使用 openai
+    # OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+    ```
 4.  **執行翻譯**:
     ```bash
     # 嘗試翻譯 5 個檔案看看效果，翻譯後的檔案會暫存於工作區的 `tmp` 目錄。
@@ -46,6 +53,14 @@
     ```bash
     # 完整翻譯，會將剩餘未翻譯完的檔案進行翻譯，翻譯結果會存放於工作區的 `repo/target` 目錄。
     laradoc-trans run --branch 12.x --all
+    ```
+
+5.  **驗證翻譯品質**:
+    ```bash
+    # 針對指定分支，比對原始與翻譯檔案的內容與結構一致性
+    laradoc-trans validate --branch 12.x
+
+    # 完成後，請查看 `workspace/validate-report` 目錄下的報告
     ```
 
 ## 📚 深入了解

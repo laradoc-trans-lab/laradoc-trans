@@ -1,9 +1,31 @@
-import { ChildProcessWithoutNullStreams, spawn, SpawnOptionsWithoutStdio } from 'child_process';
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 import fs from 'fs/promises';
 import path from 'path';
 import { _ } from './i18n';
+import { CodeBlockMismatchError } from "./errors/CodeBlockMismatchError";
+import { parseMarkdownIntoSections } from "./markdownParser";
 
-// Custom Error Classes
+// --- 終端機動態訊息相關函式 ---
+
+function printDynamicMessage(message: string) {
+  if (process.stdout.isTTY) {
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write(message);
+  }
+}
+
+function clearDynamicMessage() {
+  if (process.stdout.isTTY) {
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+  }
+}
+
+// --- 錯誤類別定義 ---
+
 export class TranslationError extends Error {
   constructor(message: string) {
     super(message);
@@ -16,59 +38,28 @@ export class PromptFileReadError extends TranslationError {
     super(message);
     this.name = 'PromptFileReadError';
     if (originalError) {
-      this.stack = originalError.stack; // Preserve original stack trace
+      this.stack = originalError.stack;
     }
   }
 }
 
-export class GeminiCliError extends TranslationError {
-  constructor(message: string, public code?: number | null, public stderr?: string) {
-    super(message);
-    this.name = 'GeminiCliError';
-  }
-}
-
-export class TranslationMarkerNotFoundError extends GeminiCliError {
-  constructor(message: string, public output: string) {
-    super(message);
-    this.name = 'TranslationMarkerNotFoundError';
-  }
-}
-
-export class GeminiCliNoOutputError extends GeminiCliError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GeminiCliNoOutputError';
-  }
-}
-
-export class GeminiCliStartError extends GeminiCliError {
-  constructor(message: string, originalError?: Error) {
-    super(message);
-    this.name = 'GeminiCliStartError';
-    if (originalError) {
-      this.stack = originalError.stack; // Preserve original stack trace
-    } else {
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
-}
+// --- 快取與輔助函式 ---
 
 let cachedPromptPath: string | null = null;
-let cachedPrompt: string | null = null;
+let cachedStyleGuide: string | null = null;
 
-async function getBasePrompt(promptFilePath?: string): Promise<string> {
+async function getStyleGuide(promptFilePath?: string): Promise<string> {
   const defaultPromptPath = path.resolve(__dirname, '..', 'resources', 'TRANSLATE_PROMPT.md');
   const finalPromptPath = promptFilePath ? path.resolve(promptFilePath) : defaultPromptPath;
 
-  if (cachedPromptPath === finalPromptPath && cachedPrompt) {
-    return cachedPrompt;
+  if (cachedPromptPath === finalPromptPath && cachedStyleGuide) {
+    return cachedStyleGuide;
   }
 
   try {
     const prompt = await fs.readFile(finalPromptPath, 'utf-8');
     cachedPromptPath = finalPromptPath;
-    cachedPrompt = prompt;
+    cachedStyleGuide = prompt;
     return prompt;
   } catch (error: any) {
     const errorMessage = _('Failed to read prompt file: {{path}}', { path: finalPromptPath });
@@ -76,129 +67,117 @@ async function getBasePrompt(promptFilePath?: string): Promise<string> {
   }
 }
 
-/**
- * 這是一個包裝 spawn 的函式，主要目的是為了方便在測試時替換 spawn 行為。
- * @param command
- * @param args 
- * @param options 
- * @returns 
- */
-export function spawnWrapper (
-  command: string,
-  args?: readonly string[],
-  options?: SpawnOptionsWithoutStdio,
-): ChildProcessWithoutNullStreams {
-  if(process.env.GEMINI_MOCK_BEHAVIOR !== undefined) {
-    // JEST 無法 mock 這個 function , 所以取巧地用環境變數來判斷
-    // 在測試環境中，使用模擬的 gemini 可執行檔
-    const mergedEnv = { ...process.env, ...options?.env, 'GEMINI_MOCK_BEHAVIOR': process.env.GEMINI_MOCK_BEHAVIOR };
-    const newOptions = { ...options, env: mergedEnv };
-
-    return spawn(path.resolve(__dirname, '../tests/bin/gemini'), args, newOptions);
-  }
-  return spawn(command, args, options);
+function countCodeBlocks(content: string): number {
+  const codeBlockRegex = /```/g;
+  const matches = content.match(codeBlockRegex);
+  return matches ? Math.floor(matches.length / 2) : 0;
 }
 
-/**
- * 使用 Gemini CLI 翻譯單一 markdown 檔案。
- * @param sourceFilePath 要翻譯的來源 markdown 檔案的絕對路徑。
- * @param promptFilePath 可選的，指定一個檔案作為翻譯的提示詞。
- * @returns 清理過的、已翻譯的 markdown 內容。
- */
+// --- 核心翻譯邏輯 ---
+
 export async function translateFile(sourceFilePath: string, promptFilePath?: string): Promise<string> {
-  const prompt = await getBasePrompt(promptFilePath);
+  const styleGuide = await getStyleGuide(promptFilePath);
   const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
-  const fullPrompt = `${prompt}\n\n---\n\n${fileContent}`;
+  const allSections = parseMarkdownIntoSections(fileContent);
 
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const prologue = allSections.find(s => s.type === 'prologue');
+  const mainSections = allSections.filter(s => s.type === 'section');
+  const translatedContents: string[] = [];
 
-  console.log(_('Using model: {{model}}', { model: geminiModel }));
+  if (mainSections.length < 2) {
+    printDynamicMessage(_('Document is short. Translating file in one go...'));
+    const translatedContent = await translateContent(styleGuide, fileContent, fileContent);
+    return translatedContent;
+  }
 
-  return new Promise((resolve, reject) => {
-    const gemini = spawnWrapper('gemini', ['-p', '-m', geminiModel], { stdio: 'pipe' });
+  const initialBatchSections = [prologue, ...mainSections.slice(0, 2)].filter(Boolean);
+  const initialBatchContent = initialBatchSections.map(s => s!.content).join('\n\n');
+  console.log(_('Translating initial batch (prologue + first 2 sections)...'));
+  const translatedInitialBatch = await translateContent(styleGuide, fileContent, initialBatchContent);
+  translatedContents.push(translatedInitialBatch);
 
-    let stdoutData = '';
-    let stderrData = '';
-    let receivedBytes = 0;
+  const remainingSections = mainSections.slice(2);
+  const BATCH_SIZE = 3;
 
-    gemini.stdout.on('data', (data) => {
-      stdoutData += data.toString();
-      receivedBytes += data.length;
-      // 使用 process.stdout.write 和 \r 來在同一行更新進度。
-      // 這些操作僅在 process.stdout 連接到 TTY (終端機) 時才有效。
-      // 在非 TTY 環境 (例如測試或管道輸出) 中，這些函式不可用，呼叫它們會拋出 TypeError。
-      // 因此，我們在嘗試使用它們之前檢查 process.stdout.isTTY。
-      if (process.stdout.isTTY) {
-        process.stdout.write(_('Receiving... {{bytes}} bytes', { bytes: receivedBytes }) + '\r');
-      }
-    });
+  for (let i = 0; i < remainingSections.length; i += BATCH_SIZE) {
+    const batch = remainingSections.slice(i, i + BATCH_SIZE);
+    const batchContent = batch.map(s => s.content).join('\n\n');
+    
+    console.log(_('Translating batch starting with section: {{heading}}...', { heading: batch[0].heading }));
 
-    gemini.stderr.on('data', (data) => {
-      stderrData += data.toString();
-    });
+    const translatedBatch = await translateContent(styleGuide, fileContent, batchContent);
 
-    gemini.on('close', (code) => {
-      // 清除進度指示器所在的行，為最終狀態訊息做準備。
-      // 與 process.stdout.write 和 \r 類似，這些函式僅在 process.stdout 連接到 TTY 時才有效。
-      // 我們檢查 process.stdout.isTTY 以防止在非 TTY 環境中出現 TypeError。
-      if (process.stdout.isTTY) {
-        process.stdout.clearLine(0);
-        process.stdout.cursorTo(0);
-      }
+    /*
+    const originalCodeBlocks = countCodeBlocks(batchContent);
+    const translatedCodeBlocks = countCodeBlocks(translatedBatch);
+    if (originalCodeBlocks !== translatedCodeBlocks) {
+      throw new CodeBlockMismatchError(
+        _('Code block count mismatch in batch starting with section: {{heading}}. Original: {{original}}, Translated: {{translated}}', {
+          heading: batch[0].heading,
+          original: originalCodeBlocks,
+          translated: translatedCodeBlocks,
+        }),
+        batchContent,
+        translatedBatch
+      );
+    }
+    */
+    translatedContents.push(translatedBatch);
+  }
 
-      // Gemini CLI 有時會將非錯誤資訊（例如 "Loaded cached credentials"）輸出到 stderr。
-      // 因此，我們優先判斷結束代碼以及 stdout 是否有有效的內容。
-      if (code === 0 && stdoutData) {
-        const beginMarker = '<!-- GEMINI_TRANSLATION_BEGIN -->';
-        const endMarker = '<!-- GEMINI_TRANSLATION_END -->';
+  const finalContent = translatedContents.filter(c => c.trim() !== '').join('\n\n');
+  return finalContent;
+}
 
-        const beginIndex = stdoutData.indexOf(beginMarker);
-        const endIndex = stdoutData.lastIndexOf(endMarker);
+import { createLlmModel } from "./llm";
 
-        if (beginIndex === -1) {
-          return reject(
-            new TranslationMarkerNotFoundError(
-              _(
-                'Translation failed: Begin marker not found in the output. Output: {{output}}',
-                { output: stdoutData }
-              ),
-              stdoutData
-            )
-          );
-        }
+// ... (existing code) ...
 
-        if (endIndex === -1) {
-          return reject(
-            new TranslationMarkerNotFoundError(
-              _(
-                'Translation failed: End marker not found in the output. Output: {{output}}',
-                { output: stdoutData }
-              ),
-              stdoutData
-            )
-          );
-        }
+async function translateContent(styleGuide: string, fullContext: string, contentToTranslate: string): Promise<string> {
+  const startTime = Date.now();
+  const { model } = createLlmModel();
 
-        const startIndex = beginIndex + beginMarker.length;
-        const cleanedOutput = stdoutData.substring(startIndex, endIndex).trim();
-        return resolve(cleanedOutput);
-      }
+  const template = `
+{style_guide}
 
-      // 如果程式執行到這裡，表示發生了錯誤。
-      if (stderrData) {
-        return reject(new GeminiCliError(_('Gemini CLI Error (stderr): {{message}}', { message: stderrData.trim() }), code, stderrData));
-      }
-      if (code !== 0) {
-        return reject(new GeminiCliError(_('Gemini CLI exited with code {{code}}', { code: code }), code));
-      }
-      return reject(new GeminiCliNoOutputError(_('Gemini CLI provided no output and no error code.')));
-    });
+In order to let you understand the context, below is the full original document, followed by the specific section you need to translate.
 
-    gemini.on('error', (err) => {
-      reject(new GeminiCliStartError(_('Failed to start Gemini CLI: {{message}}. Is it installed and in your PATH?', { message: err.message }), err));
-    });
+<!-- FULL_CONTEXT_START -->
+{full_context}
+<!-- FULL_CONTEXT_END -->
 
-    gemini.stdin.write(fullPrompt);
-    gemini.stdin.end();
+Please translate ONLY the following section into Traditional Chinese. Do not output anything else, just the translated text of this section.
+
+Section to translate:
+
+<!-- SECTION_TO_TRANSLATE_START -->
+{section_to_translate}
+<!-- SECTION_TO_TRANSLATE_END -->
+`;
+
+  const promptTemplate = PromptTemplate.fromTemplate(template);
+  const parser = new StringOutputParser();
+  const chain = promptTemplate.pipe(model).pipe(parser);
+
+  const stream = await chain.stream({
+    style_guide: styleGuide,
+    full_context: fullContext,
+    section_to_translate: contentToTranslate,
   });
+
+  let fullResponse = '';
+  let receivedBytes = 0;
+  for await (const chunk of stream) {
+    fullResponse += chunk;
+    receivedBytes += Buffer.byteLength(chunk, 'utf8');
+    printDynamicMessage(_('Receiving... {{bytes}} bytes', { bytes: receivedBytes }));
+  }
+
+  const endTime = Date.now();
+  const duration = ((endTime - startTime) / 1000).toFixed(1);
+
+  clearDynamicMessage();
+  console.log(_('  └─ Translation successful (took {{duration}}s)', { duration: duration }));
+
+  return fullResponse;
 }

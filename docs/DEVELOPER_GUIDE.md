@@ -18,16 +18,9 @@
 
 ## 1. 專案工作流程概覽
 
-`laradoc-trans` 的運作流程非常簡單，主要由兩個命令構成：
-
-1.  **`laradoc-trans init`**:
-    -   **目的**：建立一個獨立、乾淨的工作區 (workspace)。
-    -   **做了什麼**：它會從 GitHub 複製一份全新的 Laravel 官方文件（英文原版），並準備好存放翻譯文件的目錄。這個指令只負責「準備場地」，不關心你要翻譯哪個版本。
-
-2.  **`laradoc-trans run`**:
-    -   **目的**：執行翻譯任務。
-    -   **做了什麼**：這是工具的核心。它會根據你指定的 `--branch`（例如 `12.x`），將來源文件交給 Gemini 進行翻譯，並聰明地管理翻譯進度。你可以重複執行此指令，它會自動從上次中斷的地方繼續，且不會重複翻譯已完成的檔案。
-
+1.  **`laradoc-trans init`**: 建立工作區。
+2.  **`laradoc-trans run`**: 執行翻譯任務。
+3.  **`laradoc-trans validate`**: 驗證 `run` 命令產生的翻譯結果，確保其結構與內容的完整性。
 ---
 
 ## 2. 核心機制詳解
@@ -46,6 +39,7 @@
 
 -   **語言**: [TypeScript](https://www.typescriptlang.org/)
 -   **執行環境**: [Node.js](https://nodejs.org/) (v22+)
+-   **LLM 框架**: [LangChain](https://www.langchain.com/) (用於提供模型抽象層，彈性切換 Gemini, OpenAI 等服務)
 -   **CLI 框架**: [Commander.js](https://github.com/tj/commander.js/)
 -   **測試框架**: [Jest](https://jestjs.io/) with `ts-jest`
 -   **國際化**: [i18next](https://www.i18next.com/)
@@ -69,7 +63,7 @@
     ```bash
     cp .env-dist .env
     ```
-    接著，編輯 `.env` 檔案並填入您的 Gemini API 金鑰，以便在開發和測試時使用。
+    接著，編輯 `.env` 檔案，設定 `LLM_PROVIDER` 並填入對應的 API 金鑰，以便在開發和測試時使用。
 
 4.  **編譯程式碼**:
     在進行開發時，您可以執行 `build` 指令來編譯 TypeScript 程式碼。
@@ -93,8 +87,8 @@
 -   `fileUtils.ts`: 封裝了與檔案系統互動的輔助函數，例如建立工作區、確保 `.env` 檔案存在等。
 -   `git/`: 封裝了所有與 `git` 命令列工具互動的邏輯，例如 `clone`, `checkout`, `diff` 等。每個操作都有自己的錯誤類型定義。
 -   `progress.ts`: 負責讀取和寫入翻譯進度檔案 (`.progress`, `.source_commit`) 的相關邏輯。關於進度檔案的具體格式定義，請參考 `specs/FILE_FORMAT.md`。
--   `translator.ts`: 封裝了呼叫外部 `gemini` CLI 工具的核心邏輯，並處理翻譯結果的解析。
--   `toolChecker.ts`: 一個簡單的輔助工具，用於檢查如 `git` 和 `gemini` 等必要的外部指令是否存在。
+-   `translator.ts`: 使用 LangChain 函式庫，封裝了建構 Prompt、管理與 LLM 的 API 互動的核心邏輯，並可彈性切換不同的語言模型 (如 Gemini, OpenAI)。
+-   `toolChecker.ts`: 一個簡單的輔助工具，用於檢查如 `git` 等必要的外部指令是否存在。
 -   `i18n.ts`: `i18next` 的設定檔，負責初始化多國語言環境。
 
 ## 5. 測試

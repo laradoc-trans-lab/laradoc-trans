@@ -15,22 +15,25 @@ export interface RunOptions {
   promptFile?: string;
 }
 
+export interface ValidateOptions {
+  branch: string;
+}
+
 export interface CliArgs {
-  command: 'init' | 'run';
-  options: InitOptions | RunOptions;
+  command: 'init' | 'run' | 'validate';
+  options: InitOptions | RunOptions | ValidateOptions;
 }
 
 export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
   const program = new Command();
 
-  // Read package.json at runtime to get the version
   const packageJsonPath = path.join(__dirname, '..', 'package.json');
   const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
   const { version } = JSON.parse(packageJsonContent);
 
   program
     .name('laradoc-trans')
-    .description('Translate Laravel docs using Gemini CLI.')
+    .description('Translate and validate Laravel docs.')
     .version(version, '-v, --version', 'Output the current version.');
 
   // Init Command
@@ -58,17 +61,24 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
       program.cliArgs = { command: 'run', options };
     });
 
+  // Validate Command
+  program.command('validate')
+    .description('Validate the translated files.')
+    .requiredOption('--branch <branch>', 'The branch to validate against.')
+    .action((options) => {
+      program.cliArgs = { command: 'validate', options };
+    });
+
   program.addHelpText('afterAll', `
 Examples:
   $ laradoc-trans init --workspace-path ./my-workspace
   $ laradoc-trans run --branch 10.x --limit 5
-  $ laradoc-trans run --branch 11.x --all --env .env.production
+  $ laradoc-trans validate --branch 10.x
 `);
 
   program.parse(argv);
 
   if (!program.cliArgs) {
-    // If no command is specified, show help and exit
     program.help();
   }
 
