@@ -34,6 +34,8 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
   - @langchain/openai (用於整合 OpenAI 模型)
   - remark (用於解析 Markdown)
   - unist-util-visit (remark 的輔助工具)
+  - cli-progress (用於顯示多個併發任務的進度條)
+  - p-limit (用於處理併發翻譯章節)
 - git : 此為外部命令，主要給程式操作 git，系統必須先安裝好
 
 ### 2.1 國際化 (i18n)
@@ -116,6 +118,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 - `LLM_PROVIDER`: 指定要使用的 LLM 供應商。可以是 `openai` 或 `gemini`。若未指定，預設為 `gemini`。
 - `GEMINI_API_KEY` / `OPENAI_API_KEY`: 對應供應商的 API 金鑰。
 - `GEMINI_MODEL` / `OPENAI_MODEL`: 指定要使用的模型名稱。若未指定，`gemini` 預設為 `gemini-2.5-pro`，`openai` 預設為 `gpt-4o`。
+- `TRANSLATION_CONCURRENCY`: 指定翻譯任務的併發數量。若未指定，預設為 `2`。
 - `WORKSPACE_PATH`: 工作區路徑，若沒指定則預設是專案根目錄的 `workspace`。
 - `LANG` / `LC_ALL`: 系統語系環境變數，用於自動偵測程式介面語言。若未設定或偵測失敗，預設為英文 (`en`)。
 
