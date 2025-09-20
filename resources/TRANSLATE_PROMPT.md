@@ -48,3 +48,5 @@
 - **絕對不要**翻譯及修改任何在上述「定義」中說明的「程式碼區塊」、「行內程式碼」或「Blade 註解」的**內部內容**。這些內容必須保持與原文完全相同。
 - 「提示區塊」標記 (如 `[!WARNING]`) 必須完整保留，不得有任何修改、翻譯或轉義。
 - 確保翻譯後章節中的程式碼區塊數量與原始章節完全相符。
+- 不要翻譯縮寫：請勿翻譯如 CSRF, API, CSV 等縮寫詞。
+- 保留 Laravel 專有名詞：請保留所有 Laravel 的專有名詞為原文英文。這包括但不限於元件名稱和概念，如 `Blade`, `Eloquent`, `Artisan`, `Livewire`, `Reverb`, `Gates`, `Policies`, `Facade`, `Echo`,`Vite`, `Pint`, `Sail`, `Homestead`, `Valet`, `Octane`, `Horizon`, `Telescope`, `Passport`, `Sanctum`, `Cashier`, `Scout`, `Socialite`, `Fortify`。
