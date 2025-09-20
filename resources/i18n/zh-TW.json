@@ -67,5 +67,6 @@
   "Target repository initialized successfully.": "目標儲存庫已成功初始化。",
   "Workspace initialization complete.": "工作區初始化完成。",
   "Skipping .env creation as it already exists in the workspace.": "工作區中已存在 .env 檔案，跳過建立。",
-  "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "已在工作區中建立 .env 檔案。請在其中配置您的 GEMINI_API_KEY。"
+  "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "已在工作區中建立 .env 檔案。請在其中配置您的 GEMINI_API_KEY。",
+  "Concurrency Level: {{concurrency}}": "併發等級：{{concurrency}}"
 }

@@ -118,7 +118,7 @@ Section to translate:
 
 export async function translateFile(sourceFilePath: string, promptFilePath?: string): Promise<string> {
   const concurrency = parseInt(process.env.TRANSLATION_CONCURRENCY || '3', 10);
-  console.log(`Concurrency Level: ${concurrency}`); // Debug log for concurrency
+  console.log(_('Concurrency Level: {{concurrency}}', { concurrency })); // Debug log for concurrency
   const limit = pLimit(concurrency);
 
   const progressManager = new ProgressManager();
@@ -128,10 +128,36 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
     const allSections = parseMarkdownIntoSections(fileContent);
 
-    const BATCH_SIZE = 3;
+    // Dynamic Batching Logic
+    const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
     const batches: MarkdownSection[][] = [];
-    for (let i = 0; i < allSections.length; i += BATCH_SIZE) {
-        batches.push(allSections.slice(i, i + BATCH_SIZE));
+    let currentBatch: MarkdownSection[] = [];
+    let currentBatchSize = 0;
+
+    for (const section of allSections) {
+      const size = Buffer.byteLength(section.content, 'utf8');
+
+      if (currentBatch.length === 0) {
+        currentBatch.push(section);
+        currentBatchSize += size;
+      } else if (size >= BATCH_SIZE_LIMIT) {
+        if (currentBatch.length > 0) {
+          batches.push(currentBatch);
+        }
+        batches.push([section]);
+        currentBatch = [];
+        currentBatchSize = 0;
+      } else if (currentBatchSize + size > BATCH_SIZE_LIMIT) {
+        batches.push(currentBatch);
+        currentBatch = [section];
+        currentBatchSize = size;
+      } else {
+        currentBatch.push(section);
+        currentBatchSize += size;
+      }
+    }
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
     }
 
     if (batches.length === 0) {

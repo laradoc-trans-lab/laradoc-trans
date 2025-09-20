@@ -68,5 +68,6 @@
   "Target repository initialized successfully.": "Target repository initialized successfully.",
   "Workspace initialization complete.": "Workspace initialization complete.",
   "Skipping .env creation as it already exists in the workspace.": "Skipping .env creation as it already exists in the workspace.",
-  "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it."
+  "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.",
+  "Concurrency Level: {{concurrency}}": "Concurrency Level: {{concurrency}}"
 }
