@@ -68,5 +68,6 @@
   "Workspace initialization complete.": "工作區初始化完成。",
   "Skipping .env creation as it already exists in the workspace.": "工作區中已存在 .env 檔案，跳過建立。",
   "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "已在工作區中建立 .env 檔案。請在其中配置您的 GEMINI_API_KEY。",
-  "Concurrency Level: {{concurrency}}": "併發數量：{{concurrency}}"
+  "Concurrency Level: {{concurrency}}": "併發數量：{{concurrency}}",
+  "Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY).": "錯誤：找不到 API 金鑰。請檢查您的 .env 檔案中是否設定了必要的金鑰 (例如 GEMINI_API_KEY 或 OPENAI_API_KEY)。"
 }

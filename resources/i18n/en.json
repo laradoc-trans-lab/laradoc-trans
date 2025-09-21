@@ -69,5 +69,6 @@
   "Workspace initialization complete.": "Workspace initialization complete.",
   "Skipping .env creation as it already exists in the workspace.": "Skipping .env creation as it already exists in the workspace.",
   "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.",
-  "Concurrency Level: {{concurrency}}": "Concurrency Level: {{concurrency}}"
+  "Concurrency Level: {{concurrency}}": "Concurrency Level: {{concurrency}}",
+  "Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY).": "Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY)."
 }

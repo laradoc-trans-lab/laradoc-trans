@@ -29,7 +29,7 @@ import { translateFile, TranslationError } from './translator';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 import { parseCliArgs, CliArgs, InitOptions, RunOptions, ValidateOptions } from './cli';
-import { createLlmModel } from './llm';
+import { ApiKeyNotFoundError, createLlmModel } from './llm';
 import { validateAllFiles } from './validator';
 
 const LARAVEL_DOCS_REPO = 'https://github.com/laravel/docs.git';
@@ -137,18 +137,24 @@ async function handleRunCommand(options: RunOptions) {
   }
   console.log(_('Workspace validation successful.'));
 
-  console.log(_('--- Translation Job Configuration ---'));
-  console.log(_('Branch: {{branch}}', { branch: options.branch }));
-  console.log(
-    translationCount === 'all'
-      ? _('Files to translate: all')
-      : _('Files to translate: {{count}}', { count: translationCount })
-  );
-  console.log(_('Using .env path: {{path}}', { path: options.env || './.env' }));
-  const { modelInfo } = createLlmModel();
-  console.log(_('Using LLM: {{modelInfo}}', { modelInfo }));
-  console.log(_('------------------------------------'));
-
+  try {
+    console.log(_('--- Translation Job Configuration ---'));
+    console.log(_('Branch: {{branch}}', { branch: options.branch }));
+    console.log(
+      translationCount === 'all'
+        ? _('Files to translate: all')
+        : _('Files to translate: {{count}}', { count: translationCount })
+    );
+    console.log(_('Using .env path: {{path}}', { path: options.env || './.env' }));
+    const { modelInfo } = createLlmModel();
+    console.log(_('Using LLM: {{modelInfo}}', { modelInfo }));
+    console.log(_('------------------------------------'));
+  } catch (error: unknown) {
+    if (error instanceof ApiKeyNotFoundError) {
+      console.error(_('Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY).'));
+    }
+    throw error;
+  }
   await checkoutBranch(paths.source, options.branch);
   await initializeTargetRepo(paths.target, options.branch);
   console.log(_('Git repositories synchronized to the correct branch.'));
