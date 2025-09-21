@@ -6,13 +6,24 @@ import type { Root, Heading } from 'mdast';
 
 // --- Data Structures ---
 
+interface CodeBlock {
+  content: string;
+  fullText: string;
+  line: number;
+}
+
+interface MismatchedCodeBlockInfo {
+  index: number;
+  sourceLine: number;
+}
+
 interface ValidationResult {
   fileName: string;
   hasError: boolean;
   headingCount: { source: number; target: number; match: boolean };
   codeBlockCount: { source: number; target: number; match: boolean };
   admonitionCount: { source: number; target: number; match: boolean };
-  mismatchedCodeBlocks: number[];
+  mismatchedCodeBlocks: MismatchedCodeBlockInfo[];
   mismatchedAdmonitions: number[];
 }
 
@@ -58,17 +69,17 @@ async function validateFile(sourcePath: string, targetPath: string): Promise<Val
   const sourceHeadings = countHeadings(sourceTree);
   const targetHeadings = countHeadings(targetTree);
 
-  const sourceCodeBlocks = getCodeBlocks(sourceTree);
-  const targetCodeBlocks = getCodeBlocks(targetTree);
+  const sourceCodeBlocks = getCodeBlocks(sourceTree, sourceContent);
+  const targetCodeBlocks = getCodeBlocks(targetTree, targetContent);
 
   const sourceAdmonitions = getAdmonitions(sourceTree);
   const targetAdmonitions = getAdmonitions(targetTree);
 
-  const mismatchedCodeBlocks: number[] = [];
+  const mismatchedCodeBlocks: MismatchedCodeBlockInfo[] = [];
   if (sourceCodeBlocks.length === targetCodeBlocks.length) {
     for (let i = 0; i < sourceCodeBlocks.length; i++) {
-      if (sourceCodeBlocks[i] !== targetCodeBlocks[i]) {
-        mismatchedCodeBlocks.push(i + 1);
+      if (sourceCodeBlocks[i].content !== targetCodeBlocks[i].content) {
+        mismatchedCodeBlocks.push({ index: i, sourceLine: sourceCodeBlocks[i].line });
       }
     }
   }
@@ -88,7 +99,7 @@ async function validateFile(sourcePath: string, targetPath: string): Promise<Val
   const codeBlockContentMatch = mismatchedCodeBlocks.length === 0;
   const admonitionContentMatch = mismatchedAdmonitions.length === 0;
 
-  const hasError = !( 
+  const hasError = !(
     headingMatch &&
     codeBlockCountMatch &&
     admonitionCountMatch &&
@@ -164,22 +175,15 @@ async function generateDetailedReport(result: ValidationResult, sourceDir: strin
   if (result.mismatchedCodeBlocks.length > 0) {
     const sourceContent = await fs.readFile(path.join(sourceDir, result.fileName), 'utf-8');
     const targetContent = await fs.readFile(path.join(targetDir, result.fileName), 'utf-8');
-    const sourceBlocks = getCodeBlocks(remark.parse(sourceContent));
-    const targetBlocks = getCodeBlocks(remark.parse(targetContent));
+    const sourceBlocks = getCodeBlocks(remark.parse(sourceContent), sourceContent);
+    const targetBlocks = getCodeBlocks(remark.parse(targetContent), targetContent);
 
-    for (const blockIndex of result.mismatchedCodeBlocks) {
-      const i = blockIndex - 1;
-      let issue = `### ❌ ISSUE: Code Block Content Mismatch (Block #${blockIndex})\n\n`;
-      issue += `**--- ORIGINAL ---**\n\
-\
-${sourceBlocks[i] || ''}\n\
-\
-`;
-      issue += `**--- TRANSLATED (Mismatch) ---**\n\
-\
-${targetBlocks[i] || ''}\n\
-\
-`;
+    for (const mismatchInfo of result.mismatchedCodeBlocks) {
+      const i = mismatchInfo.index;
+      const line = mismatchInfo.sourceLine;
+      let issue = `### ❌ ISSUE: Code Block Content Mismatch (at line ~${line})\n\n`;
+      issue += `**--- ORIGINAL ---**\n${sourceBlocks[i].fullText}\n\n`;
+      issue += `**--- TRANSLATED (Mismatch) ---**\n${targetBlocks[i].fullText}\n\n`;
       issues.push(issue);
     }
   }
@@ -203,17 +207,24 @@ function countHeadings(tree: Root): number {
   return count;
 }
 
-function getCodeBlocks(tree: Root): string[] {
-  const blocks: string[] = [];
+function getCodeBlocks(tree: Root, sourceContent: string): CodeBlock[] {
+  const blocks: CodeBlock[] = [];
   visit(tree, 'code', (node) => {
-    blocks.push(node.value);
+    if (node.position) {
+      const fullText = sourceContent.slice(node.position.start.offset, node.position.end.offset);
+      blocks.push({
+        content: node.value,
+        fullText: fullText,
+        line: node.position.start.line,
+      });
+    }
   });
   return blocks;
 }
 
 function getAdmonitions(tree: Root): string[] {
   const admonitions: string[] = [];
-  const admonitionRegex = /^\\[!\\w+]\\]$/;
+  const admonitionRegex = /^\[![\w ]+\]/;
 
   visit(tree, 'text', (node) => {
     if (admonitionRegex.test(node.value)) {
