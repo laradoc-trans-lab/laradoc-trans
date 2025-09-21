@@ -39,40 +39,10 @@ function splitLargeSection(
   parentHeading: string,
   depth: number = 3
 ): MarkdownSection[] {
+  // If we've recursed past H6 and still haven't found a suitable split point,
+  // return the section as a single, potentially oversized chunk as per Rule 3.
   if (depth > 6) {
-    const content = section.content;
-    const paragraphs = content.split(/\n\n+/);
-    let subSections: MarkdownSection[] = [];
-    let currentParas: string[] = [];
-    let currentSize = 0;
-    let part = 1;
-
-    for (const para of paragraphs) {
-      const paraSize = Buffer.byteLength(para, 'utf8');
-      if (currentSize + paraSize > BATCH_SIZE_LIMIT && currentParas.length > 0) {
-        const subContent = currentParas.join('\n\n');
-        subSections.push({
-          heading: `${parentHeading} > ${section.heading} (part ${part++})`,
-          content: subContent,
-          nodes: remark.parse(subContent).children,
-        });
-        currentParas = [para];
-        currentSize = paraSize;
-      } else {
-        currentParas.push(para);
-        currentSize += paraSize;
-      }
-    }
-
-    if (currentParas.length > 0) {
-      const subContent = currentParas.join('\n\n');
-      subSections.push({
-        heading: `${parentHeading} > ${section.heading} (part ${part})`,
-        content: subContent,
-        nodes: remark.parse(subContent).children,
-      });
-    }
-    return subSections;
+    return [section];
   }
 
   const subSections: MarkdownSection[] = [];

@@ -226,46 +226,92 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     let allBatches: { id: string, title: string, content: string }[] = [];
     let batchCounter = 0;
 
-    // 遍歷每一個 H2 章節群組
-    for (const h2Section of h2Sections) {
-      let currentBatch: MarkdownSection[] = [];
-      let currentBatchSize = 0;
+    // --- 新版階層式演算法 ---
+    let currentBatchOfH2s: MarkdownSection[] = [];
+    let currentBatchOfH2sSize = 0;
 
-      // 在 H2 章節內部建立批次
-      for (const subSection of h2Section.subSections) {
-        const size = Buffer.byteLength(subSection.content, 'utf8');
-
-        if (currentBatch.length > 0 && currentBatchSize + size > BATCH_SIZE_LIMIT) {
-          // 目前批次已滿，儲存起來
-          const batchContent = currentBatch.map(s => s.content).join('\n\n');
-          const title = currentBatch.map(s => s.heading).join(', ');
-          allBatches.push({ 
-            id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`,
-            title: title,
-            content: batchContent 
-          });
-          currentBatch = [];
-          currentBatchSize = 0;
-        }
-        currentBatch.push(subSection);
-        currentBatchSize += size;
-      }
-
-      // 儲存 H2 章節中最後一個未滿的批次
-      if (currentBatch.length > 0) {
-        const batchContent = currentBatch.map(s => s.content).join('\n\n');
-        const title = currentBatch.map(s => s.heading).join(', ');
-        allBatches.push({ 
+    const finalizeH2Batch = () => {
+      if (currentBatchOfH2s.length > 0) {
+        const batchContent = currentBatchOfH2s.map(s => s.content).join('\n\n');
+        const title = currentBatchOfH2s.map(s => s.heading).join(', ');
+        allBatches.push({
           id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`,
           title: title,
-          content: batchContent 
+          content: batchContent,
         });
+        currentBatchOfH2s = [];
+        currentBatchOfH2sSize = 0;
+      }
+    };
+
+    for (const h2Section of h2Sections) {
+      const h2TotalSize = h2Section.subSections.reduce((sum, s) => sum + Buffer.byteLength(s.content, 'utf8'), 0);
+
+      // 規則 3 & 可分割的大章節
+      if (h2TotalSize > BATCH_SIZE_LIMIT) {
+        // 遇到大章節，先結束前面的小章節合併任務
+        finalizeH2Batch();
+
+        // 專門處理這個大章節內部的子區塊
+        let internalBatch: MarkdownSection[] = [];
+        let internalBatchSize = 0;
+        for (const subSection of h2Section.subSections) {
+          const subSize = Buffer.byteLength(subSection.content, 'utf8');
+
+          if (subSize > BATCH_SIZE_LIMIT) {
+            if (internalBatch.length > 0) {
+              const batchContent = internalBatch.map(s => s.content).join('\n\n');
+              const title = internalBatch.map(s => s.heading).join(', ');
+              allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+              internalBatch = [];
+              internalBatchSize = 0;
+            }
+            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title: subSection.heading, content: subSection.content });
+            continue;
+          }
+
+          if (internalBatch.length > 0 && internalBatchSize + subSize > BATCH_SIZE_LIMIT) {
+            const batchContent = internalBatch.map(s => s.content).join('\n\n');
+            const title = internalBatch.map(s => s.heading).join(', ');
+            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+            internalBatch = [];
+            internalBatchSize = 0;
+          }
+          internalBatch.push(subSection);
+          internalBatchSize += subSize;
+        }
+        if (internalBatch.length > 0) {
+          const batchContent = internalBatch.map(s => s.content).join('\n\n');
+          const title = internalBatch.map(s => s.heading).join(', ');
+          allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+        }
+      } else { // 規則 1: 合併小章節
+        if (currentBatchOfH2s.length > 0 && currentBatchOfH2sSize + h2TotalSize > BATCH_SIZE_LIMIT) {
+          finalizeH2Batch();
+        }
+        currentBatchOfH2s.push(...h2Section.subSections);
+        currentBatchOfH2sSize += h2TotalSize;
       }
     }
+    // 結束最後一個批次
+    finalizeH2Batch();
 
     if (allBatches.length === 0) {
       return ''; // 沒有內容需要翻譯
     }
+
+    // --- 暫時性的任務分配日誌供偵錯用 (請勿刪除) ---
+    /*
+    console.log('\n--- Translation Task Assignment ---');
+    allBatches.forEach((batch, index) => {
+      console.log(`- Task ${index + 1}`);
+      const sections = batch.title.split(', ');
+      sections.forEach(section => {
+        console.log(`  * ${section}`);
+      });
+    });
+    console.log('---------------------------------\n');
+    */
 
     // 為所有批次建立翻譯任務
     const translationPromises = allBatches.map((batch, index) => {
