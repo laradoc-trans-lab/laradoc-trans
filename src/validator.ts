@@ -197,6 +197,82 @@ async function generateDetailedReport(result: ValidationResult, sourceDir: strin
   await fs.writeFile(detailReportPath, report);
 }
 
+// --- Batch Validation for In-Memory Content ---
+
+/**
+ * The result of a batch validation.
+ */
+export interface BatchValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+/**
+ * Validates a batch of markdown content in memory.
+ * @param originalContent The original markdown content.
+ * @param translatedContent The translated markdown content.
+ * @returns A promise that resolves to a BatchValidationResult.
+ */
+export function validateBatch(
+  originalContent: string,
+  translatedContent: string,
+): BatchValidationResult {
+  const errors: string[] = [];
+
+  const originalTree = remark.parse(originalContent);
+  const translatedTree = remark.parse(translatedContent);
+
+  // 1. Validate Heading Count
+  const originalHeadings = countHeadings(originalTree);
+  const translatedHeadings = countHeadings(translatedTree);
+  if (originalHeadings !== translatedHeadings) {
+    errors.push(
+      `Heading count mismatch. Original: ${originalHeadings}, Translated: ${translatedHeadings}.`,
+    );
+  }
+
+  // 2. Validate Code Block Count and Content
+  const originalCodeBlocks = getCodeBlocks(originalTree, originalContent);
+  const translatedCodeBlocks = getCodeBlocks(translatedTree, translatedContent);
+
+  if (originalCodeBlocks.length !== translatedCodeBlocks.length) {
+    errors.push(
+      `Code block count mismatch. Original: ${originalCodeBlocks.length}, Translated: ${translatedCodeBlocks.length}.`,
+    );
+  } else {
+    originalCodeBlocks.forEach((originalBlock, i) => {
+      if (originalBlock.content !== translatedCodeBlocks[i].content) {
+        errors.push(
+          `Code block content mismatch at block index ${i}. The code inside the triple backticks should not be translated or altered.`,
+        );
+      }
+    });
+  }
+
+  // 3. Validate Admonition Count and Content
+  const originalAdmonitions = getAdmonitions(originalTree);
+  const translatedAdmonitions = getAdmonitions(translatedTree);
+
+  if (originalAdmonitions.length !== translatedAdmonitions.length) {
+    errors.push(
+      `Admonition count mismatch. Original: ${originalAdmonitions.length}, Translated: ${translatedAdmonitions.length}.`,
+    );
+  } else {
+    originalAdmonitions.forEach((originalAdmonition, i) => {
+      if (originalAdmonition !== translatedAdmonitions[i]) {
+        errors.push(
+          `Admonition tag mismatch at index ${i}. Original: "${originalAdmonition}", Translated: "${translatedAdmonitions[i]}". These special tags must remain identical.`,
+        );
+      }
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
 // --- Helper Functions for Validation ---
 
 function countHeadings(tree: Root): number {
@@ -224,11 +300,12 @@ function getCodeBlocks(tree: Root, sourceContent: string): CodeBlock[] {
 
 function getAdmonitions(tree: Root): string[] {
   const admonitions: string[] = [];
-  const admonitionRegex = /^\[![\w ]+\]/;
+  const admonitionRegex = /^\[!([A-Z_]+)\]/m;
 
   visit(tree, 'text', (node) => {
-    if (admonitionRegex.test(node.value)) {
-      admonitions.push(node.value);
+    const match = node.value.match(admonitionRegex);
+    if (match) {
+      admonitions.push(match[0]); // Push only the tag, e.g., "[!NOTE]"
     }
   });
 

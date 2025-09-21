@@ -3,10 +3,12 @@ import path from 'path';
 import pLimit from 'p-limit';
 import { _ } from './i18n';
 import { parseMarkdownIntoSections, MarkdownH2Section, MarkdownSection } from './markdownParser';
-import { ProgressManager } from './progressBar';
+import { ProgressManager, TaskStatus } from './progressBar';
 import { createLlmModel } from './llm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { validateBatch } from './validator';
+import { debugLog } from './debugLogger';
 
 // --- 錯誤類別定義 ---
 
@@ -59,12 +61,14 @@ async function translateContent(
   contentToTranslate: string,
   progressManager: ProgressManager,
   sectionId: string,
+  sectionTitle: string,
+  sourceFilePath: string, // For debug logging
 ): Promise<string> {
   const { model } = createLlmModel();
   const startTime = Date.now();
   progressManager.startTask(sectionId);
 
-  const template = `
+  const initialTemplate = `
 {style_guide}
 
 In order to let you understand the context, below is the full original document, followed by the specific section you need to translate.
@@ -82,14 +86,25 @@ Section to translate:
 <!-- SECTION_TO_TRANSLATE_END -->
 `;
 
-  const promptTemplate = PromptTemplate.fromTemplate(template);
-  const parser = new StringOutputParser();
-  const chain = promptTemplate.pipe(model).pipe(parser);
+  const chain = PromptTemplate.fromTemplate(initialTemplate).pipe(model).pipe(new StringOutputParser());
 
   let totalBytes = 0;
   let fullResponse = '';
 
   try {
+    // --- Debug Log Initial Prompt ---
+    const styleGuidePath = `[From prompt file: ${cachedPromptPath}]`;
+    const fullContextPath = `[From source file: ${sourceFilePath}]`;
+    const sectionPreview = contentToTranslate.split('\n').slice(0, 5).join('\n') + '\n[...]';
+    
+    const initialPromptFormatted = await PromptTemplate.fromTemplate(initialTemplate).format({
+      style_guide: styleGuidePath,
+      full_context: fullContextPath,
+      section_to_translate: sectionPreview,
+    });
+    await debugLog(`Initial prompt for section ${sectionId}:\n${initialPromptFormatted}`);
+
+    // --- First attempt ---
     const stream = await chain.stream({
       style_guide: styleGuide,
       full_context: fullContext,
@@ -102,6 +117,87 @@ Section to translate:
       progressManager.updateBytes(sectionId, totalBytes);
     }
 
+    // --- Validation and Retry Logic ---
+    const validationResult = validateBatch(contentToTranslate, fullResponse);
+
+    if (!validationResult.isValid) {
+      // --- Mark original task as failed ---
+      const originalStartTime = progressManager.getStartTime(sectionId) || startTime;
+      const duration = (Date.now() - originalStartTime) / 1000;
+      progressManager.updateTask(sectionId, { 
+        status: TaskStatus.Retrying, // This is the ⚠️ icon 
+        time: parseFloat(duration.toFixed(1)),
+      });
+
+      // --- Create and execute a new task for retry ---
+      const retryId = `${sectionId}-retry`;
+      const retryTitle = `(Retry) ${sectionTitle}`;
+      const newTaskNumber = progressManager.getTaskCount() + 1;
+      progressManager.addTask(retryId, retryTitle, newTaskNumber);
+      progressManager.startTask(retryId);
+      const retryStartTime = Date.now();
+
+      const retryTemplate = `The previous translation failed validation. Please correct the following errors and re-translate the original text.
+
+Errors:
+- {errors}
+
+Remember to follow these style guides:
+{style_guide}
+
+For context, here is the full original document:
+<!-- FULL_CONTEXT_START -->
+{full_context}
+<!-- FULL_CONTEXT_END -->
+
+Please translate ONLY the following section into Traditional Chinese. Do not output anything else, just the translated text of this section.
+
+Section to translate:
+<!-- SECTION_TO_TRANSLATE_START -->
+{section_to_translate}
+<!-- SECTION_TO_TRANSLATE_END -->
+`;
+      const retryChain = PromptTemplate.fromTemplate(retryTemplate).pipe(model).pipe(new StringOutputParser());
+
+      fullResponse = ''; // Reset response
+      totalBytes = 0; // Reset bytes
+
+      // --- Debug Log Retry Prompt ---
+      const retryPromptFormatted = await PromptTemplate.fromTemplate(retryTemplate).format({
+        errors: validationResult.errors.join('\n- '), // Full errors
+        style_guide: styleGuidePath,
+        full_context: fullContextPath,
+        section_to_translate: sectionPreview,
+      });
+      await debugLog(`Retry prompt for section ${sectionId}:\n${retryPromptFormatted}`);
+
+      // --- Second attempt ---
+      const retryStream = await retryChain.stream({
+        style_guide: styleGuide,
+        full_context: fullContext,
+        section_to_translate: contentToTranslate,
+        errors: validationResult.errors.join('\n- '),
+      });
+
+      for await (const chunk of retryStream) {
+        fullResponse += chunk;
+        totalBytes += Buffer.byteLength(chunk, 'utf8');
+        progressManager.updateBytes(retryId, totalBytes);
+      }
+
+      const secondValidation = validateBatch(contentToTranslate, fullResponse);
+      if (!secondValidation.isValid) {
+        progressManager.collectWarning(_('Re-translation for section "{{sectionTitle}}" failed validation again, but the result will be accepted.', { sectionTitle }));
+      }
+      
+      const retryEndTime = Date.now();
+      const retryDuration = parseFloat(((retryEndTime - retryStartTime) / 1000).toFixed(1));
+      progressManager.completeTask(retryId, retryDuration);
+
+      return fullResponse;
+    }
+
+    // If validation was successful on the first try
     const endTime = Date.now();
     const duration = parseFloat(((endTime - startTime) / 1000).toFixed(1));
     progressManager.completeTask(sectionId, duration);
@@ -174,12 +270,14 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     // 為所有批次建立翻譯任務
     const translationPromises = allBatches.map((batch, index) => {
       progressManager.addTask(batch.id, batch.title, index + 1);
-      return limit(() => translateContent(styleGuide, fileContent, batch.content, progressManager, batch.id));
+      return limit(() => translateContent(styleGuide, fileContent, batch.content, progressManager, batch.id, batch.title, sourceFilePath));
     });
 
     const translatedBatches = await Promise.all(translationPromises);
 
     progressManager.stop();
+    progressManager.printCollectedWarnings();
+
     return translatedBatches.join('\n\n');
 
   } catch (error) {

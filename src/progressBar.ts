@@ -4,6 +4,7 @@ import cliProgress from 'cli-progress';
 export enum TaskStatus {
   Waiting,
   Translating,
+  Retrying, // Added for retry status
   Completed,
   Failed,
 }
@@ -12,6 +13,7 @@ export enum TaskStatus {
 const statusIcons = {
   [TaskStatus.Waiting]: '🕒',
   [TaskStatus.Translating]: '🔄',
+  [TaskStatus.Retrying]: '⚠️', // Icon for retrying
   [TaskStatus.Completed]: '✅',
   [TaskStatus.Failed]: '❌',
 };
@@ -22,6 +24,8 @@ const statusIcons = {
 export class ProgressManager {
   private multibar: cliProgress.MultiBar;
   private bars: Map<string, cliProgress.SingleBar> = new Map();
+  private startTimes: Map<string, number> = new Map(); // Track start times
+  private warnings: string[] = []; // Collect warnings
 
   constructor() {
     this.multibar = new cliProgress.MultiBar({
@@ -86,7 +90,21 @@ export class ProgressManager {
   startTask(id: string): void {
     const bar = this.bars.get(id);
     if (bar) {
-      bar.update({ status: TaskStatus.Translating, startTime: Date.now() });
+      const startTime = Date.now();
+      bar.update({ status: TaskStatus.Translating, startTime });
+      this.startTimes.set(id, startTime);
+    }
+  }
+
+  /**
+   * 更新任務的任意 payload 數據
+   * @param id 任務的唯一標識符
+   * @param payload 要更新的數據
+   */
+  updateTask(id: string, payload: object): void {
+    const bar = this.bars.get(id);
+    if (bar) {
+      bar.update(payload);
     }
   }
 
@@ -142,5 +160,51 @@ export class ProgressManager {
    */
   stop(): void {
     this.multibar.stop();
+  }
+
+  /**
+   * 獲取當前任務總數
+   * @returns 任務數量
+   */
+  getTaskCount(): number {
+    return this.bars.size;
+  }
+
+  /**
+   * 根據 ID 獲取進度條實例
+   * @param id 任務的唯一標識符
+   * @returns The SingleBar instance or undefined.
+   */
+  getBar(id: string): cliProgress.SingleBar | undefined {
+    return this.bars.get(id);
+  }
+
+  /**
+   * 根據 ID 獲取任務的開始時間
+   * @param id 任務的唯一標識符
+   * @returns The start time in milliseconds or undefined.
+   */
+  getStartTime(id: string): number | undefined {
+    return this.startTimes.get(id);
+  }
+
+  /**
+   * Collects a warning message to be displayed at the end.
+   * @param message The warning message to collect.
+   */
+  collectWarning(message: string): void {
+    this.warnings.push(message);
+  }
+
+  /**
+   * Prints all collected warnings to the console if any exist.
+   */
+  printCollectedWarnings(): void {
+    if (this.warnings.length > 0) {
+      console.log('\n---');
+      console.log('Warnings encountered during translation:');
+      this.warnings.forEach(warning => console.log(`- ${warning}`));
+      console.log('---');
+    }
   }
 }
