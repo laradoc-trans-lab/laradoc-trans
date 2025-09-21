@@ -11,7 +11,7 @@ export enum TaskStatus {
 // 狀態對應的圖示
 const statusIcons = {
   [TaskStatus.Waiting]: '🕒',
-  [TaskStatus.Translating]: '⚙️',
+  [TaskStatus.Translating]: '🔄',
   [TaskStatus.Completed]: '✅',
   [TaskStatus.Failed]: '❌',
 };

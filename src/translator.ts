@@ -2,12 +2,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import pLimit from 'p-limit';
 import { _ } from './i18n';
-import { parseMarkdownIntoSections, MarkdownSection } from './markdownParser';
-import { ProgressManager, TaskStatus } from './progressBar';
+import { parseMarkdownIntoSections, MarkdownH2Section, MarkdownSection } from './markdownParser';
+import { ProgressManager } from './progressBar';
 import { createLlmModel } from './llm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 // --- 錯誤類別定義 ---
 
@@ -57,7 +56,7 @@ async function getStyleGuide(promptFilePath?: string): Promise<string> {
 async function translateContent(
   styleGuide: string,
   fullContext: string,
-  contentToTranslate: string, // Content is now a batch of sections
+  contentToTranslate: string,
   progressManager: ProgressManager,
   sectionId: string,
 ): Promise<string> {
@@ -95,8 +94,6 @@ Section to translate:
       style_guide: styleGuide,
       full_context: fullContext,
       section_to_translate: contentToTranslate,
-    }, {
-      callbacks: []
     });
 
     for await (const chunk of stream) {
@@ -116,9 +113,10 @@ Section to translate:
   }
 }
 
+
 export async function translateFile(sourceFilePath: string, promptFilePath?: string): Promise<string> {
   const concurrency = parseInt(process.env.TRANSLATION_CONCURRENCY || '3', 10);
-  console.log(_('Concurrency Level: {{concurrency}}', { concurrency })); // Debug log for concurrency
+  console.log(_('Concurrency Level: {{concurrency}}', { concurrency }));
   const limit = pLimit(concurrency);
 
   const progressManager = new ProgressManager();
@@ -126,52 +124,57 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
   try {
     const styleGuide = await getStyleGuide(promptFilePath);
     const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
-    const allSections = parseMarkdownIntoSections(fileContent);
+    const h2Sections = parseMarkdownIntoSections(fileContent);
 
-    // Dynamic Batching Logic
-    const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
-    const batches: MarkdownSection[][] = [];
-    let currentBatch: MarkdownSection[] = [];
-    let currentBatchSize = 0;
+    const BATCH_SIZE_LIMIT = 10240; // 10K Bytes
+    let allBatches: { id: string, title: string, content: string }[] = [];
+    let batchCounter = 0;
 
-    for (const section of allSections) {
-      const size = Buffer.byteLength(section.content, 'utf8');
+    // 遍歷每一個 H2 章節群組
+    for (const h2Section of h2Sections) {
+      let currentBatch: MarkdownSection[] = [];
+      let currentBatchSize = 0;
 
-      if (currentBatch.length === 0) {
-        currentBatch.push(section);
-        currentBatchSize += size;
-      } else if (size >= BATCH_SIZE_LIMIT) {
-        if (currentBatch.length > 0) {
-          batches.push(currentBatch);
+      // 在 H2 章節內部建立批次
+      for (const subSection of h2Section.subSections) {
+        const size = Buffer.byteLength(subSection.content, 'utf8');
+
+        if (currentBatch.length > 0 && currentBatchSize + size > BATCH_SIZE_LIMIT) {
+          // 目前批次已滿，儲存起來
+          const batchContent = currentBatch.map(s => s.content).join('\n\n');
+          const title = currentBatch.map(s => s.heading).join(', ');
+          allBatches.push({ 
+            id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`,
+            title: title,
+            content: batchContent 
+          });
+          currentBatch = [];
+          currentBatchSize = 0;
         }
-        batches.push([section]);
-        currentBatch = [];
-        currentBatchSize = 0;
-      } else if (currentBatchSize + size > BATCH_SIZE_LIMIT) {
-        batches.push(currentBatch);
-        currentBatch = [section];
-        currentBatchSize = size;
-      } else {
-        currentBatch.push(section);
+        currentBatch.push(subSection);
         currentBatchSize += size;
       }
-    }
-    if (currentBatch.length > 0) {
-      batches.push(currentBatch);
+
+      // 儲存 H2 章節中最後一個未滿的批次
+      if (currentBatch.length > 0) {
+        const batchContent = currentBatch.map(s => s.content).join('\n\n');
+        const title = currentBatch.map(s => s.heading).join(', ');
+        allBatches.push({ 
+          id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`,
+          title: title,
+          content: batchContent 
+        });
+      }
     }
 
-    if (batches.length === 0) {
-        return ''; // No content to translate
+    if (allBatches.length === 0) {
+      return ''; // 沒有內容需要翻譯
     }
 
-    const translationPromises = batches.map((batch, index) => {
-      const batchId = `${path.basename(sourceFilePath)}-batch-${index}`;
-      const title = batch.map(s => s.heading || 'Prologue').join(', ');
-      progressManager.addTask(batchId, title, index + 1);
-      
-      const batchContent = batch.map(s => s.content).join('\n\n');
-
-      return limit(() => translateContent(styleGuide, fileContent, batchContent, progressManager, batchId));
+    // 為所有批次建立翻譯任務
+    const translationPromises = allBatches.map((batch, index) => {
+      progressManager.addTask(batch.id, batch.title, index + 1);
+      return limit(() => translateContent(styleGuide, fileContent, batch.content, progressManager, batch.id));
     });
 
     const translatedBatches = await Promise.all(translationPromises);
