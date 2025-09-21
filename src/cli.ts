@@ -34,7 +34,11 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
   program
     .name('laradoc-trans')
     .description('Translate and validate Laravel docs.')
-    .version(version, '-v, --version', 'Output the current version.');
+    .version(version, '-v, --version', 'Output the current version.')
+    .option('--debug', 'Enable debug mode, writing logs to workspace/logs/debug.log')
+    .on('option:debug', () => {
+      process.env.DEBUG_MODE = 'true';
+    });
 
   // Init Command
   program.command('init')
