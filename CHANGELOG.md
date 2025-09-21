@@ -6,6 +6,7 @@
 - 實作切割章節翻譯避免超出最大輸出 tokens，並利用 `p-limit` 併發進行提升翻譯速度。
 - 以 `cli-progress` 實作進度條顯示併發翻譯章節的進度。
 - 新增驗證功能 `validate --branch ..`，並且產生報告於 `workspaces/validation-report`。
+- 支援多組 GEMINI API KEY
 
 ## 0.2.3 2025-09-14
 

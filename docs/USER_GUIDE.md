@@ -120,7 +120,7 @@ laradoc-trans run --branch 12.x --all
 `laradoc-trans` 透過 `.env` 檔案來讀取您的設定。此檔案應位於工作區的根目錄。
 
 -   `GEMINI_API_KEY` **(必要)**
-    您的 Google Gemini API 金鑰。請至 [Google AI Studio](https://aistudio.google.com/app/apikey) 取得。
+    您的 Google Gemini API 金鑰。請至 [Google AI Studio](https://aistudio.google.com/app/apikey) 取得。為了避免因大量請求而觸發速率限制，您也可以提供多組金鑰讓程式輪流使用。除了設定主要的 `GEMINI_API_KEY` 之外，您還可以在 `.env` 檔案中繼續新增 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`，以此類推。
 
 -   `GEMINI_MODEL` (可選)
     指定要使用的 Gemini 模型。預設為 `gemini-2.5-flash`。

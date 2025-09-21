@@ -63,7 +63,7 @@
     ```bash
     cp .env-dist .env
     ```
-    接著，編輯 `.env` 檔案，設定 `LLM_PROVIDER` 並填入對應的 API 金鑰，以便在開發和測試時使用。
+    接著，編輯 `.env` 檔案，設定 `LLM_PROVIDER` 並填入對應的 API 金鑰。若您使用 Gemini，可以設定多組 API 金鑰（`GEMINI_API_KEY`, `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`...）以便在開發和測試時輪換使用。
 
 4.  **編譯程式碼**:
     在進行開發時，您可以執行 `build` 指令來編譯 TypeScript 程式碼。
