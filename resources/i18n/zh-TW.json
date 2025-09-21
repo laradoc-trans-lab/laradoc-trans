@@ -69,5 +69,11 @@
   "Skipping .env creation as it already exists in the workspace.": "工作區中已存在 .env 檔案，跳過建立。",
   "Created .env file in the workspace. Please configure your GEMINI_API_KEY in it.": "已在工作區中建立 .env 檔案。請在其中配置您的 GEMINI_API_KEY。",
   "Concurrency Level: {{concurrency}}": "併發數量：{{concurrency}}",
-  "Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY).": "錯誤：找不到 API 金鑰。請檢查您的 .env 檔案中是否設定了必要的金鑰 (例如 GEMINI_API_KEY 或 OPENAI_API_KEY)。"
+  "Error: API Key not found. Please check your .env file for the required key (e.g., GEMINI_API_KEY or OPENAI_API_KEY).": "錯誤：找不到 API 金鑰。請檢查您的 .env 檔案中是否設定了必要的金鑰 (例如 GEMINI_API_KEY 或 OPENAI_API_KEY)。",
+  "Error: Failed to clone source repository from {{url}}.": "錯誤：無法從 {{url}} 克隆來源儲存庫。",
+  "Error: Failed to clone target repository from {{url}}.": "錯誤：無法從 {{url}} 克隆目標儲存庫。",
+  "Error: Failed to initialize target repository at {{path}}.": "錯誤：無法於 {{path}} 初始化目標儲存庫。",
+  "Error: Source repository not found at {{path}}.": "錯誤：於 {{path}} 找不到來源儲存庫。",
+  "Error: Failed to checkout branch '{{branch}}'.": "錯誤：切換分支 '{{branch}}' 失敗。",
+  "Error: The validation process failed: {{message}}": "錯誤：驗證過程失敗：{{message}}"
 }

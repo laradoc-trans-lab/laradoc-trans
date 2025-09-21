@@ -12,6 +12,7 @@ import {
   GitError,
   RepositoryNotFoundError,
   initRepository,
+  InitError,
   cloneRepository,
   CloneError,
   isGitRepository,
@@ -80,7 +81,9 @@ async function handleInitCommand(options: InitOptions) {
       console.log(_('Source repository already exists at {{path}}. Skipping clone.', { path: paths.source }));
     }
   } catch (error: unknown) {
-    console.error(_('Error cloning Laravel documentation: {{message}}', { message: (error as Error).message }));
+    if (error instanceof CloneError) {
+      console.error(_('Error: Failed to clone source repository from {{url}}.', { url: LARAVEL_DOCS_REPO }));
+    }
     throw error;
   }
 
@@ -103,7 +106,11 @@ async function handleInitCommand(options: InitOptions) {
       }
     }
   } catch (error: unknown) {
-    console.error(_('Error initializing target repository: {{message}}', { message: (error as Error).message }));
+    if (error instanceof CloneError) {
+      console.error(_('Error: Failed to clone target repository from {{url}}.', { url: options.targetRepo }));
+    } else if (error instanceof InitError) {
+      console.error(_('Error: Failed to initialize target repository at {{path}}.', { path: paths.target }));
+    }
     throw error;
   }
 
@@ -133,6 +140,7 @@ async function handleRunCommand(options: RunOptions) {
   };
 
   if (!await isGitRepository(paths.source)) {
+    console.error(_('Error: Source repository not found at {{path}}.', { path: paths.source }));
     throw new RepositoryNotFoundError(paths.source);
   }
   console.log(_('Workspace validation successful.'));
@@ -155,8 +163,17 @@ async function handleRunCommand(options: RunOptions) {
     }
     throw error;
   }
-  await checkoutBranch(paths.source, options.branch);
-  await initializeTargetRepo(paths.target, options.branch);
+  try {
+    await checkoutBranch(paths.source, options.branch);
+    await initializeTargetRepo(paths.target, options.branch);
+  } catch (error: unknown) {
+    if (error instanceof CheckoutFailedError) {
+      console.error(_('Error: Failed to checkout branch \'{{branch}}\'.', { branch: options.branch }));
+    } else if (error instanceof InitError) {
+      console.error(_('Error: Failed to initialize target repository at {{path}}.', { path: paths.target }));
+    }
+    throw error;
+  }
   console.log(_('Git repositories synchronized to the correct branch.'));
 
   let progress = await readProgressFile(paths.tmp);
@@ -269,7 +286,12 @@ async function handleValidateCommand(options: ValidateOptions) {
     throw error;
   }
 
-  await validateAllFiles(paths.source, paths.target, paths.report);
+  try {
+    await validateAllFiles(paths.source, paths.target, paths.report);
+  } catch (error: unknown) {
+    console.error(_('Error: The validation process failed: {{message}}', { message: (error as Error).message }));
+    throw error;
+  }
 }
 
 export function debug(message?: any, ...optionalParams: any[]) {
