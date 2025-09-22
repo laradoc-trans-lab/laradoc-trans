@@ -320,16 +320,34 @@ export function validateBatch(
   const originalTree = remark.parse(originalContent);
   const translatedTree = remark.parse(translatedContent);
 
-  // 1. Validate Heading Count
+  // 1. 驗證標題 (數量與錨點)
   const originalHeadings = getHeadingsWithAnchors(originalTree);
   const translatedHeadings = getHeadingsWithAnchors(translatedTree);
+
+  // 基礎檢查：比對標題總數
   if (originalHeadings.length !== translatedHeadings.length) {
     errors.push(
       `Heading count mismatch. Original: ${originalHeadings.length}, Translated: ${translatedHeadings.length}.`,
     );
   }
 
-  // 2. Validate Code Block Count and Content
+  // 進階檢查：比對錨點集合，以防止「一增一減」的錯誤
+  const originalAnchors = new Set(originalHeadings.map(h => h.anchor).filter(Boolean));
+  const translatedAnchors = new Set(translatedHeadings.map(h => h.anchor).filter(Boolean));
+
+  // 找出譯文中遺漏的錨點
+  const missingAnchors = [...originalAnchors].filter(a => !translatedAnchors.has(a));
+  if (missingAnchors.length > 0) {
+    errors.push(`Missing heading anchors in translation: ${missingAnchors.join(', ')}.`);
+  }
+
+  // 找出譯文中多出的錨點
+  const extraAnchors = [...translatedAnchors].filter(a => !originalAnchors.has(a));
+  if (extraAnchors.length > 0) {
+    errors.push(`Extra heading anchors in translation: ${extraAnchors.join(', ')}.`);
+  }
+
+  // 2. 驗證程式碼區塊 (數量與內容)
   const originalCodeBlocks = getCodeBlocks(originalTree, originalContent);
   const translatedCodeBlocks = getCodeBlocks(translatedTree, translatedContent);
 
