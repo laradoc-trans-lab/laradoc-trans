@@ -353,7 +353,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
     console.log('\n--- Translation Task Assignment ---');
     allBatches.forEach((batch, index) => {
-      console.log(`- Task ${index + 1}`);
+      console.log(`- Task ${index + 1} (Lines ${batch.startLine}-${batch.endLine})`);
       const sections = batch.title.split(', ');
       sections.forEach(section => {
         console.log(`  * ${section}`);
