@@ -2,9 +2,15 @@ import fs from 'fs/promises';
 import path from 'path';
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
-import type { Root, Heading } from 'mdast';
+import type { Root, Heading, Text, HTML } from 'mdast';
 
 // --- Data Structures ---
+
+interface HeadingInfo {
+  text: string;
+  depth: number;
+  anchor?: string;
+}
 
 interface CodeBlock {
   content: string;
@@ -25,7 +31,46 @@ interface ValidationResult {
   admonitionCount: { source: number; target: number; match: boolean };
   mismatchedCodeBlocks: MismatchedCodeBlockInfo[];
   mismatchedAdmonitions: number[];
+  headingDetails: {
+    source: HeadingInfo[];
+    target: HeadingInfo[];
+  };
 }
+
+// --- Helper to stringify a node's content ---
+function stringifyNode(node: any): string {
+  if ('children' in node) {
+    return (node.children as any[]).map(stringifyNode).join('');
+  }
+  if ('value' in node) {
+    return node.value;
+  }
+  return '';
+}
+
+// --- AST Parsing Helpers ---
+
+function getHeadingsWithAnchors(tree: Root): HeadingInfo[] {
+  const headings: HeadingInfo[] = [];
+  visit(tree, 'heading', (node: Heading) => {
+    const text = stringifyNode(node).trim();
+    let anchor: string | undefined = undefined;
+
+    // Find anchor in the text, e.g., {#some-id}
+    const anchorMatch = text.match(/\{#([\w-]+)\}/);
+    if (anchorMatch) {
+      anchor = anchorMatch[1];
+    }
+
+    headings.push({
+      text: text.replace(/\{#[\w-]+\}$/, '').trim(), // Cleaned text
+      depth: node.depth,
+      anchor: anchor,
+    });
+  });
+  return headings;
+}
+
 
 // --- Main Validation Orchestrator ---
 
@@ -66,8 +111,8 @@ async function validateFile(sourcePath: string, targetPath: string): Promise<Val
   const sourceTree = remark.parse(sourceContent);
   const targetTree = remark.parse(targetContent);
 
-  const sourceHeadings = countHeadings(sourceTree);
-  const targetHeadings = countHeadings(targetTree);
+  const sourceHeadings = getHeadingsWithAnchors(sourceTree);
+  const targetHeadings = getHeadingsWithAnchors(targetTree);
 
   const sourceCodeBlocks = getCodeBlocks(sourceTree, sourceContent);
   const targetCodeBlocks = getCodeBlocks(targetTree, targetContent);
@@ -93,7 +138,7 @@ async function validateFile(sourcePath: string, targetPath: string): Promise<Val
     }
   }
 
-  const headingMatch = sourceHeadings === targetHeadings;
+  const headingMatch = sourceHeadings.length === targetHeadings.length;
   const codeBlockCountMatch = sourceCodeBlocks.length === targetCodeBlocks.length;
   const admonitionCountMatch = sourceAdmonitions.length === targetAdmonitions.length;
   const codeBlockContentMatch = mismatchedCodeBlocks.length === 0;
@@ -110,11 +155,12 @@ async function validateFile(sourcePath: string, targetPath: string): Promise<Val
   return {
     fileName: path.basename(sourcePath),
     hasError,
-    headingCount: { source: sourceHeadings, target: targetHeadings, match: headingMatch },
+    headingCount: { source: sourceHeadings.length, target: targetHeadings.length, match: headingMatch },
     codeBlockCount: { source: sourceCodeBlocks.length, target: targetCodeBlocks.length, match: codeBlockCountMatch },
     admonitionCount: { source: sourceAdmonitions.length, target: targetAdmonitions.length, match: admonitionCountMatch },
     mismatchedCodeBlocks,
     mismatchedAdmonitions,
+    headingDetails: { source: sourceHeadings, target: targetHeadings },
   };
 }
 
@@ -165,7 +211,59 @@ async function generateDetailedReport(result: ValidationResult, sourceDir: strin
   const issues: string[] = [];
 
   if (!result.headingCount.match) {
-    issues.push(`### ❌ ISSUE: Heading Count Mismatch\n- Source file has **${result.headingCount.source}** headings.\n- Target file has **${result.headingCount.target}** headings.`);
+    let issue = `### ❌ ISSUE: Heading Count Mismatch\n- Source file has **${result.headingCount.source}** headings.\n- Target file has **${result.headingCount.target}** headings.`;
+
+    const sourceHeadings = result.headingDetails.source;
+    const targetHeadings = result.headingDetails.target;
+
+    // Pass 1: Match by anchor
+    const sourceAnchors = new Map(sourceHeadings.filter(h => h.anchor).map(h => [h.anchor, h]));
+    const targetAnchors = new Map(targetHeadings.filter(h => h.anchor).map(h => [h.anchor, h]));
+    
+    const matchedSourceHeadings = new Set<HeadingInfo>();
+    const matchedTargetHeadings = new Set<HeadingInfo>();
+
+    for (const [anchor, sourceHeading] of sourceAnchors) {
+      if (targetAnchors.has(anchor)) {
+        matchedSourceHeadings.add(sourceHeading);
+        matchedTargetHeadings.add(targetAnchors.get(anchor)!);
+      }
+    }
+
+    // Pass 2: Sequential match for remaining headings
+    const remainingSource = sourceHeadings.filter(h => !matchedSourceHeadings.has(h));
+    const remainingTarget = targetHeadings.filter(h => !matchedTargetHeadings.has(h));
+
+    let i = 0, j = 0;
+    while (i < remainingSource.length && j < remainingTarget.length) {
+      // Simple sequential comparison. A more advanced diff algorithm could be used here.
+      // This assumes the relative order of non-anchored headings is preserved.
+      if (remainingSource[i].depth === remainingTarget[j].depth) {
+        matchedSourceHeadings.add(remainingSource[i]);
+        matchedTargetHeadings.add(remainingTarget[j]);
+        i++;
+        j++;
+      } else if (remainingSource[i].depth < remainingTarget[j].depth) {
+        i++; // Assume source has an extra heading
+      } else {
+        j++; // Assume target has an extra heading
+      }
+    }
+
+    const missingHeadings = sourceHeadings.filter(h => !matchedSourceHeadings.has(h));
+    const extraHeadings = targetHeadings.filter(h => !matchedTargetHeadings.has(h));
+
+    if (missingHeadings.length > 0) {
+      issue += `\n\n#### Missing Headings in Target File:\n`;
+      issue += missingHeadings.map(h => `- \`H${h.depth}: ${h.text}\``).join('\n');
+    }
+
+    if (extraHeadings.length > 0) {
+      issue += `\n\n#### Extra Headings in Target File:\n`;
+      issue += extraHeadings.map(h => `- \`H${h.depth}: ${h.text}\``).join('\n');
+    }
+    
+    issues.push(issue);
   }
 
   if (!result.codeBlockCount.match) {
@@ -223,11 +321,11 @@ export function validateBatch(
   const translatedTree = remark.parse(translatedContent);
 
   // 1. Validate Heading Count
-  const originalHeadings = countHeadings(originalTree);
-  const translatedHeadings = countHeadings(translatedTree);
-  if (originalHeadings !== translatedHeadings) {
+  const originalHeadings = getHeadingsWithAnchors(originalTree);
+  const translatedHeadings = getHeadingsWithAnchors(translatedTree);
+  if (originalHeadings.length !== translatedHeadings.length) {
     errors.push(
-      `Heading count mismatch. Original: ${originalHeadings}, Translated: ${translatedHeadings}.`,
+      `Heading count mismatch. Original: ${originalHeadings.length}, Translated: ${translatedHeadings.length}.`,
     );
   }
 
