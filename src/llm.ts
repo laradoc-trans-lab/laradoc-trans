@@ -12,6 +12,7 @@ export class ApiKeyNotFoundError extends Error {
 export interface LlmModel {
   model: BaseChatModel;
   modelInfo: string;
+  apiKeyUsed: string; // 新增：記錄使用的 API 金鑰
 }
 
 // --- Gemini API Key Management ---
@@ -66,6 +67,7 @@ export function createLlmModel(): LlmModel {
         apiKey: process.env.OPENAI_API_KEY,
       }),
       modelInfo: `OpenAI (${modelName})`,
+      apiKeyUsed: process.env.OPENAI_API_KEY, // 回傳使用的 API 金鑰
     };
   }
 
@@ -78,6 +80,7 @@ export function createLlmModel(): LlmModel {
         apiKey: apiKey,
       }),
       modelInfo: `Gemini (${modelName})`,
+      apiKeyUsed: apiKey, // 回傳使用的 API 金鑰
     };
   }
 

@@ -1,3 +1,7 @@
+/**
+ * @todo 即時檢查翻譯結果對於章節標題的數量比對仍與 SUMMARY.md / details/*.md 有出入
+ */
+
 import fs from 'fs/promises';
 import path from 'path';
 import pLimit from 'p-limit';
@@ -7,6 +11,7 @@ import { ProgressManager, TaskStatus } from './progressBar';
 import { createLlmModel } from './llm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { GoogleGenerativeAIError } from "@google/generative-ai"; // 匯入 GoogleGenerativeAIError
 import { validateBatch } from './validator';
 import { debugLog } from './debugLogger';
 
@@ -16,6 +21,19 @@ export class TranslationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TranslationError';
+  }
+}
+
+export class LlmApiQuotaError extends TranslationError {
+  public readonly maskedApiKey: string;
+
+  constructor(message: string, maskedApiKey: string, originalError?: Error) {
+    super(message);
+    this.name = 'LlmApiQuotaError';
+    this.maskedApiKey = maskedApiKey;
+    if (originalError && originalError.stack) {
+      this.stack = originalError.stack;
+    }
   }
 }
 
@@ -63,6 +81,9 @@ async function translateContent(
   sectionId: string,
   sectionTitle: string,
   sourceFilePath: string, // For debug logging
+  startLine: number,
+  endLine: number,
+  apiKeyUsed: string, // 新增：傳遞使用的 API 金鑰
 ): Promise<string> {
   const { model } = createLlmModel();
   const startTime = Date.now();
@@ -102,19 +123,27 @@ Section to translate:
       full_context: fullContextPath,
       section_to_translate: sectionPreview,
     });
-    await debugLog(`Initial prompt for section ${sectionId}:\n${initialPromptFormatted}`);
+    await debugLog(`Initial prompt for section ${sectionId} [Line ${startLine}-${endLine}]:\n${initialPromptFormatted}`);
 
     // --- First attempt ---
-    const stream = await chain.stream({
-      style_guide: styleGuide,
-      full_context: fullContext,
-      section_to_translate: contentToTranslate,
-    });
+    try {
+      const stream = await chain.stream({
+        style_guide: styleGuide,
+        full_context: fullContext,
+        section_to_translate: contentToTranslate,
+      });
 
-    for await (const chunk of stream) {
-      fullResponse += chunk;
-      totalBytes += Buffer.byteLength(chunk, 'utf8');
-      progressManager.updateBytes(sectionId, totalBytes);
+      for await (const chunk of stream) {
+        fullResponse += chunk;
+        totalBytes += Buffer.byteLength(chunk, 'utf8');
+        progressManager.updateBytes(sectionId, totalBytes);
+      }
+    } catch (error: any) {
+      if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
+        const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
+        throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
+      }
+      throw error;
     }
 
     // --- Validation and Retry Logic ---
@@ -169,20 +198,28 @@ Section to translate:
         full_context: fullContextPath,
         section_to_translate: sectionPreview,
       });
-      await debugLog(`Retry prompt for section ${sectionId}:\n${retryPromptFormatted}`);
+      await debugLog(`Retry prompt for section ${sectionId} [Line ${startLine}-${endLine}]:\n${retryPromptFormatted}`);
 
       // --- Second attempt ---
-      const retryStream = await retryChain.stream({
-        style_guide: styleGuide,
-        full_context: fullContext,
-        section_to_translate: contentToTranslate,
-        errors: validationResult.errors.join('\n- '),
-      });
+      try {
+        const retryStream = await retryChain.stream({
+          style_guide: styleGuide,
+          full_context: fullContext,
+          section_to_translate: contentToTranslate,
+          errors: validationResult.errors.join('\n- '),
+        });
 
-      for await (const chunk of retryStream) {
-        fullResponse += chunk;
-        totalBytes += Buffer.byteLength(chunk, 'utf8');
-        progressManager.updateBytes(retryId, totalBytes);
+        for await (const chunk of retryStream) {
+          fullResponse += chunk;
+          totalBytes += Buffer.byteLength(chunk, 'utf8');
+          progressManager.updateBytes(retryId, totalBytes);
+        }
+      } catch (error: any) {
+        if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
+          const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
+          throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
+        }
+        throw error;
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse);
@@ -220,10 +257,11 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
   try {
     const styleGuide = await getStyleGuide(promptFilePath);
     const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
+    const { model, apiKeyUsed } = createLlmModel(); // 接收 apiKeyUsed
     const h2Sections = parseMarkdownIntoSections(fileContent);
 
     const BATCH_SIZE_LIMIT = 10240; // 10K Bytes
-    let allBatches: { id: string, title: string, content: string }[] = [];
+    let allBatches: { id: string, title: string, content: string, startLine: number, endLine: number }[] = [];
     let batchCounter = 0;
 
     // --- 新版階層式演算法 ---
@@ -234,10 +272,14 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       if (currentBatchOfH2s.length > 0) {
         const batchContent = currentBatchOfH2s.map(s => s.content).join('\n\n');
         const title = currentBatchOfH2s.map(s => s.heading).join(', ');
+        const startLine = currentBatchOfH2s[0].startLine;
+        const endLine = currentBatchOfH2s[currentBatchOfH2s.length - 1].endLine;
         allBatches.push({
           id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`,
           title: title,
           content: batchContent,
+          startLine: startLine,
+          endLine: endLine,
         });
         currentBatchOfH2s = [];
         currentBatchOfH2sSize = 0;
@@ -262,18 +304,22 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
             if (internalBatch.length > 0) {
               const batchContent = internalBatch.map(s => s.content).join('\n\n');
               const title = internalBatch.map(s => s.heading).join(', ');
-              allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+              const startLine = internalBatch[0].startLine;
+              const endLine = internalBatch[internalBatch.length - 1].endLine;
+              allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent, startLine: startLine, endLine: endLine });
               internalBatch = [];
               internalBatchSize = 0;
             }
-            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title: subSection.heading, content: subSection.content });
+            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title: subSection.heading, content: subSection.content, startLine: subSection.startLine, endLine: subSection.endLine });
             continue;
           }
 
           if (internalBatch.length > 0 && internalBatchSize + subSize > BATCH_SIZE_LIMIT) {
             const batchContent = internalBatch.map(s => s.content).join('\n\n');
             const title = internalBatch.map(s => s.heading).join(', ');
-            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+            const startLine = internalBatch[0].startLine;
+            const endLine = internalBatch[internalBatch.length - 1].endLine;
+            allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent, startLine: startLine, endLine: endLine });
             internalBatch = [];
             internalBatchSize = 0;
           }
@@ -283,7 +329,9 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
         if (internalBatch.length > 0) {
           const batchContent = internalBatch.map(s => s.content).join('\n\n');
           const title = internalBatch.map(s => s.heading).join(', ');
-          allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent });
+          const startLine = internalBatch[0].startLine;
+          const endLine = internalBatch[internalBatch.length - 1].endLine;
+          allBatches.push({ id: `${path.basename(sourceFilePath)}-batch-${batchCounter++}`, title, content: batchContent, startLine: startLine, endLine: endLine });
         }
       } else { // 規則 1: 合併小章節
         if (currentBatchOfH2s.length > 0 && currentBatchOfH2sSize + h2TotalSize > BATCH_SIZE_LIMIT) {
@@ -300,8 +348,9 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       return ''; // 沒有內容需要翻譯
     }
 
-    // --- 暫時性的任務分配日誌供偵錯用 (請勿刪除) ---
-    /*
+    // --- 任務分配清單，這會在進度條開始前印出 ---
+    // 主要目的是讓使用者知道有哪些任務被建立，以及它們包含哪些章節標題
+
     console.log('\n--- Translation Task Assignment ---');
     allBatches.forEach((batch, index) => {
       console.log(`- Task ${index + 1}`);
@@ -311,12 +360,12 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       });
     });
     console.log('---------------------------------\n');
-    */
+
 
     // 為所有批次建立翻譯任務
     const translationPromises = allBatches.map((batch, index) => {
       progressManager.addTask(batch.id, batch.title, index + 1);
-      return limit(() => translateContent(styleGuide, fileContent, batch.content, progressManager, batch.id, batch.title, sourceFilePath));
+      return limit(() => translateContent(styleGuide, fileContent, batch.content, progressManager, batch.id, batch.title, sourceFilePath, batch.startLine, batch.endLine, apiKeyUsed));
     });
 
     const translatedBatches = await Promise.all(translationPromises);
@@ -328,6 +377,9 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
   } catch (error) {
     progressManager.stop();
+    if (error instanceof LlmApiQuotaError) {
+      console.error(_('Translation failed: LLM API quota exceeded for key: {{maskedKey}}', { maskedKey: error.maskedApiKey }));
+    }
     throw error;
   }
 }

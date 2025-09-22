@@ -10,6 +10,8 @@ export interface MarkdownSection {
   heading: string;
   content: string;
   nodes: Content[];
+  startLine: number;
+  endLine: number;
 }
 
 /**
@@ -21,14 +23,17 @@ export interface MarkdownH2Section {
 }
 
 /**
- * 將一組 AST 節點轉換回 Markdown 字串。
+ * 將一組 AST 節點轉換回 Markdown 字串，並返回其起始和結束行號。
  */
-function stringifyNodes(nodes: Content[]): string {
+function stringifyNodes(nodes: Content[]): { content: string; startLine: number; endLine: number } {
   if (nodes.length === 0) {
-    return '';
+    return { content: '', startLine: 0, endLine: 0 };
   }
   const tree: Root = { type: 'root', children: nodes };
-  return remark.stringify(tree).trim();
+  const content = remark.stringify(tree).trim();
+  const startLine = nodes[0].position?.start.line || 0;
+  const endLine = nodes[nodes.length - 1].position?.end.line || 0;
+  return { content, startLine, endLine };
 }
 
 /**
@@ -52,10 +57,13 @@ function splitLargeSection(
   for (const node of section.nodes) {
     if (node.type === 'heading' && node.depth === depth) {
       if (currentSubSectionNodes.length > 0) {
+        const { content, startLine, endLine } = stringifyNodes(currentSubSectionNodes);
         const newSection: MarkdownSection = {
           heading: subSectionHeading,
-          content: stringifyNodes(currentSubSectionNodes),
+          content: content,
           nodes: currentSubSectionNodes,
+          startLine: startLine,
+          endLine: endLine,
         };
         if (Buffer.byteLength(newSection.content, 'utf8') > BATCH_SIZE_LIMIT) {
           subSections.push(...splitLargeSection(newSection, parentHeading, depth + 1));
@@ -72,10 +80,13 @@ function splitLargeSection(
   }
 
   if (currentSubSectionNodes.length > 0) {
+    const { content, startLine, endLine } = stringifyNodes(currentSubSectionNodes);
     const newSection: MarkdownSection = {
       heading: subSectionHeading,
-      content: stringifyNodes(currentSubSectionNodes),
+      content: content,
       nodes: currentSubSectionNodes,
+      startLine: startLine,
+      endLine: endLine,
     };
     if (Buffer.byteLength(newSection.content, 'utf8') > BATCH_SIZE_LIMIT) {
       subSections.push(...splitLargeSection(newSection, parentHeading, depth + 1));
@@ -101,14 +112,16 @@ export function parseMarkdownIntoSections(markdownContent: string): MarkdownH2Se
     if (currentH2Nodes.length === 0) return;
 
     const finalSubSections: MarkdownSection[] = [];
-    const content = stringifyNodes(currentH2Nodes);
+    const { content, startLine, endLine } = stringifyNodes(currentH2Nodes);
 
     if (Buffer.byteLength(content, 'utf8') > BATCH_SIZE_LIMIT) {
       const nodesToSplit = currentH2Heading === 'Prologue' ? currentH2Nodes : currentH2Nodes.slice(1);
       const initialSubSection: MarkdownSection = {
         heading: currentH2Heading,
-        content: stringifyNodes(nodesToSplit),
+        content: stringifyNodes(nodesToSplit).content,
         nodes: nodesToSplit,
+        startLine: stringifyNodes(nodesToSplit).startLine,
+        endLine: stringifyNodes(nodesToSplit).endLine,
       };
       const splitSections = splitLargeSection(initialSubSection, currentH2Heading, 3);
       finalSubSections.push(...splitSections);
@@ -117,6 +130,8 @@ export function parseMarkdownIntoSections(markdownContent: string): MarkdownH2Se
         heading: currentH2Heading,
         content: content,
         nodes: currentH2Nodes,
+        startLine: startLine,
+        endLine: endLine,
       });
     }
 
