@@ -159,7 +159,7 @@ Section to translate:
       const retryId = `${taskId}-retry`;
       const retryTitle = `(Retry) ${taskTitle}`;
       const newTaskNumber = progressManager.getTaskCount() + 1;
-      progressManager.addTask(retryId, retryTitle, newTaskNumber);
+      progressManager.addTask(retryId, retryTitle, newTaskNumber, task.getContentLength());
       progressManager.startTask(retryId);
       const retryStartTime = Date.now();
 
@@ -332,7 +332,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     }
 
     const taskAssignmentLog = [
-      '--- Translation Task Assignment ---',
+      `--- Translation Task Assignment for ${sourceFilePath} ---`,
       ...nonEmptyTasks.map(task => {
         const sectionsLog = task.getSections().map(section =>
           `  * ${'#'.repeat(section.depth)} ${section.title} (len: ${section.contentLength})`
@@ -346,7 +346,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     // 為所有任務建立翻譯承諾
     const translationPromises = nonEmptyTasks.map((task) => {
       const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
-      progressManager.addTask(taskId, task.getTitle(), task.id + 1);
+      progressManager.addTask(taskId, task.getTitle(), task.id + 1, task.getContentLength());
       return limit(() => translateContent(styleGuide, fileContent, task, progressManager, sourceFilePath, apiKeyUsed));
     });
 

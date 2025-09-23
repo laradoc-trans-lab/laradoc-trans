@@ -1,10 +1,11 @@
 import cliProgress from 'cli-progress';
+import { _ } from './i18n';
 
 // 定義任務狀態的枚舉
 export enum TaskStatus {
   Waiting,
   Translating,
-  Retrying, // Added for retry status
+  Retrying, // 為重試狀態新增
   Completed,
   Failed,
 }
@@ -13,7 +14,7 @@ export enum TaskStatus {
 const statusIcons = {
   [TaskStatus.Waiting]: '🕒',
   [TaskStatus.Translating]: '🔄',
-  [TaskStatus.Retrying]: '⚠️', // Icon for retrying
+  [TaskStatus.Retrying]: '⚠️', // 重試圖示
   [TaskStatus.Completed]: '✅',
   [TaskStatus.Failed]: '❌',
 };
@@ -24,44 +25,51 @@ const statusIcons = {
 export class ProgressManager {
   private multibar: cliProgress.MultiBar;
   private bars: Map<string, cliProgress.SingleBar> = new Map();
-  private startTimes: Map<string, number> = new Map(); // Track start times
-  private warnings: string[] = []; // Collect warnings
+  private startTimes: Map<string, number> = new Map(); // 追蹤開始時間
+  private warnings: string[] = []; // 收集警告
 
   constructor() {
+    // 欄位對齊寬度
+    const numWidth = 2;
+    const statusWidth = 8; // "Status" 標頭寬度
+    const timeWidth = 5;   // 例如 "12.3s"
+    const receivedWidth = 11; // 例如 "12345 bytes"
+    const sourceLengthWidth = 13; // 例如 "12345 bytes"
+    const separator = ' | ';
+
+    // 標頭
+    const header = 
+      '#'.padEnd(numWidth) + separator +
+      'Status'.padEnd(statusWidth) + separator +
+      'Time'.padEnd(timeWidth) + separator +
+      'Received'.padEnd(receivedWidth) + separator +
+      _('Source Length').padEnd(sourceLengthWidth);
+    console.log(header);
+    console.log('-'.repeat(header.length + 2)); // 為 Unicode 字元增加一些緩衝
+
     this.multibar = new cliProgress.MultiBar({
       clearOnComplete: false,
       hideCursor: true,
       format: (options, params, payload) => {
-        // Column widths
-        const numWidth = 2;
-        const statusWidth = 1;
-        const bytesWidth = 11;
-        const timeWidth = 4;
-        const separator = ' | ';
-
         const taskNum = (payload.taskNumber || '').padEnd(numWidth);
-        const statusIcon = statusIcons[payload.status as TaskStatus] || '❓';
-
-        const bytes = `${payload.bytes || 0} bytes`.padEnd(bytesWidth);
         
+        // 置中狀態圖示
+        const statusIcon = statusIcons[payload.status as TaskStatus] || '❓';
+        const statusPadding = Math.floor((statusWidth - 2) / 2); // 表情符號寬度為 2 個字元
+        const centeredStatus = ' '.repeat(statusPadding) + statusIcon + ' '.repeat(statusWidth - 2 - statusPadding);
+
         let time = '-'.padEnd(timeWidth);
-        if (payload.time) { // Final time is set
-            time = `${Math.round(payload.time)}s`.padEnd(timeWidth);
-        } else if (payload.startTime && payload.status === TaskStatus.Translating) { // Task is running
+        if (payload.time) { // 設定最終時間
+            time = `${payload.time.toFixed(1)}s`.padEnd(timeWidth);
+        } else if (payload.startTime && (payload.status === TaskStatus.Translating || payload.status === TaskStatus.Retrying)) { // 任務正在執行或重試
             const elapsed = (Date.now() - payload.startTime) / 1000;
-            time = `${Math.round(elapsed)}s`.padEnd(timeWidth);
+            time = `${elapsed.toFixed(1)}s`.padEnd(timeWidth);
         }
 
-        const staticWidth = numWidth + statusWidth + bytesWidth + timeWidth + (separator.length * 4);
-        const terminalWidth = process.stdout.columns || 80;
-        const titleMaxWidth = terminalWidth - staticWidth;
+        const received = `${payload.bytes || 0} bytes`.padEnd(receivedWidth);
+        const sourceLength = `${payload.contentLength || 0} bytes`.padEnd(sourceLengthWidth);
 
-        let title = payload.title || '';
-        if (title.length > titleMaxWidth) {
-            title = title.substring(0, titleMaxWidth - 3) + '...';
-        }
-
-        return `${taskNum}${separator}${statusIcon}${separator}${bytes}${separator}${time}${separator}${title}`;
+        return `${taskNum}${separator}${centeredStatus}${separator}${time}${separator}${received}${separator}${sourceLength}`;
       },
     }, cliProgress.Presets.shades_classic);
   }
@@ -70,8 +78,10 @@ export class ProgressManager {
    * 新增一個任務到進度條
    * @param id 任務的唯一標識符，通常是檔案路徑
    * @param title 顯示在進度條上的標題
+   * @param taskNumber 任務的序號
+   * @param contentLength 要翻譯的內容長度
    */
-  addTask(id: string, title: string, taskNumber: number): void {
+  addTask(id: string, title: string, taskNumber: number, contentLength: number): void {
     const bar = this.multibar.create(100, 0, {
       title: title,
       status: TaskStatus.Waiting,
@@ -79,6 +89,7 @@ export class ProgressManager {
       time: null,
       taskNumber: taskNumber.toString(),
       startTime: null,
+      contentLength: contentLength, // 將內容長度新增到 payload
     });
     this.bars.set(id, bar);
   }
