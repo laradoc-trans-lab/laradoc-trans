@@ -1,157 +1,97 @@
-import { remark } from 'remark';
-import type { Root, Content, Heading } from 'mdast';
+import { Buffer } from 'buffer';
+import { Section } from './translator/Section';
 
 const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
 
 /**
- * 定義解析後的子章節結構。
+ * Splits the Markdown content into a flat array of Section objects,
+ * with `parent` properties linking them and `totalLength` calculated.
+ * @param markdownContent The full text content of the Markdown file.
+ * @returns A flat array of all Section objects found in the document.
  */
-export interface MarkdownSection {
-  heading: string;
-  content: string;
-  nodes: Content[];
-  startLine: number;
-  endLine: number;
-}
+export function splitMarkdownIntoSections(markdownContent: string): Section[] {
+  const lines = markdownContent.split('\n');
+  const sections: Section[] = [];
+  const parentStack: Section[] = [];
 
-/**
- * 定義以 H2 為根的章節群組結構。
- */
-export interface MarkdownH2Section {
-  heading: string;
-  subSections: MarkdownSection[];
-}
+  // Pass 1: Find all headings, create Section objects, and link parents.
+  lines.forEach((line, index) => {
+    const lineNum = index + 1;
+    const match = line.match(/^(#{1,6})\s+(.*)/);
 
-/**
- * 將一組 AST 節點轉換回 Markdown 字串，並返回其起始和結束行號。
- */
-function stringifyNodes(nodes: Content[]): { content: string; startLine: number; endLine: number } {
-  if (nodes.length === 0) {
-    return { content: '', startLine: 0, endLine: 0 };
-  }
-  const tree: Root = { type: 'root', children: nodes };
-  const content = remark.stringify(tree).trim();
-  const startLine = nodes[0].position?.start.line || 0;
-  const endLine = nodes[nodes.length - 1].position?.end.line || 0;
-  return { content, startLine, endLine };
-}
+    if (match) {
+      const depth = match[1].length;
+      const title = match[2].trim();
 
-/**
- * 遞迴地將一個大章節根據標題層級或段落拆分成較小的區塊。
- */
-function splitLargeSection(
-  section: MarkdownSection,
-  parentHeading: string,
-  depth: number = 3
-): MarkdownSection[] {
-  // If we've recursed past H6 and still haven't found a suitable split point,
-  // return the section as a single, potentially oversized chunk as per Rule 3.
-  if (depth > 6) {
-    return [section];
-  }
-
-  const subSections: MarkdownSection[] = [];
-  let currentSubSectionNodes: Content[] = [];
-  let subSectionHeading: string = section.heading;
-
-  for (const node of section.nodes) {
-    if (node.type === 'heading' && node.depth === depth) {
-      if (currentSubSectionNodes.length > 0) {
-        const { content, startLine, endLine } = stringifyNodes(currentSubSectionNodes);
-        const newSection: MarkdownSection = {
-          heading: subSectionHeading,
-          content: content,
-          nodes: currentSubSectionNodes,
-          startLine: startLine,
-          endLine: endLine,
-        };
-        if (Buffer.byteLength(newSection.content, 'utf8') > BATCH_SIZE_LIMIT) {
-          subSections.push(...splitLargeSection(newSection, parentHeading, depth + 1));
-        } else {
-          newSection.heading = `${parentHeading} > ${newSection.heading}`;
-          subSections.push(newSection);
-        }
+      while (parentStack.length > 0 && depth <= parentStack[parentStack.length - 1].depth) {
+        parentStack.pop();
       }
-      currentSubSectionNodes = [node];
-      subSectionHeading = (node as Heading).children.map((c: any) => c.value).join('');
-    } else {
-      currentSubSectionNodes.push(node);
+
+      const parent = parentStack.length > 0 ? parentStack[parentStack.length - 1] : null;
+      const section = new Section(title, depth, lineNum);
+      section.parent = parent;
+      sections.push(section);
+      parentStack.push(section);
+    }
+  });
+
+  // Pass 2: Adjust all startLines for anchors first.
+  for (const section of sections) {
+    for (let j = 1; j <= 2; j++) {
+      const checkLineNum = section.startLine - j;
+      if (checkLineNum > 0 && lines[checkLineNum - 1].includes('<a name=')) {
+        section.startLine = checkLineNum;
+        break;
+      }
     }
   }
 
-  if (currentSubSectionNodes.length > 0) {
-    const { content, startLine, endLine } = stringifyNodes(currentSubSectionNodes);
-    const newSection: MarkdownSection = {
-      heading: subSectionHeading,
-      content: content,
-      nodes: currentSubSectionNodes,
-      startLine: startLine,
-      endLine: endLine,
-    };
-    if (Buffer.byteLength(newSection.content, 'utf8') > BATCH_SIZE_LIMIT) {
-      subSections.push(...splitLargeSection(newSection, parentHeading, depth + 1));
-    } else {
-      newSection.heading = `${parentHeading} > ${newSection.heading}`;
-      subSections.push(newSection);
+  // Pass 3: Now that all startLines are final, calculate all endLines.
+  for (let i = 0; i < sections.length; i++) {
+    const nextSection = sections[i + 1];
+    sections[i].endLine = nextSection ? nextSection.startLine - 1 : lines.length;
+  }
+
+  // Pass 4: Extract content and calculate contentLength for each section.
+  for (const section of sections) {
+    if (section.startLine <= section.endLine) {
+      const contentLines = lines.slice(section.startLine - 1, section.endLine);
+      section.content = contentLines.join('\n');
+      section.contentLength = Buffer.byteLength(section.content, 'utf8');
     }
   }
 
-  return subSections;
+  // Pass 5: Calculate totalLength for each logical block.
+  // totalLength is the sum of contentLengths from this section until the next section of the same or higher depth.
+  for (let i = 0; i < sections.length; i++) {
+    let currentTotal = 0;
+    const currentSection = sections[i];
+    currentTotal += currentSection.contentLength;
+
+    for (let j = i + 1; j < sections.length; j++) {
+      if (sections[j].depth <= currentSection.depth) {
+        break; // Found a section of same or higher depth, this block ends.
+      }
+      currentTotal += sections[j].contentLength;
+    }
+    currentSection.totalLength = currentTotal;
+  }
+
+  // Pass 6: Add a "Prologue" for content before the first heading.
+  if (sections.length > 0 && sections[0].startLine > 1) {
+      const end = sections[0].startLine - 1;
+      const content = lines.slice(0, end).join('\n').trim();
+      if (content) {
+          const prologue = new Section('Prologue', 0, 1);
+          prologue.endLine = end;
+          prologue.content = content;
+          prologue.contentLength = Buffer.byteLength(content, 'utf8');
+          prologue.totalLength = prologue.contentLength; // Prologue has no children
+          sections.unshift(prologue);
+      }
+  }
+
+  return sections;
 }
 
-/**
- * 將 Markdown 文件解析成以 H2 為單位的結構化章節陣列。
- */
-export function parseMarkdownIntoSections(markdownContent: string): MarkdownH2Section[] {
-  const tree = remark.parse(markdownContent);
-  const h2Sections: MarkdownH2Section[] = [];
-  let currentH2Nodes: Content[] = [];
-  let currentH2Heading: string = 'Prologue';
 
-  function saveCurrentH2Section() {
-    if (currentH2Nodes.length === 0) return;
-
-    const finalSubSections: MarkdownSection[] = [];
-    const { content, startLine, endLine } = stringifyNodes(currentH2Nodes);
-
-    if (Buffer.byteLength(content, 'utf8') > BATCH_SIZE_LIMIT) {
-      const nodesToSplit = currentH2Heading === 'Prologue' ? currentH2Nodes : currentH2Nodes.slice(1);
-      const initialSubSection: MarkdownSection = {
-        heading: currentH2Heading,
-        content: stringifyNodes(nodesToSplit).content,
-        nodes: nodesToSplit,
-        startLine: stringifyNodes(nodesToSplit).startLine,
-        endLine: stringifyNodes(nodesToSplit).endLine,
-      };
-      const splitSections = splitLargeSection(initialSubSection, currentH2Heading, 3);
-      finalSubSections.push(...splitSections);
-    } else {
-      finalSubSections.push({
-        heading: currentH2Heading,
-        content: content,
-        nodes: currentH2Nodes,
-        startLine: startLine,
-        endLine: endLine,
-      });
-    }
-
-    h2Sections.push({
-      heading: currentH2Heading,
-      subSections: finalSubSections,
-    });
-  }
-
-  for (const node of tree.children) {
-    if (node.type === 'heading' && node.depth === 2) {
-      saveCurrentH2Section();
-      currentH2Heading = node.children.map((c: any) => c.value).join('');
-      currentH2Nodes = [node];
-    } else {
-      currentH2Nodes.push(node);
-    }
-  }
-
-  saveCurrentH2Section();
-
-  return h2Sections;
-}

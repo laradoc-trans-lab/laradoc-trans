@@ -26,7 +26,7 @@ import {
   readSourceCommit,
   writeTmpSourceCommit,
 } from './progress';
-import { translateFile, TranslationError } from './translator';
+import { translateFile, TranslationError } from './translator/index';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 import { parseCliArgs, CliArgs, InitOptions, RunOptions, ValidateOptions } from './cli';
