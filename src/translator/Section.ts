@@ -6,6 +6,12 @@
  */
 export class Section {
   title: string;
+  /**
+   * 章節的標題層級。
+   * - `0`: 代表文件本身 (prologue)，通常用於內文沒有任何標題的檔案。
+   * - `1`: 代表 H1 標題 (`#`)。
+   * - `2`: 代表 H2 標題 (`##`)，依此類推。
+   */
   depth: number;
   content: string = '';
   startLine: number;
