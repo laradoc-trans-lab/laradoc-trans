@@ -5,5 +5,5 @@
       "args": ["-y", "@upstash/context7-mcp"]
     }
   },
-  "contextFileName": [".gemini/GEMINI.md","specs/INDEX.md"]
+  "contextFileName": [".gemini/GEMINI.md","specs/INDEX.md" , "specs/TASK_ASSIGMENT.md"]
 }
