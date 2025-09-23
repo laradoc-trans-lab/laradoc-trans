@@ -134,6 +134,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
     -   程式首先會將 Markdown 檔案解析成多個章節（以 H2 標題為單位）。
     -   為了優化與語言模型的互動，程式會將這些章節組合成多個「批次」(Batches)。這個過程是動態的，基於內容的大小而非固定的章節數量。
     -   演算法會不斷將章節加入目前的批次，直到批次的總大小超過 10KB。如果某個章節本身就超過 10KB，它會自成一個批次。
+    -   詳細的理念與作法請參閱 [TASK_ASSIGMENT.md](TASK_ASSIGMENT.md)。
 
 2.  **併發翻譯 (Concurrent Translation)**：
     -   程式會使用 `p-limit` 函式庫，根據 `TRANSLATION_CONCURRENCY` 環境變數（預設為 3）設定的併發數，同時對多個「批次」發起翻譯請求。
