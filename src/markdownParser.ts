@@ -89,6 +89,15 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
           prologue.totalLength = prologue.contentLength; // Prologue has no children
           sections.unshift(prologue);
       }
+  } else if (sections.length === 0 && markdownContent.trim().length > 0) {
+    // 第 7 步：處理沒有標題的檔案，將其視為單一的序言章節。
+    const content = markdownContent.trim();
+    const prologue = new Section('Prologue', 0, 1);
+    prologue.endLine = lines.length;
+    prologue.content = content;
+    prologue.contentLength = Buffer.byteLength(content, 'utf8');
+    prologue.totalLength = prologue.contentLength;
+    sections.push(prologue);
   }
 
   return sections;
