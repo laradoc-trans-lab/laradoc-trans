@@ -190,7 +190,8 @@ async function generateSummaryReport(results: ValidationResult[], reportDir: str
   summary += `|:${'- '.repeat(FILE_COL_WIDTH / 2)}|:${'- '.repeat(COUNT_COL_WIDTH / 2)}|:${'- '.repeat(COUNT_COL_WIDTH / 2)}|:---:|:---:|
 `;
   for (const result of results) {
-    summary += `| ${pad(result.fileName, FILE_COL_WIDTH)} | ${padNum(result.codeBlockCount.source, COUNT_COL_WIDTH)} | ${padNum(result.codeBlockCount.target, COUNT_COL_WIDTH)} | ${result.codeBlockCount.match ? '✅' : '❌'}     | ${result.mismatchedCodeBlocks.length.toString().padEnd(10)} |\n`;
+    const codeBlockMatch = result.codeBlockCount.match && result.mismatchedCodeBlocks.length === 0;
+    summary += `| ${pad(result.fileName, FILE_COL_WIDTH)} | ${padNum(result.codeBlockCount.source, COUNT_COL_WIDTH)} | ${padNum(result.codeBlockCount.target, COUNT_COL_WIDTH)} | ${codeBlockMatch ? '✅' : '❌'}     | ${result.mismatchedCodeBlocks.length.toString().padEnd(10)} |\n`;
   }
 
   // --- Admonition Validation ---
@@ -199,7 +200,8 @@ async function generateSummaryReport(results: ValidationResult[], reportDir: str
   summary += `|:${'- '.repeat(FILE_COL_WIDTH / 2)}|:${'- '.repeat(COUNT_COL_WIDTH / 2)}|:${'- '.repeat(COUNT_COL_WIDTH / 2)}|:---:|:---:|
 `;
   for (const result of results) {
-    summary += `| ${pad(result.fileName, FILE_COL_WIDTH)} | ${padNum(result.admonitionCount.source, COUNT_COL_WIDTH)} | ${padNum(result.admonitionCount.target, COUNT_COL_WIDTH)} | ${result.admonitionCount.match ? '✅' : '❌'}     | ${result.mismatchedAdmonitions.length.toString().padEnd(10)} |\n`;
+    const admonitionMatch = result.admonitionCount.match && result.mismatchedAdmonitions.length === 0;
+    summary += `| ${pad(result.fileName, FILE_COL_WIDTH)} | ${padNum(result.admonitionCount.source, COUNT_COL_WIDTH)} | ${padNum(result.admonitionCount.target, COUNT_COL_WIDTH)} | ${admonitionMatch ? '✅' : '❌'}     | ${result.mismatchedAdmonitions.length.toString().padEnd(10)} |\n`;
   }
 
   await fs.writeFile(path.join(reportDir, 'SUMMARY.md'), summary);
