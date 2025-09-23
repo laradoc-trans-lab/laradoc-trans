@@ -12,16 +12,16 @@ export class Task {
    * 這個屬性只用於最終的長度計算和顯示，不直接參與准入判斷。
    */
   private contentLength: number = 0;
-  private static nextId = 0;
   public readonly id: number;
   public readonly parentContext: Section | null;
   public notes?: string;
 
   /**
+   * @param id 由 TaskFactory 分配的唯一 ID。
    * @param parentContext 如果提供，則此 Task 只能接受 parentContext 的直屬子 Section。
    */
-  constructor(parentContext: Section | null = null) {
-    this.id = Task.nextId++;
+  constructor(id: number, parentContext: Section | null = null) {
+    this.id = id;
     this.parentContext = parentContext;
   }
 

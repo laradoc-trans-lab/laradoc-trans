@@ -38,7 +38,7 @@ export enum TaskStatus {
 const statusIcons = {
   [TaskStatus.Waiting]: '🕒',
   [TaskStatus.Translating]: '🔄',
-  [TaskStatus.Retrying]: '⚠️', // 重試圖示
+  [TaskStatus.Retrying]: '❗', // 重試圖示
   [TaskStatus.Completed]: '✅',
   [TaskStatus.Failed]: '❌',
 };
@@ -92,6 +92,7 @@ export class ProgressManager {
     this.multibar = new cliProgress.MultiBar({
       clearOnComplete: false,
       hideCursor: true,
+      fps: 1, // 更新頻率：每秒一次
       format: (options, params, payload) => {
         const taskNum = (payload.taskNumber || '').padEnd(numWidth);
         

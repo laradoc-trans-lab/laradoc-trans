@@ -16,6 +16,7 @@ import { validateBatch } from '../validator';
 import { debugLog } from '../debugLogger';
 import { Section } from './Section';
 import { Task, BATCH_SIZE_LIMIT } from './Task';
+import { TaskFactory } from './TaskFactory';
 
 // --- 錯誤類別定義 ---
 
@@ -249,6 +250,7 @@ Section to translate:
 }
 
 export async function translateFile(sourceFilePath: string, promptFilePath?: string): Promise<string> {
+  const taskFactory = new TaskFactory();
   const concurrency = parseInt(process.env.TRANSLATION_CONCURRENCY || '3', 10);
   console.log(_('Concurrency Level: {{concurrency}}', { concurrency }));
   const limit = pLimit(concurrency);
@@ -276,7 +278,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
         currentTask = null; // 準備處理 H2 的上下文
 
         // 建立一個專門處理這個 H2 內部拆分的 task
-        let contextTask = new Task(section);
+        let contextTask = taskFactory.createTask(section);
 
         // 將 H2 自身的內容作為第一個 section 加入
         if (section.contentLength > 0) {
@@ -302,7 +304,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
           if (!contextTask.addSection(nextSection)) {
             tasks.push(contextTask);
-            contextTask = new Task(section);
+            contextTask = taskFactory.createTask(section);
             contextTask.addSection(nextSection);
           }
         }
@@ -319,12 +321,12 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
       // --- 處理普通 Section ---
       if (!currentTask) {
-        currentTask = new Task();
+        currentTask = taskFactory.createTask();
       }
 
       if (!currentTask.addSection(section)) {
         tasks.push(currentTask);
-        currentTask = new Task();
+        currentTask = taskFactory.createTask();
         currentTask.addSection(section);
       }
     }
