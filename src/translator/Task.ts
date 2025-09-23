@@ -15,6 +15,7 @@ export class Task {
   private static nextId = 0;
   public readonly id: number;
   public readonly parentContext: Section | null;
+  public notes?: string;
 
   /**
    * @param parentContext 如果提供，則此 Task 只能接受 parentContext 的直屬子 Section。
@@ -33,9 +34,20 @@ export class Task {
    * @returns 如果成功加入則回傳 true，否則回傳 false。
    */
   addSection(section: Section): boolean {
-    // 規則 1: 如果有上下文，檢查 parent 是否匹配
-    if (this.parentContext && section.parent !== this.parentContext) {
-      return false;
+    // 規則 1: 如果有上下文，遞迴檢查祖先是否匹配
+    if (this.parentContext) {
+      let current = section.parent;
+      let foundMatch = false;
+      while (current) {
+        if (current === this.parentContext) {
+          foundMatch = true;
+          break;
+        }
+        current = current.parent;
+      }
+      if (!foundMatch) {
+        return false;
+      }
     }
 
     // 規則 2: 動態決定用來判斷大小的長度

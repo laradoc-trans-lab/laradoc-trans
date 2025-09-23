@@ -151,15 +151,23 @@ Section to translate:
     if (!validationResult.isValid) {
       const originalStartTime = progressManager.getStartTime(taskId) || startTime;
       const duration = (Date.now() - originalStartTime) / 1000;
+      // 更新原始任務的狀態與備註
       progressManager.updateTask(taskId, { 
         status: TaskStatus.Retrying,
         time: parseFloat(duration.toFixed(1)),
+        notes: _('Validation failed'),
       });
+      task.notes = _('Validation failed'); // 更新 Task 物件本身
 
       const retryId = `${taskId}-retry`;
       const retryTitle = `(Retry) ${taskTitle}`;
       const newTaskNumber = progressManager.getTaskCount() + 1;
       progressManager.addTask(retryId, retryTitle, newTaskNumber, task.getContentLength());
+      
+      // 為重試任務設定備註
+      const retryNote = _('Retranslating Task {{id}}', { id: task.id + 1 });
+      progressManager.updateTask(retryId, { notes: retryNote });
+
       progressManager.startTask(retryId);
       const retryStartTime = Date.now();
 
@@ -293,7 +301,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
           }
 
           if (!contextTask.addSection(nextSection)) {
-            if (!contextTask.isEmpty()) tasks.push(contextTask);
+            tasks.push(contextTask);
             contextTask = new Task(section);
             contextTask.addSection(nextSection);
           }
@@ -315,7 +323,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       }
 
       if (!currentTask.addSection(section)) {
-        if (!currentTask.isEmpty()) tasks.push(currentTask);
+        tasks.push(currentTask);
         currentTask = new Task();
         currentTask.addSection(section);
       }

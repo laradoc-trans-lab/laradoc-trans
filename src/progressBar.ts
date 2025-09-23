@@ -1,6 +1,30 @@
 import cliProgress from 'cli-progress';
 import { _ } from './i18n';
 
+// --- Helper functions for display width ---
+
+/**
+ * Calculates the actual display width of a string, treating CJK characters as 2 cells.
+ * @param str The string to measure.
+ * @returns The display width.
+ */
+function getDisplayWidth(str: string): number {
+  // This is a common heuristic: non-ASCII characters are treated as double-width.
+  return str.replace(/[^\x00-\xff]/g, "xx").length;
+}
+
+/**
+ * Pads a string to a target display width.
+ * @param str The string to pad.
+ * @param targetLength The target display width.
+ * @param padString The character to pad with.
+ * @returns The padded string.
+ */
+function padEndWithDisplayWidth(str: string, targetLength: number, padString: string = ' '): string {
+  const padding = padString.repeat(Math.max(0, targetLength - getDisplayWidth(str)));
+  return str + padding;
+}
+
 // 定義任務狀態的枚舉
 export enum TaskStatus {
   Waiting,
@@ -35,17 +59,35 @@ export class ProgressManager {
     const timeWidth = 5;   // 例如 "12.3s"
     const receivedWidth = 11; // 例如 "12345 bytes"
     const sourceLengthWidth = 13; // 例如 "12345 bytes"
+    const notesWidth = 25; // 新增 Notes 欄位寬度
     const separator = ' | ';
 
     // 標頭
-    const header = 
-      '#'.padEnd(numWidth) + separator +
-      'Status'.padEnd(statusWidth) + separator +
-      'Time'.padEnd(timeWidth) + separator +
-      'Received'.padEnd(receivedWidth) + separator +
-      _('Source Length').padEnd(sourceLengthWidth);
+    const sourceLengthLabel = _('Source Length');
+    const header =
+      '#'.padEnd(numWidth) +
+      separator +
+      'Status'.padEnd(statusWidth) +
+      separator +
+      'Time'.padEnd(timeWidth) +
+      separator +
+      'Received'.padEnd(receivedWidth) +
+      separator +
+      padEndWithDisplayWidth(sourceLengthLabel, sourceLengthWidth) +
+      separator +
+      'Notes'.padEnd(notesWidth);
+
+    const totalHeaderWidth =
+      numWidth +
+      statusWidth +
+      timeWidth +
+      receivedWidth +
+      sourceLengthWidth +
+      notesWidth +
+      separator.length * 5;
+
     console.log(header);
-    console.log('-'.repeat(header.length + 2)); // 為 Unicode 字元增加一些緩衝
+    console.log('-'.repeat(totalHeaderWidth));
 
     this.multibar = new cliProgress.MultiBar({
       clearOnComplete: false,
@@ -68,8 +110,9 @@ export class ProgressManager {
 
         const received = `${payload.bytes || 0} bytes`.padEnd(receivedWidth);
         const sourceLength = `${payload.contentLength || 0} bytes`.padEnd(sourceLengthWidth);
+        const notes = (payload.notes || '').padEnd(notesWidth); // 取得 notes
 
-        return `${taskNum}${separator}${centeredStatus}${separator}${time}${separator}${received}${separator}${sourceLength}`;
+        return `${taskNum}${separator}${centeredStatus}${separator}${time}${separator}${received}${separator}${sourceLength}${separator}${notes}`; // 新增 notes 到輸出
       },
     }, cliProgress.Presets.shades_classic);
   }
@@ -90,6 +133,7 @@ export class ProgressManager {
       taskNumber: taskNumber.toString(),
       startTime: null,
       contentLength: contentLength, // 將內容長度新增到 payload
+      notes: '', // 初始化 notes
     });
     this.bars.set(id, bar);
   }
