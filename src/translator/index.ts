@@ -1,7 +1,3 @@
-/**
- * @todo 即時檢查翻譯結果對於章節標題的數量比對仍與 SUMMARY.md / details/*.md 有出入
- */
-
 import fs from 'fs/promises';
 import path from 'path';
 import pLimit from 'p-limit';
