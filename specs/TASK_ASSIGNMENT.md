@@ -16,7 +16,7 @@
   - `depth`: 標題深度（例如，`#` 為 1，`##` 為 2）。
   - `parent`: 指向其父 `Section` 物件的參考，形成了邏輯上的樹狀結構。
 - **大小**: 每個 `Section` 有兩個關於大小的關鍵屬性：
-  - `contentLength`: **物理大小**。代表該 `Section` **自身**的內容（不含標題行）的實際位元組數。
+  - `contentLength`: **物理大小**。代表該 `Section` **自身**的內容（**包含標題行**）的實際位元組數。
   - `totalLength`: **邏輯大小**。代表該 `Section` 的 `contentLength` **加上其所有後代 `Section` 的 `contentLength` 之和**。這個值被用來評估一個邏輯區塊的整體規模。
 
 ### 1.2. `Task` (任務)
@@ -24,8 +24,10 @@
 `Task` 代表一個準備發送給 LLM 進行翻譯的具體工作單元。它由一個或多個 `Section` 組成。
 
 - **目的**: 將多個小的 `Section` 組合成一個較大的 `Task`，以達到 API 請求的經濟效益。
+- **上下文感知 (Context-Aware)**: `Task` 可以被指定一個 `parentContext` (父章節)。當指定後，該 `Task` 將只接受屬於該父章節後代的 `Section`，以確保翻譯內容的上下文連貫性。
 - **容量限制**: 一個 `Task` 的內容總量不應超過一個預設的上限（目前為 10KB），以避免觸發 LLM 的輸出中斷問題。
 - **決策中心**: `Task.addSection` 方法是整個分批邏輯的核心，它封裝了所有關於「一個 `Section` 是否能被加入當前 `Task`」的複雜判斷。
+- **工廠建立**: 為了確保任務 ID 在處理多個檔案時能被正確管理，`Task` 物件不應直接被實例化，而是應透過 `TaskFactory` 來建立。
 
 ---
 
@@ -42,6 +44,8 @@
 切割任務的核心挑戰在於，如何在遵守大小限制（目前為 10KB）的同時，盡可能地保持文章的邏輯完整性，並最大化 API 請求的經濟效益。我們不希望將一個只有三行的小段落也當成一個獨立的 `Task`。
 
 ## 5. 最終設計方案詳解
+
+在確立目前的設計方案之前，我們曾嘗試過另一種更為傳統的作法：直接遍歷由 `remark` 解析出來的 Markdown AST (抽象語法樹)。然而，實踐證明，直接操作複雜的巢狀樹狀結構，處理節點間的邊界、容量計算與分批邏輯，會讓問題變得異常複雜且容易出錯。因此，我們最終放棄了該作法，並確立了目前這個更為優雅、穩健的設計：其核心就是將問題「降維」，把樹狀結構攤平成一維陣列來處理。
 
 目前的設計方案，透過對 Markdown 文件進行結構化解析，並在 `Task` 層級實現動態的准入判斷，優雅地解決了上述挑戰。
 
@@ -61,51 +65,87 @@
 
 ### 5.3. `Task.addSection`：動態決策中心
 
-`Task.ts` 中的 `addSection` 方法是整個分批邏輯的精髓所在。它封裝了所有複雜的判斷，使得上層的 `translateFile` 函式可以保持極簡。
+`Task.ts` 中的 `addSection` 方法是整個分批邏輯的精髓所在，它透過一系列規則，判斷一個章節 (`Section`) 能否被加入目前的任務 (`Task`)。
 
-```typescript
-addSection(section: Section): boolean {
-    const lengthToAdd = section.depth === 2 ? section.totalLength : section.contentLength;
+其核心規則如下：
 
-    if (lengthToAdd > BATCH_SIZE_LIMIT) {
-      return this.isEmpty();
-    }
-    if (this.currentSize + lengthToAdd > BATCH_SIZE_LIMIT) {
-      return false;
-    }
-    this.currentSize += lengthToAdd;
-    return true;
-}
+1.  **上下文連貫性檢查**：如果一個 `Task` 被指定了 `parentContext` (通常是一個巨大的 H2 章節)，那麼在加入任何新的 `section` 之前，它會向上遍歷 `section` 的所有祖先，確保 `parentContext` 是其祖先之一。這確保了在「子分割」模式下，任務內容不會混入不相關的章節。
+
+2.  **動態長度評估**：
+    -   對於 H2 章節 (`depth === 2`)，使用其 `totalLength` (邏輯大小) 來進行容量評估。
+    -   對於所有其他層級的章節，則使用其 `contentLength` (物理大小)。
+
+3.  **容量判斷**：`Task` 內部使用 `contentLength` 屬性來追蹤其大小。`addSection` 會判斷加入 `lengthToAdd` (動態評估出的長度) 後，是否會超過 `BATCH_SIZE_LIMIT`。
+
+```pseudocode
+function addSection(section):
+    // 規則 1: 檢查祖先是否匹配 parentContext
+    if task.has_context and not section.is_descendant_of(task.context):
+        return false
+
+    // 規則 2 & 3: 根據容量判斷
+    length_to_add = (section.is_h2) ? section.total_length : section.content_length
+    if task.content_length + length_to_add > LIMIT:
+        return false
+
+    // 成功加入
+    task.add(section)
+    task.content_length += section.content_length
+    return true
 ```
 
-- **`currentSize` 的角色**：它不是一個代表真實內容長度的數字，而是一個抽象的**「權重」或「容量指標」**，專門用於准入判斷。
+### 5.4. `translateFile`：雙分支執行者
 
-- **`lengthToAdd` 的動態性**：
-  - 當傳入的是 **H1, H3, H4...** (`depth !== 2`) 時，`lengthToAdd` 是 `contentLength`。`Task` 將這些 `section` 視為「散裝零件」，只評估它們自身的物理大小。這使得多個小的、不同層級的章節可以被高效地組合進同一個 `Task`。
-  - 當傳入的是 **H2** (`depth === 2`) 時，`lengthToAdd` 是 `totalLength`。`Task` 將這個 H2 視為一個「貨櫃」來評估。`addSection` 在做的是一個**預判**：「如果我把這個完整的 H2 邏輯區塊（貨櫃）放進來，我的 `Task` 容量（權重）會不會爆掉？」
+與規格書之前版本的簡化模型不同，`translator/index.ts` 中實際的 `translateFile` 函式採用了一種更強大的**雙分支迴圈**邏輯，以應對「普通章節」和「巨大 H2 章節」這兩種情況。
 
-### 5.4. `translateFile`：簡潔的執行者
+其執行流程的虛擬碼如下：
 
-由於所有的複雜判斷都已封裝在 `Task.addSection` 中，`translateFile` 的核心迴圈可以保持極度的簡潔和清晰：
+```pseudocode
+function translateFile(all_sections):
+    tasks = []
+    task_factory = new TaskFactory()
+    current_task = task_factory.createTask()
 
-```typescript
-let currentTask = new Task();
-for (const section of allSections) {
-    if (!currentTask.addSection(section)) {
-        if (!currentTask.isEmpty()) tasks.push(currentTask);
-        currentTask = new Task();
-        currentTask.addSection(section);
-    }
-}
-if (!currentTask.isEmpty()) tasks.push(currentTask);
+    for section in all_sections:
+        // 分支 1: 遇到巨大 H2，進入「子分割」模式
+        if section.is_huge_h2():
+            // 結束並儲存目前累積的普通任務
+            if not current_task.is_empty():
+                tasks.push(current_task)
+            current_task = null
+
+            // 為這個巨大 H2 建立一個或多個帶有上下文的任務
+            sub_divide_huge_h2_into_tasks(section, tasks)
+            
+            // 跳過本次主迴圈的剩餘部分
+            continue
+
+        // 分支 2: 處理普通章節
+        if current_task.is_full_with(section):
+            tasks.push(current_task)
+            current_task = task_factory.createTask()
+        
+        current_task.add(section)
+
+    // 儲存最後一個任務
+    if not current_task.is_empty():
+        tasks.push(current_task)
+
+    return tasks
 ```
 
-這個迴圈完全信任 `Task.addSection` 的回傳值。如果一個 `section` 無法被加入，無論原因（H2 的 `totalLength`太大，或普通 `section` 的 `contentLength` 會導致超標），流程都是一樣的：結束當前 `Task`，建立一個新的 `Task`，並將該 `section` 作為新 `Task` 的第一個成員。
+## 6. 總結：Section 一維化設計的核心優勢
 
-## 6. 行為總結
+本專案的最終設計，其精髓與穩健性根植於一個核心原則：**將巢狀的樹狀結構問題，降維成線性的陣列問題來處理**。
 
-這個設計完美地平衡了效率和邏輯完整性：
+在開發初期，我們曾嘗試直接操作 Markdown AST（抽象語法樹），但很快就發現這會使分批、合併、計算邊界的邏輯變得極度複雜且難以維護。
 
-1.  **高效組合**：對於 H1 和其他非 H2 的小章節，`addSection` 使用 `contentLength` 判斷，允許它們被高效地填充進同一個 `Task`，直到 `currentSize` (權重) 接近上限。
+最終確立的「一維 `Section` 陣列」設計，其優勢在於：
 
-2.  **邏輯隔離**：當遇到一個 `totalLength` 巨大的 H2（如 `Method Listing`）時，`addSection` 會因為 `lengthToAdd` (`totalLength`) 超標而拒絕將其加入任何已有的 `Task`。這會觸發 `translateFile` 建立一個新的、空的 `Task`。`Method Listing` 會作為第一個成員被加入這個新 `Task`，並將其巨大的 `totalLength` 設定為 `Task` 的初始 `currentSize`。這個巨大的 `currentSize` 會有效地阻止任何後續的 `section` 被加入這個 `Task`，從而實現了巨大邏輯區塊的隔離，並迫使它的子章節在後續的 `Task` 中進行新的分批。
+1.  **迭代邏輯極簡化**：一旦 `markdownParser.ts` 將文件攤平成 `Section[]`，主流程 `translator/index.ts` 就不再需要任何遞迴或複雜的樹狀遍歷。一個單純的 `for` 迴圈，就能從頭到尾處理所有章節，使得核心的分批邏輯可以保持驚人的簡潔與清晰。
+
+2.  **職責徹底分離**：此設計將「理解文件結構」和「執行分批邏輯」兩個複雜問題徹底解耦。
+    *   `markdownParser.ts` 專注於扮演「結構專家」，它負責所有的髒活累活，將 Markdown 的巢狀關係、邏輯大小 (`totalLength`) 等資訊，預先計算並儲存到每一個 `Section` 物件中。
+    *   `translator/index.ts` 則作為一個「分批策略家」，它面對的是一個極其簡單的、帶有預處理資訊的一維陣列，因此它可以完全專注於實現分批的核心商業邏輯，而無需關心任何 Markdown 的語法細節。
+
+這種「先降維，再處理」的思維，是整個系統得以保持穩健、可擴展且易於理解的根本原因。
