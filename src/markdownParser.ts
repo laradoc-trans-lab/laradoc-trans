@@ -32,6 +32,9 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
       section.title = title;
       section.depth = depth;
       section.startLine = lineNum;
+      if(parent !== null) {
+        section.parent = parent;
+      }
       sections.push(section);
       parentStack.push(section);
     }
