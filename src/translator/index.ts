@@ -325,8 +325,8 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       主要是印出任務分配的細節，方便確認分割是否合理
     */
     // console.log(allSections.map(s => ({ title: s.title, depth: s.depth, startLine: s.startLine, endLine: s.endLine, contentLength: s.contentLength, totalLength: s.totalLength, parent: s.parent ? { title: s.parent.title, depth: s.parent.depth } : null })));
-    console.log(taskAssignmentLog);
-    process.exit(1);
+    // console.log(taskAssignmentLog);
+    // process.exit(1);
   
 
     // 為所有任務建立翻譯承諾
