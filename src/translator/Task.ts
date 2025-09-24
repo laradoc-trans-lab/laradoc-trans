@@ -34,8 +34,9 @@ export class Task {
    * @returns 如果成功加入則回傳 true，否則回傳 false。
    */
   addSection(section: Section): boolean {
-    // 規則 1: 如果有上下文，遞迴檢查祖先是否匹配
-    if (this.parentContext) {
+    // 規則 1: 如果有上下文，檢查 section 是否屬於該上下文。
+    // 允許 section 就是 parentContext 本身。
+    if (this.parentContext && this.parentContext !== section) {
       let current = section.parent;
       let foundMatch = false;
       while (current) {
@@ -50,14 +51,18 @@ export class Task {
       }
     }
 
-    // 規則 2: 動態決定用來判斷大小的長度
-    const lengthToAdd = section.depth === 2 ? section.totalLength : section.contentLength;
+    // 規則 2: 動態決定用來判斷大小的長度。
+    // 當 H2 section 本身被加入時，應使用 contentLength，而非 totalLength。
+    const lengthToAdd =
+      section.depth === 2 && section !== this.parentContext
+        ? section.totalLength
+        : section.contentLength;
 
     // 規則 3: 進行大小判斷
     if (lengthToAdd > BATCH_SIZE_LIMIT) {
-      return this.isEmpty(); // 巨大區塊只能自己成為一個 task
+      // 巨大區塊只能自己成為一個 task
+      return this.isEmpty();
     }
-    // 如果加入後，總大小會超過限制，則不能加入
     if (this.contentLength + lengthToAdd > BATCH_SIZE_LIMIT) {
       return false;
     }

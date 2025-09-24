@@ -10,7 +10,6 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from '../validator';
 import { debugLog } from '../debugLogger';
-import { Section } from './Section';
 import { Task, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
 
@@ -276,16 +275,8 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
         // 建立一個專門處理這個 H2 內部拆分的 task
         let contextTask = taskFactory.createTask(section);
 
-        // 將 H2 自身的內容作為第一個 section 加入
-        if (section.contentLength > 0) {
-          const selfContentSection = new Section(section.title, section.depth, section.startLine);
-          selfContentSection.content = section.content;
-          selfContentSection.contentLength = section.contentLength;
-          selfContentSection.totalLength = section.contentLength;
-          selfContentSection.parent = section; // 關鍵：設定 parent
-          selfContentSection.endLine = section.endLine;
-          contextTask.addSection(selfContentSection);
-        }
+        // 直接將 H2 section 本身加入 task，因為 addSection 現在能夠處理這種情況
+        contextTask.addSection(section);
 
         // 繼續遍歷後面的 section，嘗試加入這個 contextTask
         let j = i + 1;
@@ -348,6 +339,13 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       '---------------------------------'
     ].join('\n');
     await debugLog(taskAssignmentLog);
+
+    /*
+      請勿刪除這個註解，這是為了快速偵錯用的
+      主要是印出任務分配的細節，方便確認分割是否合理
+      console.log(taskAssignmentLog);
+      process.exit(1);
+    */
 
     // 為所有任務建立翻譯承諾
     const translationPromises = nonEmptyTasks.map((task) => {
