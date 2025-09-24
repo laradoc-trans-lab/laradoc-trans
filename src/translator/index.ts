@@ -330,6 +330,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
     const taskAssignmentLog = [
       `--- Translation Task Assignment for ${sourceFilePath} ---`,
+      `--- Total Sections: ${allSections.length}, Total Tasks: ${nonEmptyTasks.length} ---`,
       ...nonEmptyTasks.map(task => {
         const sectionsLog = task.getSections().map(section =>
           `  * ${'#'.repeat(section.depth)} ${section.title} (len: ${section.contentLength})`
@@ -343,6 +344,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     /*
       請勿刪除這個註解，這是為了快速偵錯用的
       主要是印出任務分配的細節，方便確認分割是否合理
+      
       console.log(taskAssignmentLog);
       process.exit(1);
     */
