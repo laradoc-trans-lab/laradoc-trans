@@ -2,7 +2,7 @@
 export class Section {
 
   /** 章節標題的錨點 */
-  private _anchorOfTitile: string | null = null;
+  private _anchorOfTitle: string | null = null;
 
   /** 章節的標題 */
   private _title: string | null = null;
@@ -53,10 +53,10 @@ export class Section {
    * This represents the content from the current heading until the next heading of a deeper level.
    */
   get anchorOfTitle(): string | null {
-    return this._anchorOfTitile;
+    return this._anchorOfTitle;
   }
   set anchorOfTitle(value: string | null) {
-    this._anchorOfTitile = value;
+    this._anchorOfTitle = value;
   }
 
   /**
