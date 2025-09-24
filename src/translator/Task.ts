@@ -2,6 +2,21 @@ import { Section } from './Section';
 
 export const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
 
+export enum AddSectionStatus {
+  /** 成功 */
+  success = 0,
+  /** 加入的章節不屬於當前任務的父章節 */
+  sectionContextNotMatch,
+
+  /** 加入的章節超過 BATCH_SIZE_LIMIT ，且有 parentContext */
+  exceedingBatchSizeOfParentContext,
+
+  /** 加入章節後超過 BATCH_SIZE_LIMIT */
+  exceedingBatchSize,
+  /** 巨大章節必須分割 */
+  hurgeSectionNeedSplit,
+}
+
 /**
  * 代表一個翻譯任務，其中包含一個或多個 Section。
  */
@@ -33,7 +48,7 @@ export class Task {
    * @param section 要加入的 Section。
    * @returns 如果成功加入則回傳 true，否則回傳 false。
    */
-  addSection(section: Section): boolean {
+  addSection(section: Section): AddSectionStatus {
     // 規則 1: 如果有上下文，檢查 section 是否屬於該上下文。
     // 允許 section 就是 parentContext 本身。
     if (this.parentContext && this.parentContext !== section) {
@@ -47,7 +62,7 @@ export class Task {
         current = current.parent;
       }
       if (!foundMatch) {
-        return false;
+        return AddSectionStatus.sectionContextNotMatch;
       }
     }
 
@@ -59,17 +74,20 @@ export class Task {
         : section.contentLength;
 
     // 規則 3: 進行大小判斷
-    if (lengthToAdd > BATCH_SIZE_LIMIT) {
-      // 巨大區塊只能自己成為一個 task
-      return this.isEmpty();
-    }
-    if (this.contentLength + lengthToAdd > BATCH_SIZE_LIMIT) {
-      return false;
+    if (section.depth === 2 && lengthToAdd > BATCH_SIZE_LIMIT) {
+      // H2 巨大區塊只能自己成為一個 task
+      return AddSectionStatus.hurgeSectionNeedSplit;
+    } else if(this.parentContext !== null && this.contentLength + lengthToAdd > BATCH_SIZE_LIMIT && !this.isEmpty()) {
+      /** 加入的章節超過 BATCH_SIZE_LIMIT ，且有 parentContext , 且任務不只一個章節，需要另外開新任務 */
+        return AddSectionStatus.exceedingBatchSizeOfParentContext;
+    } else if (this.contentLength + lengthToAdd > BATCH_SIZE_LIMIT && !this.isEmpty()) {
+      // 加入的章節沒有 parentContext , 任務不只一個章節，視為滿了
+      return AddSectionStatus.exceedingBatchSize;
     }
 
     this.sections.push(section);
     this.contentLength += section.contentLength;
-    return true;
+    return AddSectionStatus.success;
   }
 
 

@@ -10,7 +10,7 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from '../validator';
 import { debugLog } from '../debugLogger';
-import { Task, BATCH_SIZE_LIMIT } from './Task';
+import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
 
 // --- 錯誤類別定義 ---
@@ -259,65 +259,44 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     const allSections = splitMarkdownIntoSections(fileContent);
 
     const tasks: Task[] = [];
-    let currentTask: Task | null = null;
+    let currentTask: Task = taskFactory.createTask();
 
     for (let i = 0; i < allSections.length; i++) {
       const section = allSections[i];
+      const addStatus = currentTask.addSection(section);
+      if(AddSectionStatus.success !== addStatus) {
 
-      // 判斷是否需要為 section 建立一個專屬的上下文 task
-      if (section.depth === 2 && section.totalLength > BATCH_SIZE_LIMIT) {
-        // 結束當前的通用 task
-        if (currentTask && !currentTask.isEmpty()) {
+        if(!currentTask.isEmpty()) {
+          // 無法加入任務，把當前任務推送到 tasks
           tasks.push(currentTask);
         }
-        currentTask = null; // 準備處理 H2 的上下文
 
-        // 建立一個專門處理這個 H2 內部拆分的 task
-        let contextTask = taskFactory.createTask(section);
-
-        // 直接將 H2 section 本身加入 task，因為 addSection 現在能夠處理這種情況
-        contextTask.addSection(section);
-
-        // 繼續遍歷後面的 section，嘗試加入這個 contextTask
-        let j = i + 1;
-        for (; j < allSections.length; j++) {
-          const nextSection = allSections[j];
-
-          if (nextSection.parent !== section && nextSection.parent?.parent !== section) {
-             // 已經不是這個 H2 的子孫了，結束內層迴圈
-             i = j - 1;
-             break;
+        if(addStatus === AddSectionStatus.sectionContextNotMatch) {
+          // 加入的章節與 Task 的父章節不同，必須建立新任務
+          if(section.depth === 2 && section.totalLength > BATCH_SIZE_LIMIT) {
+            // 這邊要判斷是不是新的 H2 且超大
+            currentTask = taskFactory.createTask(section);
+          } else {
+            currentTask = taskFactory.createTask();
           }
+        } else if(addStatus === AddSectionStatus.exceedingBatchSize) {
+          // 加入的章節內容超出任務長度
+          currentTask = taskFactory.createTask();
+        } else if(addStatus === AddSectionStatus.exceedingBatchSizeOfParentContext){
+          currentTask = taskFactory.createTask(currentTask.parentContext);
+        } else if(addStatus === AddSectionStatus.hurgeSectionNeedSplit) {
+          currentTask = taskFactory.createTask(section);
+        } 
 
-          if (!contextTask.addSection(nextSection)) {
-            tasks.push(contextTask);
-            contextTask = taskFactory.createTask(section);
-            contextTask.addSection(nextSection);
-          }
+        let finalStatus;
+        if( (finalStatus = currentTask.addSection(section)) !== AddSectionStatus.success) {
+          throw new Error(`This is a bug , can not add section, finalStatus: ${finalStatus}, title '${section.title}' , depth: ${section.depth}, contentLength: ${section.contentLength}, totalLength: ${section.totalLength}`);
         }
-
-        if (!contextTask.isEmpty()) {
-          tasks.push(contextTask);
-        }
-
-        if (j === allSections.length) {
-          i = j;
-        }
-        continue;
-      }
-
-      // --- 處理普通 Section ---
-      if (!currentTask) {
-        currentTask = taskFactory.createTask();
-      }
-
-      if (!currentTask.addSection(section)) {
-        tasks.push(currentTask);
-        currentTask = taskFactory.createTask();
-        currentTask.addSection(section);
+        
       }
     }
 
+    // 收尾
     if (currentTask && !currentTask.isEmpty()) {
       tasks.push(currentTask);
     }
@@ -333,9 +312,9 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       `--- Total Sections: ${allSections.length}, Total Tasks: ${nonEmptyTasks.length} ---`,
       ...nonEmptyTasks.map(task => {
         const sectionsLog = task.getSections().map(section =>
-          `  * ${'#'.repeat(section.depth)} ${section.title} (len: ${section.contentLength})`
+          `  * ${'#'.repeat(section.depth)} ${section.title} (contentLength: ${section.contentLength} , totalLength:${section.totalLength}) `
         ).join('\n');
-        return `- Task ${task.id + 1} (Lines ${task.getStartLine()}-${task.getEndLine()}) (len: ${task.getContentLength()})\n${sectionsLog}`;
+        return `- Task ${task.id + 1} (Lines ${task.getStartLine()}-${task.getEndLine()}) (contentLength: ${task.getContentLength()}) (parentContext: '${task.parentContext?.title}') \n${sectionsLog}`;
       }),
       '---------------------------------'
     ].join('\n');
@@ -344,10 +323,11 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     /*
       請勿刪除這個註解，這是為了快速偵錯用的
       主要是印出任務分配的細節，方便確認分割是否合理
-      
-      console.log(taskAssignmentLog);
-      process.exit(1);
     */
+    // console.log(allSections.map(s => ({ title: s.title, depth: s.depth, startLine: s.startLine, endLine: s.endLine, contentLength: s.contentLength, totalLength: s.totalLength, parent: s.parent ? { title: s.parent.title, depth: s.parent.depth } : null })));
+    console.log(taskAssignmentLog);
+    process.exit(1);
+  
 
     // 為所有任務建立翻譯承諾
     const translationPromises = nonEmptyTasks.map((task) => {
