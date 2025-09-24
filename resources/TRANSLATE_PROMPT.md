@@ -62,4 +62,5 @@
 - 將技術術語翻譯成通用的繁體中文對應詞（例如："request" 翻譯成 "請求"，"middleware" 翻譯成 "中介層"）。
 - 保留所有的 Markdown 格式，包括連結和表格。
 - 確保翻譯後章節中的程式碼區塊數量與原始章節完全相符。
+- 圖片替代文字 (Image Alt Text): 你必須翻譯 Markdown 圖片語法 `![...]` 中的替代文字。例如，`![An example image](image.png)` 應該被翻譯為 `![一個範例圖片](image.png)`。
 - 保留所有 Laravel 專有名詞為原文英文，且必須**完整保留其原始形式，包含單複數與大小寫**。例如，若原文是 `Gates`，譯文必須是 `Gates`；若原文是 `gate`，譯文必須是 `gate`。此規則適用於以下詞彙及其各種形式：`Blade`, `Eloquent`, `Artisan`, `Livewire`, `Reverb`, `Gate`, `Policy`, `Facade`, `Echo`, `Vite`, `Pint`, `Sail`, `Homestead`, `Valet`, `Octane`, `Horizon`, `Telescope`, `Passport`, `Sanctum`, `Cashier`, `Scout`, `Socialite`, `Fortify`。
