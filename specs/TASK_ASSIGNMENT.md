@@ -59,7 +59,7 @@
 
 `Section` 的這兩個長度屬性是實現智能分批的關鍵。
 
-- **`contentLength` (物理大小)**: 是 `Task` 容量的「金標準」。一個 `Task` 的實際大小，永遠是其包含的所有 `section.contentLength` 的總和。這代表了最終發送給 LLM 的真實 Payload 大小。
+- **`contentLength` (物理大小)**: 是 `Task` 容量的「金標準」。一個 `Task` 的實際大小，永遠是其包含的所有 `section.contentLength` 的總和。這個長度是**分批演算法的依據**，但**不完全等同**於最終發送給 LLM 的真實 Payload 大小。為了處理如 base64 內嵌圖片等特殊情況，最終的 Payload 可能會經過預處理（例如，用佔位符替換圖片），導致其大小略小於 `contentLength` 的總和。
 
 - **`totalLength` (邏輯大小)**: 是一個**「預警指標」**，專門用來處理 H2 層級的章節，以判斷其是否過於龐大，不適合與其他章節組合。
 
