@@ -96,7 +96,7 @@ export class Task {
   }
 
   getContent(): string {
-    return this.sections.map(s => s.content).join('\n\n');
+    return this.sections.map(s => s.contentForTranslation).join('\n\n');
   }
 
   getTitle(): string {

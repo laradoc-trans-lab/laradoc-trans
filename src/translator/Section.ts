@@ -1,5 +1,9 @@
-
 export class Section {
+
+  /** 佔位符 */
+  private _placeholders: Map<string, string> = new Map();
+  /** 帶有佔位符的內容 (快取) */
+  private _contentForTranslation: string | null = null;
 
   /** 章節標題的錨點 */
   private _anchorOfTitle: string | null = null;
@@ -37,6 +41,32 @@ export class Section {
    * is larger than the batch size limit and thus needs to be split.
    */
   private _totalLength: number = 0;
+
+  /**
+   * 檢查此章節是否有佔位符。
+   * @returns 如果有佔位符則回傳 true，否則為 false。
+   */
+  public hasPlaceholders(): boolean {
+    return this._placeholders.size > 0;
+  }
+
+  /**
+   * 將一段文字中的佔位符還原成原始內容。
+   * @param translatedText 包含佔位符的已翻譯文字。
+   * @returns 還原後的文字。
+   */
+  public restorePlaceholders(translatedText: string): string {
+    if (!this.hasPlaceholders()) {
+      return translatedText;
+    }
+
+    let restoredText = translatedText;
+    for (const [key, value] of this._placeholders.entries()) {
+      const placeholderRegex = new RegExp(key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+      restoredText = restoredText.replace(placeholderRegex, value);
+    }
+    return restoredText;
+  }
 
   /**
    * Checks if this section has any child sections based on content length.
@@ -101,8 +131,41 @@ export class Section {
   }
 
   set content(value: string) {
+    // 1. 儲存原始、完整的內容
     this._content = value;
+    // 2. 計算原始長度
     this._contentLength = Buffer.byteLength(this._content, 'utf-8');
+
+    // 3. 同時，對 value 執行正規表示式，找出所有圖片
+    this._placeholders.clear();
+    let placeholderIndex = 0;
+
+    // 修正後的正規表示式
+    const imageRegex = /(!\[.*?\]\()(data:image\/[^)]+)(\))/g;
+
+    // 4. 產生一份帶有佔位符的內容，並將其存入 _contentForTranslation 快取中
+    this._contentForTranslation = this._content.replace(imageRegex, (match, g1, g2, g3) => {
+      const titleSlug = (this.title || `section-${this.startLine}`).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+      const placeholderKey = `__IMAGE_DATA_${titleSlug}_${placeholderIndex++}__`;
+      
+      // 5. 只將 data URI (g2) 存入 map
+      this._placeholders.set(placeholderKey, g2);
+      
+      // 6. 重組 tag，將 placeholder 作為新的連結目標
+      return g1 + placeholderKey + g3;
+    });
+  }
+
+  /**
+   * 取得用於翻譯的內容，其中 base64 圖片會被替換為佔位符。
+   */
+  get contentForTranslation(): string {
+    if (this._contentForTranslation === null) {
+      // 這個情況理論上不應該發生，因為 content setter 會初始化它
+      // 但作為一個防禦性措施，我們可以在這裡強制初始化
+      this.content = this.content; 
+    }
+    return this._contentForTranslation!;
   }
 
   /**

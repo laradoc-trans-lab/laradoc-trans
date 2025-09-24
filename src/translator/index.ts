@@ -258,9 +258,18 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     const { apiKeyUsed } = createLlmModel();
     const allSections = splitMarkdownIntoSections(fileContent);
 
+    // Sanitize the full file content for context to save tokens
+    const imageRegex = /(!\[.*?\]\()(data:image\/[^)]+)(\))/g;
+    const sanitizedFileContent = fileContent.replace(imageRegex, (match, g1, g2, g3) => {
+      return g1 + '([IMAGE DATA])' + g3;
+    });
+
     const tasks: Task[] = [];
     let currentTask: Task = taskFactory.createTask();
 
+    // 遍歷所有章節，執行雙分支任務分配邏輯：
+    // 1. 如果是普通章節，則嘗試將其加入當前任務。
+    // 2. 如果遇到巨大 H2 章節或上下文變更，則結束當前任務，並為新章節建立合適的新任務。
     for (let i = 0; i < allSections.length; i++) {
       const section = allSections[i];
       const addStatus = currentTask.addSection(section);
@@ -333,7 +342,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     const translationPromises = nonEmptyTasks.map((task) => {
       const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
       progressManager.addTask(taskId, task.getTitle(), task.id + 1, task.getContentLength());
-      return limit(() => translateContent(styleGuide, fileContent, task, progressManager, sourceFilePath, apiKeyUsed));
+      return limit(() => translateContent(styleGuide, sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed));
     });
 
     const translatedTasks = await Promise.all(translationPromises);
@@ -343,7 +352,20 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
     translatedTasks.sort((a, b) => a.task.id - b.task.id);
 
-    return translatedTasks.map(t => t.translatedContent).join('\n\n');
+    // 翻譯完成，將所有任務的翻譯結果拼接成最終文件。
+    // 在拼接前，遍歷每個任務的原始章節，如果章節包含圖片佔位符，則呼叫還原方法。
+    const finalContent = translatedTasks.map(({ task, translatedContent }) => {
+      let restoredContent = translatedContent;
+      for (const section of task.getSections()) {
+        if (section.hasPlaceholders()) {
+          restoredContent = section.restorePlaceholders(restoredContent);
+        }
+      }
+
+      return restoredContent;
+    }).join('\n\n');
+
+    return finalContent;
 
   } catch (error) {
     progressManager.stop();

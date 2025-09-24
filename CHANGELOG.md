@@ -7,6 +7,7 @@
 - 以 `cli-progress` 實作進度條顯示併發翻譯章節的進度。
 - 新增驗證功能 `validate --branch ..`，並且產生報告於 `workspaces/validation-report`。
 - Issue #8 :支援多組 GEMINI_API_KEY 翻譯時自動輪流使用。
+- `mcp.md` 中有 base64 圖片，現在會使用 placehoder 方式處理。
 - 翻譯時會驗證區塊數量，若不符合會提供 LLM 錯誤原因要求重新翻譯(僅限重翻一次)。
 
 ## 0.2.3 2025-09-14
