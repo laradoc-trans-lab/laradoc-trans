@@ -41,9 +41,16 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
   for (const section of sections) {
     for (let j = 1; j <= 2; j++) {
       const checkLineNum = section.startLine - j;
-      if (checkLineNum > 0 && lines[checkLineNum - 1].includes('<a name=')) {
-        section.startLine = checkLineNum;
-        break;
+      if (checkLineNum > 0) {
+        const line = lines[checkLineNum - 1];
+        // 捕獲完整的錨點標籤，例如 <a name="test"></a>
+        const anchorMatch = line.match(/<a\s+name="[^"]*".*?>.*?<\/a>/);
+        if (anchorMatch) {
+          section.startLine = checkLineNum;
+          // anchorMatch[0] 包含整個匹配的字串
+          section.anchorOfTitle = anchorMatch[0];
+          break;
+        }
       }
     }
   }
