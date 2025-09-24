@@ -28,8 +28,10 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
       }
 
       const parent = parentStack.length > 0 ? parentStack[parentStack.length - 1] : null;
-      const section = new Section(title, depth, lineNum);
-      section.parent = parent;
+      const section = new Section();
+      section.title = title;
+      section.depth = depth;
+      section.startLine = lineNum;
       sections.push(section);
       parentStack.push(section);
     }
@@ -57,7 +59,6 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
     if (section.startLine <= section.endLine) {
       const contentLines = lines.slice(section.startLine - 1, section.endLine);
       section.content = contentLines.join('\n');
-      section.contentLength = Buffer.byteLength(section.content, 'utf8');
     }
   }
 
@@ -82,20 +83,23 @@ export function splitMarkdownIntoSections(markdownContent: string): Section[] {
       const end = sections[0].startLine - 1;
       const content = lines.slice(0, end).join('\n').trim();
       if (content) {
-          const prologue = new Section('Prologue', 0, 1);
+          const prologue = new Section();
+          prologue.depth = 0;
+          prologue.content = content
+          prologue.startLine = 1;
           prologue.endLine = end;
           prologue.content = content;
-          prologue.contentLength = Buffer.byteLength(content, 'utf8');
           prologue.totalLength = prologue.contentLength; // Prologue has no children
           sections.unshift(prologue);
       }
   } else if (sections.length === 0 && markdownContent.trim().length > 0) {
     // 第 7 步：處理沒有標題的檔案，將其視為單一的序言章節。
     const content = markdownContent.trim();
-    const prologue = new Section('Prologue', 0, 1);
+    const prologue = new Section();
+    prologue.depth = 0;
+    prologue.startLine = 1;
     prologue.endLine = lines.length;
     prologue.content = content;
-    prologue.contentLength = Buffer.byteLength(content, 'utf8');
     prologue.totalLength = prologue.contentLength;
     sections.push(prologue);
   }
