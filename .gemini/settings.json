@@ -1,9 +1,18 @@
 {
+  "context": {
+    "fileName": [
+      ".gemini/GEMINI.md",
+      "specs/INDEX.md",
+      "specs/TASK_ASSIGMENT.md"
+    ]
+  },
   "mcpServers": {
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
     }
-  },
-  "contextFileName": [".gemini/GEMINI.md","specs/INDEX.md" , "specs/TASK_ASSIGMENT.md"]
+  }
 }
