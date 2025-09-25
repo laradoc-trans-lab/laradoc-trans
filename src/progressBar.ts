@@ -55,15 +55,15 @@ export class ProgressManager {
   constructor() {
     // 欄位對齊寬度
     const numWidth = 2;
-    const statusWidth = 8; // "Status" 標頭寬度
+    const statusWidth = 6; // "Status" 標頭寬度
     const timeWidth = 5;   // 例如 "12.3s"
     const receivedWidth = 11; // 例如 "12345 bytes"
-    const sourceLengthWidth = 13; // 例如 "12345 bytes"
+    const sourceLengthWidth = 11; // 例如 "12345 bytes"
     const notesWidth = 25; // 新增 Notes 欄位寬度
     const separator = ' | ';
 
     // 標頭
-    const sourceLengthLabel = _('Source Length');
+    const sourceLengthLabel = _('Src Length');
     const header =
       '#'.padEnd(numWidth) +
       separator +

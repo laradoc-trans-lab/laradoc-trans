@@ -75,7 +75,7 @@
   "Error: Failed to initialize target repository at {{path}}.": "錯誤：無法於 {{path}} 初始化目標儲存庫。",
   "Error: Source repository not found at {{path}}.": "錯誤：於 {{path}} 找不到來源儲存庫。",
   "Error: Failed to checkout branch '{{branch}}'.": "錯誤：切換分支 '{{branch}}' 失敗。",
-  "Source Length": "原文長度",
+  "Src Length": "原文長度",
   "Validation failed": "驗證失敗",
   "Retranslating Task {{id}}": "重新翻譯任務 {{id}}",
   "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "翻譯失敗：LLM API 金鑰 {{maskedKey}} 的配額已用盡",

@@ -77,7 +77,7 @@
   "Error: Source repository not found at {{path}}.": "Error: Source repository not found at {{path}}.",
   "Error: Failed to checkout branch '{{branch}}'.": "Error: Failed to checkout branch '{{branch}}'.",
   "Error: The validation process failed: {{message}}": "Error: The validation process failed: {{message}}",
-  "Source Length": "Source Length",
+  "Src Length": "Src Length",
   "Validation failed": "Validation failed",
   "Retranslating Task {{id}}": "Retranslating Task {{id}}",
   "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "Translation failed: LLM API quota exceeded for key: {{maskedKey}}",
