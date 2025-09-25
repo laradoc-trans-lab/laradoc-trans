@@ -1,9 +1,7 @@
 {
   "context": {
     "fileName": [
-      ".gemini/GEMINI.md",
-      "specs/INDEX.md",
-      "specs/TASK_ASSIGMENT.md"
+      ".gemini/GEMINI.md"
     ]
   },
   "mcpServers": {
