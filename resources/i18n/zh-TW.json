@@ -78,5 +78,14 @@
   "Source Length": "原文長度",
   "Validation failed": "驗證失敗",
   "Retranslating Task {{id}}": "重新翻譯任務 {{id}}",
-  "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "翻譯失敗：LLM API 金鑰 {{maskedKey}} 的配額已用盡"
+  "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "翻譯失敗：LLM API 金鑰 {{maskedKey}} 的配額已用盡",
+  "Preamble structure mismatch, cannot validate": "序言結構不符，無法驗證",
+  "Missing {{count}} sections": "缺失 {{count}} 個章節",
+  "Missing {{count}} anchors": "缺失 {{count}} 個錨點",
+  "Quantity mismatch": "數量不符",
+  "Original has {{count}} blocks": "原文有 {{count}} 個區塊",
+  "Translated has only {{count}} blocks": "譯文只有 {{count}} 個區塊",
+  "Content mismatch": "內容不符",
+  "Could not validate {{fileName}}. Error: {{error}}": "無法驗證 {{fileName}}。錯誤：{{error}}",
+  "Validation complete. Summary report generated at {{reportPath}}": "驗證完成。總結報告已生成於 {{reportPath}}"
 }

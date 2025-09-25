@@ -1,0 +1,22 @@
+# 驗證總結報告
+
+**分支:** `{{ branch }}`
+**報告生成時間:** `{{ generationTime }}`
+
+---
+
+## 序言與章節比較
+
+| 檔案                         | 序言   | 章節   | 備註                                       |
+| :--------------------------- | :----- | :----- | :----------------------------------------- |
+{% for result in results %}| {{ result.fileName | ljust(28) }} | {{ result.preambleIcon | ljust(4) }} | {{ result.headingsIcon | ljust(4) }} | {{ result.note | ljust(40) }} |
+{% endfor %}
+
+---
+
+## 內容細節驗證
+
+| 檔案                         | 程式碼區塊 | 行內程式碼 | 特殊標記 |
+| :--------------------------- | :--------- | :--------- | :------- |
+{% for result in results %}| {{ result.fileName | ljust(28) }} | {{ result.codeBlocksIcon | ljust(8) }} | {{ result.inlineCodeIcon | ljust(8) }} | {{ result.specialMarkersIcon | ljust(8) }} |
+{% endfor %}

@@ -80,5 +80,14 @@
   "Source Length": "Source Length",
   "Validation failed": "Validation failed",
   "Retranslating Task {{id}}": "Retranslating Task {{id}}",
-  "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "Translation failed: LLM API quota exceeded for key: {{maskedKey}}"
+  "Translation failed: LLM API quota exceeded for key: {{maskedKey}}": "Translation failed: LLM API quota exceeded for key: {{maskedKey}}",
+  "Preamble structure mismatch, cannot validate": "Preamble structure mismatch, cannot validate",
+  "Missing {{count}} sections": "Missing {{count}} sections",
+  "Missing {{count}} anchors": "Missing {{count}} anchors",
+  "Quantity mismatch": "Quantity mismatch",
+  "Original has {{count}} blocks": "Original has {{count}} blocks",
+  "Translated has only {{count}} blocks": "Translated has only {{count}} blocks",
+  "Content mismatch": "Content mismatch",
+  "Could not validate {{fileName}}. Error: {{error}}": "Could not validate {{fileName}}. Error: {{error}}",
+  "Validation complete. Summary report generated at {{reportPath}}": "Validation complete. Summary report generated at {{reportPath}}"
 }

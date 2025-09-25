@@ -1,0 +1,72 @@
+# Validation Report: {{ result.fileName }}
+
+## File-Level Issues
+{% if result.status === 'Unverifiable' %}
+### Preamble Structure Mismatch
+- **Issue**: The preamble (table of contents) in the translated document does not match the structure of the original document.
+- **Impact**: All subsequent validations for this file have been halted due to an inability to establish a reliable structural blueprint.
+- **Recommendation**: Please manually compare and correct the table of contents at the beginning of the translated document to ensure the number of links, anchors, and hierarchy are consistent with the original.
+{% elif result.headings.missingCount > 0 %}
+### Missing Headings in Content
+- According to the preamble, the file should have {{ result.preamble.totalHeadings }} headings, but only {{ result.preamble.totalHeadings - result.headings.missingCount }} were found in the content.
+{% for item in result.headings.mismatches %}
+- The link `{{ item.link }}` does not have a corresponding heading.
+{% endfor %}
+{% elif result.headings.anchorMissingCount > 0 %}
+### Headings with Missing Anchors
+{% for item in result.headings.mismatches %}
+- The heading `{{ item.title }}` is missing the anchor `{{ item.expectedAnchor }}`.
+{% endfor %}
+{% else %}
+No file-level issues found.
+{% endif %}
+
+## Section-Level Issues
+{% for sectionError in result.sectionErrors %}
+### Section: "{{ sectionError.title }}" (Starting at line {{ sectionError.startLine }} in source file)
+{% if sectionError.codeBlocks.mismatches.length > 0 %}
+#### Code Block Mismatch
+{% for mismatch in sectionError.codeBlocks.mismatches %}
+- **Issue**: {{ mismatch.type }} (Block {{ loop.index }}/{{ sectionError.codeBlocks.total }})
+- **Original (Starting at line {{ mismatch.sourceStartLine }} in source file)**:
+<pre>
+```{{ mismatch.lang if mismatch.lang else 'text' }}
+{{ mismatch.source }}
+```
+</pre>
+- **Translated Mismatch (Starting at line {{ mismatch.targetStartLine }} in translated file)**:
+<pre>
+```{{ mismatch.lang if mismatch.lang else 'text' }}
+{{ mismatch.target }}
+```
+</pre>
+{% endfor %}
+{% endif %}
+{% if not sectionError.inlineCode.isValid %}
+#### Inline Code Mismatch
+- **Issue**: Quantity mismatch (Original: {{ sectionError.inlineCode.sourceCount }}, Translated: {{ sectionError.inlineCode.targetCount }}).
+- **Original (Source)**:
+{% for snippet in sectionError.inlineCode.sourceSnippets %}
+  - `` {{ snippet }} ``
+{% endfor %}
+- **Translated (Mismatch)**:
+{% for snippet in sectionError.inlineCode.targetSnippets %}
+  - `` {{ snippet }} ``
+{% endfor %}
+{% if sectionError.inlineCode.mismatches.length > 0 %}
+- **Details**: The following inline code from the source file was not found in the translated document:
+{% for snippet in sectionError.inlineCode.mismatches %}    - `{{ snippet }}`
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if sectionError.specialMarkers.mismatches.length > 0 %}
+#### Special Marker Mismatch
+- **Issue**: Quantity mismatch (Original: {{ sectionError.specialMarkers.sourceCount }}, Translated: {{ sectionError.specialMarkers.targetCount }}).
+- **Details**: The following special markers from the source file were not found in the translated document:
+{% for marker in sectionError.specialMarkers.mismatches %}    - `{{ marker }}`
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% if result.sectionErrors.length === 0 %}
+No section-level issues found.
+{% endif %}

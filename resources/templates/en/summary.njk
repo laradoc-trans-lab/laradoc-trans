@@ -1,0 +1,22 @@
+# Validation Summary Report
+
+**Branch:** `{{ branch }}`
+**Report Generation Time:** `{{ generationTime }}`
+
+---
+
+## Preamble and Section Comparison
+
+| File                         | Preamble | Section  | Notes                                      |
+| :--------------------------- | :------- | :------- | :----------------------------------------- |
+{% for result in results %}| {{ result.fileName | ljust(28) }} | {{ result.preambleIcon | ljust(6) }} | {{ result.headingsIcon | ljust(6) }} | {{ result.note | ljust(40) }} |
+{% endfor %}
+
+---
+
+## Content Detail Validation
+
+| File                         | Code Blocks  | Inline Code  | Special Markers |
+| :--------------------------- | :----------- | :----------- | :-------------- |
+{% for result in results %}| {{ result.fileName | ljust(28) }} | {{ result.codeBlocksIcon | ljust(10) }} | {{ result.inlineCodeIcon | ljust(10) }} | {{ result.specialMarkersIcon | ljust(10) }} |
+{% endfor %}
