@@ -1,7 +1,6 @@
 import { Buffer } from 'buffer';
 import { Section } from './translator/Section';
 
-const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
 
 /**
  * Splits the Markdown content into a flat array of Section objects,

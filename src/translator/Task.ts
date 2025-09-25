@@ -1,6 +1,6 @@
 import { Section } from './Section';
 
-export const BATCH_SIZE_LIMIT = 10000; // 10K Bytes
+export const BATCH_SIZE_LIMIT = 8192; // 每一任務的容量上限 bytes
 
 export enum AddSectionStatus {
   /** 成功 */
