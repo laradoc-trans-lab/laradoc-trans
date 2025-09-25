@@ -1,7 +1,7 @@
 import nunjucks from 'nunjucks';
 import path from 'path';
 import { FileValidationResult } from './types';
-import { i18next, _ } from '../i18n'; // Import i18next and _
+import { getLanguage, _ } from '../i18n'; // Import getLanguage and _
 import { ljust } from './nunjucksFilters'; // Import ljust filter
 
 interface SummaryViewResult {
@@ -21,7 +21,7 @@ export class ReportGenerator {
   constructor(results: FileValidationResult[], branch: string) {
     this.results = results;
     this.branch = branch;
-    const currentLanguage = i18next.language; // Get current language
+    const currentLanguage = getLanguage(); // Get current language
     const env = nunjucks.configure(path.join(__dirname, '..', '..', 'resources', 'templates', currentLanguage), { autoescape: false });
     env.addFilter('ljust', ljust); // Register the ljust filter
   }
