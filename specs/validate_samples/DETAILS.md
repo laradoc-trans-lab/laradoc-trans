@@ -33,7 +33,8 @@
 
 #### 程式碼區塊不符
 - **問題**: 內容不符 (區塊 1/1)
-- **原文 (來源)**:
+- **原文 (來源檔案第 100 行開始)**:
+  <pre>
   ```php
   use Illuminate\Support\Facades\Cache;
   Route::get('/cache', function () {
@@ -41,7 +42,9 @@
       //
   });
   ```
-- **譯文 (不符)**:
+  </pre>
+- **譯文不符(譯文檔案第 105 行開始)**:
+  <pre>
   ```php
   use Illuminate\Support\Facades\Cache;
   Route::get('/cache', function () {
@@ -50,6 +53,7 @@
       //
   });
   ```
+  </pre>
 
 ### 章節：「Helpers」(來源檔案第 78 行開始)
 
