@@ -31,6 +31,7 @@ import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 import { parseCliArgs, CliArgs, InitOptions, RunOptions, ValidateOptions } from './cli';
 import { ApiKeyNotFoundError, createLlmModel } from './llm';
+import { validateProject } from './validator/index';
 
 
 const LARAVEL_DOCS_REPO = 'https://github.com/laravel/docs.git';
@@ -266,7 +267,6 @@ async function handleRunCommand(options: RunOptions) {
 }
 
 async function handleValidateCommand(options: ValidateOptions) {
-  const { validateProject } = await import('./validator/index.js');
   console.log(_('Starting validation process...'));
 
   const workspacePath = process.env.WORKSPACE_PATH || path.resolve(process.cwd(), './');
