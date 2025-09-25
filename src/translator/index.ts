@@ -8,7 +8,7 @@ import { createLlmModel } from '../llm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
-import { validateBatch } from '../validator';
+import { validateBatch } from './validateBatch';
 import { debugLog } from '../debugLogger';
 import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
