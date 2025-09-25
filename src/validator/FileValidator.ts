@@ -4,6 +4,7 @@ import { FileValidationResult, ValidationStatus, SectionError, CodeBlockMismatch
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
+import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers } from './core';
 
 export class FileValidator {
   private sourceContent: string;
@@ -164,81 +165,14 @@ export class FileValidator {
   }
 
   private validateCodeBlocks(sourceSection: Section, targetSection: Section): SectionError['codeBlocks'] {
-                const extractCodeBlocksFromMarkdown = (markdownContent: string, sectionStartLine: number) => {
-                  const ast = remark().parse(markdownContent);
-                  const codeBlocks: { lang: string; content: string; startLine: number }[] = [];
-                  visit(ast, 'code', (node: any) => {
-                    if (node.lang && node.position) { // Only consider code blocks with a specified language and position
-                      codeBlocks.push({ lang: node.lang, content: node.value, startLine: sectionStartLine + node.position.start.line -1 }); // Adjust for 0-based section content line numbers
-                    }
-                  });
-                  return codeBlocks;
-                };
-          
-              const sourceBlocks = extractCodeBlocksFromMarkdown(sourceSection.content, sourceSection.startLine);
-              const targetBlocks = extractCodeBlocksFromMarkdown(targetSection.content, targetSection.startLine);        const mismatches: CodeBlockMismatch[] = [];
-    
-        if (sourceBlocks.length !== targetBlocks.length) {
-          mismatches.push({
-            type: _('Quantity mismatch'),
-            lang: '',
-            source: _('Original has {{count}} blocks', { count: sourceBlocks.length }),
-            target: _('Translated has only {{count}} blocks', { count: targetBlocks.length })
-          });
-        } else {
-          for (let i = 0; i < sourceBlocks.length; i++) {
-            if (sourceBlocks[i].content.trim() !== targetBlocks[i].content.trim() || sourceBlocks[i].lang !== targetBlocks[i].lang) {
-              mismatches.push({
-                type: _('Content mismatch'),
-                lang: sourceBlocks[i].lang,
-                source: sourceBlocks[i].content,
-                target: targetBlocks[i].content,
-                sourceStartLine: sourceBlocks[i].startLine,
-                targetStartLine: targetBlocks[i].startLine,
-              });
-            }
-          }
-        }
-    return { isValid: mismatches.length === 0, total: sourceBlocks.length, mismatches };
+    return coreValidateCodeBlocks(sourceSection.content, targetSection.content, sourceSection.startLine, targetSection.startLine);
   }
 
   private validateInlineCode(sourceSection: Section, targetSection: Section): SectionError['inlineCode'] {
-    const inlineCodeRegex = /`([^`].*?)`/g;
-    const getSnippets = (content: string) => (content.match(inlineCodeRegex) || []);
-
-    const sourceSnippets = getSnippets(sourceSection.content);
-    const targetSnippets = getSnippets(targetSection.content);
-    const mismatches: string[] = [];
-
-    const targetSnippetSet = new Set(targetSnippets);
-    for (const snippet of sourceSnippets) {
-        if (!targetSnippetSet.has(snippet)) {
-            mismatches.push(snippet);
-        }
-    }
-
-    const isValid = mismatches.length === 0 && sourceSnippets.length === targetSnippets.length;
-
-    return { isValid, sourceCount: sourceSnippets.length, targetCount: targetSnippets.length, mismatches, sourceSnippets, targetSnippets };
+    return coreValidateInlineCode(sourceSection.content, targetSection.content);
   }
 
   private validateSpecialMarkers(sourceSection: Section, targetSection: Section): SectionError['specialMarkers'] {
-    const markerRegex = /\[!([A-Z_]+)\]/g;
-    const getMarkers = (content: string) => (content.match(markerRegex) || []);
-
-    const sourceMarkers = getMarkers(sourceSection.content);
-    const targetMarkers = getMarkers(targetSection.content);
-    const mismatches: string[] = [];
-
-    const targetMarkerSet = new Set(targetMarkers);
-    for (const marker of sourceMarkers) {
-        if (!targetMarkerSet.has(marker)) {
-            mismatches.push(marker);
-        }
-    }
-    
-    const isValid = mismatches.length === 0 && sourceMarkers.length === targetMarkers.length;
-
-    return { isValid, sourceCount: sourceMarkers.length, targetCount: targetMarkers.length, mismatches };
+    return coreValidateSpecialMarkers(sourceSection.content, targetSection.content);
   }
 }
