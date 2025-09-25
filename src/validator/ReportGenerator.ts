@@ -22,7 +22,7 @@ export class ReportGenerator {
     this.results = results;
     this.branch = branch;
     const currentLanguage = i18next.language; // Get current language
-    const env = nunjucks.configure(path.join(process.cwd(), 'resources', 'templates', currentLanguage), { autoescape: false });
+    const env = nunjucks.configure(path.join(__dirname, '..', '..', 'resources', 'templates', currentLanguage), { autoescape: false });
     env.addFilter('ljust', ljust); // Register the ljust filter
   }
 
