@@ -124,7 +124,14 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 ### 4.3 初始化
 
-(此處內容無變更)
+1.  **工作區初始化**: 當執行 `init` 命令時，程式會自動處理工作區的建立與設定。
+    - 工作區的根目錄由 `--workspace-path` 選項決定。若未指定，則預設為當前執行命令的目錄。
+    - 工作區建立後，會自動將 [Laravel 官方文件](https://github.com/laravel/docs) 的最新版本 `git clone` 到 `workspace/repo/source`。如果 `workspace/repo/source` 已存在且是有效的 Git 倉庫，則跳過複製。
+    - `workspace/` 下的 `tmp`、`logs` 等必要目錄若不存在，也會由程式自行建立。
+    - `workspace/repo/target` 的初始化行為取決於 `--target-repo` 選項：
+      - 若指定了 `--target-repo <url>`，則會 `git clone` 該遠端倉庫到 `workspace/repo/target`。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過複製。
+      - 若未指定 `--target-repo`，則會在 `workspace/repo/target` 執行 `git init` 建立一個新的本地 Git 倉庫。如果 `workspace/repo/target` 已存在且是有效的 Git 倉庫，則跳過初始化。
+2.  **Git 倉庫檢查**: `run` 命令執行前，會檢查 `workspace/repo/source` 是否是一個合法的 Git 倉庫。如果不是，則會拋出錯誤。這確保了翻譯操作總是在一個有效的來源倉庫上進行。
 
 ### 4.4 翻譯流程
 
@@ -146,7 +153,10 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 ### 4.5 所有檔案翻譯完成後的流程
 
-(此處內容無變更)
+當 `workspace/tmp/.progress` 內所有檔案都完成翻譯後，程式必須執行以下收尾工作：
+
+1. 將 `workspace/tmp` 中所有翻譯好的 `.md` 檔案與 `.source_commit` 複蓋到 `workspace/repo/target` 。
+2. 清空 `workspace/tmp` 下所有的檔案。
 
 ### 4.6 翻譯品質驗證流程 (`validate` 命令)
 
