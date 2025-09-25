@@ -1,6 +1,11 @@
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import type { Root, Heading } from 'mdast';
+import {
+  validateCodeBlocks,
+  validateSpecialMarkers,
+  validateInlineCode,
+} from '../validator/core';
 
 // --- Data Structures ---
 
@@ -104,39 +109,43 @@ export function validateBatch(
   }
 
   // 2. 驗證程式碼區塊 (數量與內容)
-  const originalCodeBlocks = getCodeBlocks(originalTree, originalContent);
-  const translatedCodeBlocks = getCodeBlocks(translatedTree, translatedContent);
-
-  if (originalCodeBlocks.length !== translatedCodeBlocks.length) {
-    errors.push(
-      `Code block count mismatch. Original: ${originalCodeBlocks.length}, Translated: ${translatedCodeBlocks.length}.`,
-    );
-  } else {
-    originalCodeBlocks.forEach((originalBlock, i) => {
-      if (originalBlock.content !== translatedCodeBlocks[i].content) {
+  const codeBlockResult = validateCodeBlocks(originalContent, translatedContent, 1, 1);
+  if (!codeBlockResult.isValid) {
+    if (codeBlockResult.mismatches.some(m => m.type.includes('Quantity'))) {
+        const originalCount = codeBlockResult.total;
+        const targetCount = codeBlockResult.total - codeBlockResult.mismatches.length;
         errors.push(
-          `Code block content mismatch at block index ${i}. The code inside the triple backticks should not be translated or altered.`,
+            `Code block count mismatch. Original: ${originalCount}, Translated: ${targetCount}.`
         );
-      }
-    });
+    } else {
+        codeBlockResult.mismatches.forEach((mismatch, i) => {
+            errors.push(
+                `Code block content mismatch at block index ${i}. The code inside the triple backticks should not be translated or altered.`,
+            );
+        });
+    }
   }
 
-  // 3. Validate Admonition Count and Content
-  const originalAdmonitions = getAdmonitions(originalTree);
-  const translatedAdmonitions = getAdmonitions(translatedTree);
-
-  if (originalAdmonitions.length !== translatedAdmonitions.length) {
+  // 3. 驗證行內程式碼
+  const inlineCodeResult = validateInlineCode(originalContent, translatedContent);
+  if (!inlineCodeResult.isValid) {
     errors.push(
-      `Admonition count mismatch. Original: ${originalAdmonitions.length}, Translated: ${translatedAdmonitions.length}.`,
+        `Inline code mismatch. The following snippets are missing or were altered: ${inlineCodeResult.mismatches.join(', ')}. Content inside backticks should not be translated.`
     );
-  } else {
-    originalAdmonitions.forEach((originalAdmonition, i) => {
-      if (originalAdmonition !== translatedAdmonitions[i]) {
+  }
+
+  // 4. Validate Admonition Count and Content
+  const specialMarkersResult = validateSpecialMarkers(originalContent, translatedContent);
+  if (!specialMarkersResult.isValid) {
+    if (specialMarkersResult.sourceCount !== specialMarkersResult.targetCount) {
         errors.push(
-          `Admonition tag mismatch at index ${i}. Original: "${originalAdmonition}", Translated: "${translatedAdmonitions[i]}". These special tags must remain identical.`,
+            `Admonition count mismatch. Original: ${specialMarkersResult.sourceCount}, Translated: ${specialMarkersResult.targetCount}.`,
         );
-      }
-    });
+    } else {
+        errors.push(
+            `Admonition tag mismatch. The following original tags are missing or were altered: ${specialMarkersResult.mismatches.join(', ')}. These special tags must remain identical.`,
+        );
+    }
   }
 
   return {
@@ -145,33 +154,3 @@ export function validateBatch(
   };
 }
 
-// --- Helper Functions for Validation ---
-
-function getCodeBlocks(tree: Root, sourceContent: string): CodeBlock[] {
-  const blocks: CodeBlock[] = [];
-  visit(tree, 'code', (node) => {
-    if (node.position) {
-      const fullText = sourceContent.slice(node.position.start.offset, node.position.end.offset);
-      blocks.push({
-        content: node.value,
-        fullText: fullText,
-        line: node.position.start.line,
-      });
-    }
-  });
-  return blocks;
-}
-
-function getAdmonitions(tree: Root): string[] {
-  const admonitions: string[] = [];
-  const admonitionRegex = /^\[!([A-Z_]+)\]/m;
-
-  visit(tree, 'text', (node) => {
-    const match = node.value.match(admonitionRegex);
-    if (match) {
-      admonitions.push(match[0]); // Push only the tag, e.g., "[!NOTE]"
-    }
-  });
-
-  return admonitions;
-}
