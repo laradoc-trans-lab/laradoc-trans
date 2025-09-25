@@ -23,3 +23,4 @@ export async function initI18n() {
 }
 
 export const _ = i18next.t;
+export { i18next }; // Export the i18next instance
