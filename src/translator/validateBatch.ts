@@ -58,7 +58,7 @@ export function validateBatch(
     // 2. 驗證程式碼區塊
     const codeBlockResult = validateCodeBlocks(sourceSection, targetSection);
     if (!codeBlockResult.isValid) {
-      errors.push(`Validation failed in section "${sourceSection.title}": Code block mismatch.`);
+        errors.push(`Validation failed in section "${sourceSection.title}": Code block mismatch. Do not modify any byte inside the Code Block.`);
     }
 
     // 3. 驗證行內程式碼
