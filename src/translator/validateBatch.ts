@@ -45,13 +45,14 @@ export function validateBatch(
   }
 
   for (const sourceSection of originalSections) {
-    // 根據標題和深度尋找對應的翻譯章節
+    // 根據錨點和深度尋找對應的翻譯章節
     const targetSection = translatedSections.find(
-      s => s.title === sourceSection.title && s.depth === sourceSection.depth
+      s => s.anchorOfTitle === sourceSection.anchorOfTitle && s.depth === sourceSection.depth
     );
 
     if (!targetSection) {
-      errors.push(`Missing translated section for: "${sourceSection.title}"`);
+      // 如果找不到，可能是因為錨點被意外修改或刪除
+      errors.push(`Missing translated section for: "${sourceSection.title}" (or anchor/level mismatch)`);
       continue;
     }
 
