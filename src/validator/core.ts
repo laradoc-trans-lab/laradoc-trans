@@ -1,16 +1,33 @@
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
+import { Section } from '../translator/Section';
 import { SectionError, CodeBlockMismatch } from './types';
+import  *  as debugKey from '../debugKey';
 
-const extractCodeBlocksFromMarkdown = (markdownContent: string, sectionStartLine: number) => {
-  const ast = remark().parse(markdownContent);
+const extractCodeBlocksFromMarkdown = (section: Section) => {
+  const ast = remark().parse(section.content);
   const codeBlocks: { lang: string; content: string; startLine: number }[] = [];
   visit(ast, 'code', (node: any) => {
     if (node.lang && node.position) { // Only consider code blocks with a specified language and position
-      codeBlocks.push({ lang: node.lang, content: node.value, startLine: sectionStartLine + node.position.start.line - 1 }); // Adjust for 0-based section content line numbers
+      codeBlocks.push({ lang: node.lang, content: node.value, startLine: section.startLine + node.position.start.line - 1 }); // Adjust for 0-based section content line numbers
     }
   });
+
+  const targetSections = ['Reverb', 'Pusher Channels', 'Ably'];
+
+  /*
+  debugKey.execute("currentValidateFile" , "blade.md" , () =>{
+    console.log(`DEBUG: Processing section "${section.title}"`);
+    console.log('--- Section Content ---');
+    console.log(section.content);
+    console.log('--- Final codeBlocks ---');
+    console.log(JSON.stringify(codeBlocks, null, 2));
+    console.log('------------------------');
+  });
+  */
+
+
   return codeBlocks;
 };
 
@@ -18,15 +35,13 @@ const extractCodeBlocksFromMarkdown = (markdownContent: string, sectionStartLine
  * 驗證原始與翻譯後的 Markdown 內容中的程式碼區塊 (` ``` `) 是否相符。
  * - 驗證數量是否一致。
  * - 驗證內容與語言標籤是否未被變更。
- * @param sourceContent 原始 Markdown 內容。
- * @param targetContent 翻譯後 Markdown 內容。
- * @param sourceStartLine 原始內容在檔案中的起始行號，用於計算絕對行號。
- * @param targetStartLine 翻譯內容在檔案中的起始行號，用於計算絕對行號。
+ * @param sourceSection 原始 Section 物件。
+ * @param targetSection 翻譯後 Section 物件。
  * @returns 回傳一個包含驗證結果的物件。
  */
-export function validateCodeBlocks(sourceContent: string, targetContent: string, sourceStartLine: number, targetStartLine: number): SectionError['codeBlocks'] {
-  const sourceBlocks = extractCodeBlocksFromMarkdown(sourceContent, sourceStartLine);
-  const targetBlocks = extractCodeBlocksFromMarkdown(targetContent, targetStartLine);
+export function validateCodeBlocks(sourceSection: Section, targetSection: Section): SectionError['codeBlocks'] {
+  const sourceBlocks = extractCodeBlocksFromMarkdown(sourceSection);
+  const targetBlocks = extractCodeBlocksFromMarkdown(targetSection);
   const mismatches: CodeBlockMismatch[] = [];
 
   if (sourceBlocks.length !== targetBlocks.length) {
@@ -57,16 +72,16 @@ export function validateCodeBlocks(sourceContent: string, targetContent: string,
  * 驗證原始與翻譯後的 Markdown 內容中的行內程式碼 (` `) 是否相符。
  * - 驗證數量是否一致。
  * - 驗證原始的行內程式碼是否都存在於翻譯後的內容中。
- * @param sourceContent 原始 Markdown 內容。
- * @param targetContent 翻譯後 Markdown 內容。
+ * @param sourceSection 原始 Section 物件。
+ * @param targetSection 翻譯後 Section 物件。
  * @returns 回傳一個包含驗證結果的物件。
  */
-export function validateInlineCode(sourceContent: string, targetContent: string): SectionError['inlineCode'] {
+export function validateInlineCode(sourceSection: Section, targetSection: Section): SectionError['inlineCode'] {
   const inlineCodeRegex = /`([^`].*?)`/g;
   const getSnippets = (content: string) => (content.match(inlineCodeRegex) || []);
 
-  const sourceSnippets = getSnippets(sourceContent);
-  const targetSnippets = getSnippets(targetContent);
+  const sourceSnippets = getSnippets(sourceSection.content);
+  const targetSnippets = getSnippets(targetSection.content);
   const mismatches: string[] = [];
 
   const targetSnippetSet = new Set(targetSnippets);
@@ -85,16 +100,16 @@ export function validateInlineCode(sourceContent: string, targetContent: string)
  * 驗證原始與翻譯後的 Markdown 內容中的提示區塊標記 (如 `[!NOTE]`) 是否相符。
  * - 驗證數量是否一致。
  * - 驗證原始的標記是否都存在於翻譯後的內容中。
- * @param sourceContent 原始 Markdown 內容。
- * @param targetContent 翻譯後 Markdown 內容。
+ * @param sourceSection 原始 Section 物件。
+ * @param targetSection 翻譯後 Section 物件。
  * @returns 回傳一個包含驗證結果的物件。
  */
-export function validateSpecialMarkers(sourceContent: string, targetContent: string): SectionError['specialMarkers'] {
+export function validateSpecialMarkers(sourceSection: Section, targetSection: Section): SectionError['specialMarkers'] {
   const markerRegex = /<!\[A-Z_]+\]/g;
   const getMarkers = (content: string) => (content.match(markerRegex) || []);
 
-  const sourceMarkers = getMarkers(sourceContent);
-  const targetMarkers = getMarkers(targetContent);
+  const sourceMarkers = getMarkers(sourceSection.content);
+  const targetMarkers = getMarkers(targetSection.content);
   const mismatches: string[] = [];
 
   const targetMarkerSet = new Set(targetMarkers);
