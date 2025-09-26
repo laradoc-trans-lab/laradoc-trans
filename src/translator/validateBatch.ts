@@ -65,7 +65,63 @@ export function validateBatch(
     // 3. 驗證行內程式碼
     const inlineCodeResult = validateInlineCode(sourceSection, targetSection);
     if (!inlineCodeResult.isValid) {
-      errors.push(`Validation failed in section "${sourceSection.title}": Inline code mismatch. Missing: ${inlineCodeResult.mismatches.join(', ')}`);
+      // Case 1: Quantity mismatch
+      if (inlineCodeResult.sourceCount !== inlineCodeResult.targetCount) {
+        let errorMessage = `Validation failed in section "${sourceSection.title}": The number of inline code snippets in the original and translated text does not match. Please maintain the original inline code snippets and do not add more.\n`;
+
+        const countOccurrences = (arr: string[]) =>
+          arr.reduce(
+            (acc, val) => acc.set(val, (acc.get(val) || 0) + 1),
+            new Map<string, number>(),
+          );
+
+        const sourceCounts = countOccurrences(
+          inlineCodeResult.sourceSnippets || [],
+        );
+        const targetCounts = countOccurrences(
+          inlineCodeResult.targetSnippets || [],
+        );
+
+        errorMessage += '  Inline code snippets in the original text:\n';
+        sourceCounts.forEach((count, snippet) => {
+          errorMessage += `    - ${snippet}  : Appears ${count} time(s)\n`;
+        });
+
+        errorMessage += '  Inline code snippets in your last translation:\n';
+        targetCounts.forEach((count, snippet) => {
+          errorMessage += `    - ${snippet}  : Appears ${count} time(s)\n`;
+        });
+
+        errors.push(errorMessage);
+      }
+      // Case 2: Content modification (counts are equal but content differs)
+      else {
+        const toHex = (s: string) => Buffer.from(s, 'utf8').toString('hex');
+
+        const missingInTarget =
+          inlineCodeResult.sourceSnippets?.filter(
+            s => !inlineCodeResult.targetSnippets?.includes(s),
+          ) || [];
+
+        const addedInTarget =
+          inlineCodeResult.targetSnippets?.filter(
+            t => !inlineCodeResult.sourceSnippets?.includes(t),
+          ) || [];
+
+        let errorMessage = `Validation failed in section "${sourceSection.title}": Inline code content has been modified, please do not modify any byte.\n`;
+
+        errorMessage += '  Original inline code:\n';
+        missingInTarget.forEach(s => {
+          errorMessage += `    - ${s}  : (HEX : ${toHex(s)})\n`;
+        });
+
+        errorMessage += '\nTranslated inline code:\n';
+        addedInTarget.forEach(t => {
+          errorMessage += `    - ${t} : (HEX : ${toHex(t)})\n`;
+        });
+
+        errors.push(errorMessage);
+      }
     }
 
     // 4. 驗證提示區塊
