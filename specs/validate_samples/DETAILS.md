@@ -15,16 +15,16 @@
 
 ## 章節層級問題
 
-### 章節：「Atomic Locks」(來源檔案第 150 行開始)
+### 章節：「Atomic Locks」(來源檔案第 {%startLine%} 行開始)
 
 #### 標題缺失錨點
 - 標題 `### 跨流程管理鎖` 缺少了序言中定義的錨點 `{#managing-locks-across-processes}`。
 
-### 章節：「Storing Items in the Cache」(來源檔案第 88 行開始)
+### 章節：「Storing Items in the Cache」(來源檔案第 {%startLine%} 行開始)
 
 #### 程式碼區塊不符
 - **問題**: 數量不符 (原文: 1, 譯文: 0)。由於數量不符，已停止對本章節的內容比對。
-- **細節**: 在譯文中找不到以下來自來源檔案的程式碼區塊：
+- **細節**: 在譯文中找不到以下來自來源檔案行號 {%startLine%} 開始的程式碼區塊：
   ```php
   Cache::put('key', 'value', $seconds = 10);
   ```
@@ -33,7 +33,7 @@
 
 #### 程式碼區塊不符
 - **問題**: 內容不符 (區塊 1/1)
-- **原文 (來源檔案第 100 行開始)**:
+- **原文 (來源檔案第 {%startLine%} 行開始)**:
   <pre>
   ```php
   use Illuminate\Support\Facades\Cache;
@@ -43,7 +43,7 @@
   });
   ```
   </pre>
-- **譯文不符(譯文檔案第 105 行開始)**:
+- **譯文不符(譯文檔案第 {%startLine%} 行開始)**:
   <pre>
   ```php
   use Illuminate\Support\Facades\Cache;
@@ -55,7 +55,7 @@
   ```
   </pre>
 
-### 章節：「Helpers」(來源檔案第 78 行開始)
+### 章節：「Helpers」(來源檔案第 {%startLine%} 行開始)
 
 #### 行內程式碼不符
 - **問題**: 數量不符 (原文: 35, 譯文: 33)。
