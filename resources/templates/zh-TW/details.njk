@@ -3,19 +3,19 @@
 ## 檔案層級問題
 {% if result.status === 'Unverifiable' %}
 ### 序言結構不符
-- **問題**: 譯文的序言（目錄列表）與原文的結構不一致。
-- **影響**: 由於無法建立可靠的結構藍圖，已停止對此檔案的所有後續驗證。
-- **建議**: 請手動比對並修正譯文開頭的目錄列表，使其連結數量、錨點、層級都與原文保持一致。
+**問題**: 譯文的序言（目錄列表）與原文的結構不一致。
+**影響**: 由於無法建立可靠的結構藍圖，已停止對此檔案的所有後續驗證。
+**建議**: 請手動比對並修正譯文開頭的目錄列表，使其連結數量、錨點、層級都與原文保持一致。
 {% elif result.headings.missingCount > 0 %}
 ### 內文中缺失的標題
-- 根據序言，檔案應有 {{ result.preamble.totalHeadings }} 個標題，但內文中只找到 {{ result.preamble.totalHeadings - result.headings.missingCount }} 個。
+根據序言，檔案應有 {{ result.preamble.totalHeadings }} 個標題，但內文中只找到 {{ result.preamble.totalHeadings - result.headings.missingCount }} 個。
 {% for item in result.headings.mismatches %}
 - 連結 `{{ item.link }}` 找不到對應的標題。
 {% endfor %}
 {% elif result.headings.anchorMissingCount > 0 %}
 ### 標題缺失錨點
 {% for item in result.headings.mismatches %}
-- 標題 `{{ item.title }}` 缺少了序言中定義的錨點 `{{ item.expectedAnchor }}`。
+標題 `{{ item.title }}` 缺少了序言中定義的錨點 `{{ item.expectedAnchor }}`。
 {% endfor %}
 {% else %}
 沒有任何檔案層級問題。
@@ -27,14 +27,14 @@
 {% if sectionError.codeBlocks.mismatches.length > 0 %}
 #### 程式碼區塊不符
 {% for mismatch in sectionError.codeBlocks.mismatches %}
-- **問題**: {{ mismatch.type }} (區塊 {{ loop.index }}/{{ sectionError.codeBlocks.total }})
-- **原文 (來源檔案第 {{ mismatch.sourceStartLine }} 行開始)**:
+**問題**: {{ mismatch.type }} (區塊 {{ loop.index }}/{{ sectionError.codeBlocks.total }})
+**原文 (來源檔案第 {{ mismatch.sourceStartLine }} 行開始)**:
 <pre>
 ```{{ mismatch.lang if mismatch.lang else 'text' }}
 {{ mismatch.source }}
 ```
 </pre>
-- **譯文不符(譯文檔案第 {{ mismatch.targetStartLine }} 行開始)**:
+**譯文不符(譯文檔案第 {{ mismatch.targetStartLine }} 行開始)**:
 <pre>
 ```{{ mismatch.lang if mismatch.lang else 'text' }}
 {{ mismatch.target }}
@@ -44,26 +44,24 @@
 {% endif %}
 {% if not sectionError.inlineCode.isValid %}
 #### 行內程式碼不符
-- **問題**: 數量不符 (原文: {{ sectionError.inlineCode.sourceCount }}, 譯文: {{ sectionError.inlineCode.targetCount }})。
-- **原文 (來源)**:
-{% for snippet in sectionError.inlineCode.sourceSnippets %}
-  - `` {{ snippet }} ``
+**問題**: 數量不符 (原文: {{ sectionError.inlineCode.sourceCount }}, 譯文: {{ sectionError.inlineCode.targetCount }})。
+**原文 (來源)**:
+{% for snippet in sectionError.inlineCode.sourceSnippets %} - `` {{ snippet }} ``
 {% endfor %}
-- **譯文 (不符)**:
-{% for snippet in sectionError.inlineCode.targetSnippets %}
-  - `` {{ snippet }} ``
+**譯文 (不符)**:
+{% for snippet in sectionError.inlineCode.targetSnippets %} - `` {{ snippet }} ``
 {% endfor %}
 {% if sectionError.inlineCode.mismatches.length > 0 %}
-- **細節**: 在譯文中找不到以下來自來源檔案的行內程式碼：
-{% for snippet in sectionError.inlineCode.mismatches %}    - `{{ snippet }}`
+**細節**: 在譯文中找不到以下來自來源檔案的行內程式碼：
+{% for snippet in sectionError.inlineCode.mismatches %} - `{{ snippet }}`
 {% endfor %}
 {% endif %}
 {% endif %}
 {% if sectionError.specialMarkers.mismatches.length > 0 %}
 #### 特殊標記不符
-- **問題**: 數量不符 (原文: {{ sectionError.specialMarkers.sourceCount }}, 譯文: {{ sectionError.specialMarkers.targetCount }})。
-- **細節**: 在譯文中找不到以下來自來源檔案的特殊標記：
-{% for marker in sectionError.specialMarkers.mismatches %}    - `{{ marker }}`
+**問題**: 數量不符 (原文: {{ sectionError.specialMarkers.sourceCount }}, 譯文: {{ sectionError.specialMarkers.targetCount }})。
+**細節**: 在譯文中找不到以下來自來源檔案的特殊標記：
+{% for marker in sectionError.specialMarkers.mismatches %} - `{{ marker }}`
 {% endfor %}
 {% endif %}
 {% endfor %}
