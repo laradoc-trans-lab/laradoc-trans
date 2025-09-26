@@ -10,6 +10,7 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
 import { debugLog } from '../debugLogger';
+import { debugLlmDetails } from '../debugLlmDetails';
 import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
 
@@ -120,7 +121,13 @@ Section to translate:
       full_context: fullContextPath,
       section_to_translate: sectionPreview,
     });
-    await debugLog(`Initial prompt for task ${task.id} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${initialPromptFormatted}`);
+
+    const detailLogFilename = await debugLlmDetails(contentToTranslate);
+    const logMessage = detailLogFilename
+      ? initialPromptFormatted.replace(sectionPreview, `See debug_llm_details/${detailLogFilename} for details.`)
+      : initialPromptFormatted;
+
+    await debugLog(`Initial prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessage}`);
 
     try {
       const stream = await chain.stream({
@@ -134,6 +141,12 @@ Section to translate:
         totalBytes += Buffer.byteLength(chunk, 'utf8');
         progressManager.updateBytes(taskId, totalBytes);
       }
+
+      const llmResponseLogFile = await debugLlmDetails(fullResponse, 'llm_response');
+      if (llmResponseLogFile) {
+        await debugLog(`LLM response for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]: See debug_llm_details/${llmResponseLogFile} for details.`);
+      }
+
     } catch (error: any) {
       if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
         const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
@@ -198,7 +211,13 @@ Section to translate:
         full_context: fullContextPath,
         section_to_translate: sectionPreview,
       });
-      await debugLog(`Retry prompt for task ${task.id} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${retryPromptFormatted}`);
+
+      const detailLogFilenameRetry = await debugLlmDetails(contentToTranslate, 'retry_section_to_translate');
+      const logMessageRetry = detailLogFilenameRetry
+        ? retryPromptFormatted.replace(sectionPreview, `See debug_llm_details/${detailLogFilenameRetry} for details.`)
+        : retryPromptFormatted;
+
+      await debugLog(`Retry prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessageRetry}`);
 
       try {
         const retryStream = await retryChain.stream({
@@ -213,6 +232,12 @@ Section to translate:
           totalBytes += Buffer.byteLength(chunk, 'utf8');
           progressManager.updateBytes(retryId, totalBytes);
         }
+
+        const llmResponseLogFileRetry = await debugLlmDetails(fullResponse, 'llm_retry_response');
+        if (llmResponseLogFileRetry) {
+          await debugLog(`LLM retry response for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]: See debug_llm_details/${llmResponseLogFileRetry} for details.`);
+        }
+
       } catch (error: any) {
         if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
           const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
