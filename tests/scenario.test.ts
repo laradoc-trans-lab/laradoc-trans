@@ -17,7 +17,7 @@ const WORKSPACE_TEMPLATE = path.join(TESTS_DIR, 'fixtures', 'workspace-template'
 // 設定環境變數，讓 main() 知道工作區的絕對路徑
 process.env.WORKSPACE_PATH = WORKSPACE_PATH;
 
-describe('Scenario Testing', () => {
+describe('Scenario Testing for command `laradoc-trans run ...`', () => {
 
   beforeAll(() => {
     // 隱藏測試期間的 console 輸出，讓結果更乾淨
