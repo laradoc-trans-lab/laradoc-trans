@@ -42,7 +42,7 @@
     "@langchain/google-genai": "^0.2.18",
     "@langchain/openai": "^0.6.13",
     "cli-progress": "^3.12.0",
-    "commander": "^14.0.0",
+    "commander": "^14.0.1",
     "dotenv": "^17.2.1",
     "i18next": "^25.5.2",
     "i18next-cli-language-detector": "^1.1.8",
