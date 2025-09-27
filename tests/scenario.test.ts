@@ -148,4 +148,66 @@ describe('Scenario Testing', () => {
       spyTranslateFile.mockRestore();
     }
   });
+
+  // 測試案例 4: 模擬成功翻譯二個檔案
+  test('4. should translate two files successfully', async () => {
+    const spyCreateLlmModel = jest.spyOn(llm, 'createLlmModel');
+    spyCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          invoke: jest.fn().mockResolvedValue('[翻譯成功]'),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      } as unknown as llm.LlmModel;
+    });
+
+    const translatedFiles: string[] = [];
+    const spyTranslateFile = jest.spyOn(translator, 'translateFile');
+    spyTranslateFile.mockImplementation(async (sourceFilePath: string, promptFilePath?: string): Promise<string> => {
+      const filename = path.basename(sourceFilePath);
+      translatedFiles.push(filename);
+      const originalContent = await fs.readFile(sourceFilePath, 'utf-8');
+      return `${originalContent}\n[翻譯成功]`;
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--limit', '2', '--env', '.env.test'];
+      await main(argv);
+
+      expect(translatedFiles.length).toBe(2);
+
+      for (const translatedFile of translatedFiles) {
+        // 驗證 tmp 檔案
+        const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp', translatedFile);
+        await expect(fs.pathExists(translatedFilePath)).resolves.toBe(true);
+
+        const originalFilePath = path.join(WORKSPACE_PATH, 'repo', 'source', translatedFile);
+        const originalContent = await fs.readFile(originalFilePath, 'utf-8');
+        const expectedContent = `${originalContent}\n[翻譯成功]`;
+        const content = await fs.readFile(translatedFilePath, 'utf-8');
+        expect(content).toBe(expectedContent);
+
+        // 驗證 target 目錄不應該存在該檔案
+        const targetFilePath = path.join(WORKSPACE_PATH, 'repo', 'target', translatedFile);
+        await expect(fs.pathExists(targetFilePath)).resolves.toBe(false);
+      }
+
+      // 檢查進度檔案
+      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp'));
+      // 案例 3 翻譯了一個，案例 4 翻譯了兩個，所以總共應該有 3 個檔案狀態為 1
+      const completedCount = Array.from(progressAfter?.values() || []).filter(status => status === 1).length;
+      expect(completedCount).toBe(3);
+      expect(progressAfter?.get(translatedFiles[0])).toBe(1);
+      expect(progressAfter?.get(translatedFiles[1])).toBe(1);
+
+    } finally {
+      process.chdir(originalCwd);
+      spyCreateLlmModel.mockRestore();
+      spyTranslateFile.mockRestore();
+    }
+  });
 });
