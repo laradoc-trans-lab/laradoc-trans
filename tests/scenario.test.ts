@@ -1,11 +1,12 @@
 import { main } from '../src/main';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { RepositoryNotFoundError } from '../src/git';
+import { RepositoryNotFoundError, getCurrentCommitHash } from '../src/git';
 import { LlmApiQuotaError } from '../src/translator';
 import * as llm from '../src/llm';
 import * as translator from '../src/translator';
 import { readProgressFile } from '../src/progress';
+import { executeGit } from '../src/git/executor';
 
 const PROJECT_ROOT = process.cwd();
 const TESTS_DIR = path.join(PROJECT_ROOT, 'tests');
@@ -269,6 +270,79 @@ describe('Scenario Testing', () => {
       // .progress file might still exist, but it should be empty of markdown files
       const markdownFiles = tmpFiles.filter((f: string) => f.endsWith('.md'));
       expect(markdownFiles.length).toBe(0);
+
+    } finally {
+      process.chdir(originalCwd);
+      spyCreateLlmModel.mockRestore();
+      spyTranslateFile.mockRestore();
+    }
+  });
+
+  // 測試案例 6: 當 source 更新時，應只翻譯有變動的檔案
+  test('6. should translate only changed files when source is updated', async () => {
+    const sourceRepoPath = path.join(WORKSPACE_PATH, 'repo', 'source');
+    const targetRepoPath = path.join(WORKSPACE_PATH, 'repo', 'target');
+
+    // --- Setup Target Repo ---
+    await executeGit(['add', '.'], targetRepoPath);
+    await executeGit(['commit', '-m', 'Initial translation'], targetRepoPath);
+    await executeGit(['checkout', '-b', 'test1-branch'], targetRepoPath);
+
+    // --- Setup Source Repo ---
+    await executeGit(['checkout', '-b', 'test1-branch'], sourceRepoPath);
+    await fs.appendFile(path.join(sourceRepoPath, 'test2.md'), '\n[已修改]');
+    await fs.appendFile(path.join(sourceRepoPath, 'test5.md'), '\n[已修改]');
+    await executeGit(['add', '.'], sourceRepoPath);
+    await executeGit(['commit', '-m', 'Update source files'], sourceRepoPath);
+    
+    const spyCreateLlmModel = jest.spyOn(llm, 'createLlmModel');
+    spyCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          invoke: jest.fn().mockResolvedValue('[差異翻譯成功]'),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      } as unknown as llm.LlmModel;
+    });
+
+    const translatedFiles: string[] = [];
+    const spyTranslateFile = jest.spyOn(translator, 'translateFile');
+    spyTranslateFile.mockImplementation(async (sourceFilePath: string, promptFilePath?: string): Promise<string> => {
+      const filename = path.basename(sourceFilePath);
+      translatedFiles.push(filename);
+      const originalContent = await fs.readFile(sourceFilePath, 'utf-8');
+      return `${originalContent}\n[差異翻譯成功]`;
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--all', '--env', '.env.test'];
+      await main(argv);
+
+      // --- Verification ---
+      expect(translatedFiles.length).toBe(2);
+      expect(translatedFiles).toContain('test2.md');
+      expect(translatedFiles).toContain('test5.md');
+
+      // 驗證已修改的檔案
+      for (const file of ['test2.md', 'test5.md']) {
+        const translatedFilePath = path.join(targetRepoPath, file);
+        const content = await fs.readFile(translatedFilePath, 'utf-8');
+        expect(content).toContain('\n[已修改]\n[差異翻譯成功]');
+      }
+
+      // 驗證未修改的檔案
+      const unchangedContent = await fs.readFile(path.join(targetRepoPath, 'test1.md'), 'utf-8');
+      expect(unchangedContent).not.toContain('[差異翻譯成功]');
+      expect(unchangedContent).toContain('[翻譯成功]'); // Should have content from test case 5
+
+      // 驗證 commit hash
+      const sourceCommitHash = await getCurrentCommitHash(sourceRepoPath);
+      const targetCommitHash = await fs.readFile(path.join(targetRepoPath, '.source_commit'), 'utf-8');
+      expect(targetCommitHash.trim()).toBe(sourceCommitHash);
 
     } finally {
       process.chdir(originalCwd);
