@@ -210,4 +210,70 @@ describe('Scenario Testing', () => {
       spyTranslateFile.mockRestore();
     }
   });
+
+  // 測試案例 5: 應翻譯所有剩餘檔案並將它們移動到 target
+  test('5. should translate all remaining files and move them to target', async () => {
+    const spyCreateLlmModel = jest.spyOn(llm, 'createLlmModel');
+    spyCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          invoke: jest.fn().mockResolvedValue('[翻譯成功]'),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      } as unknown as llm.LlmModel;
+    });
+
+    const spyTranslateFile = jest.spyOn(translator, 'translateFile');
+    spyTranslateFile.mockImplementation(async (sourceFilePath: string, promptFilePath?: string): Promise<string> => {
+      const originalContent = await fs.readFile(sourceFilePath, 'utf-8');
+      return `${originalContent}\n[翻譯成功]`;
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      const sourceRepoPath = path.join(WORKSPACE_PATH, 'repo', 'source');
+      const allSourceFiles = (await fs.readdir(sourceRepoPath)).filter((f: string) => f.endsWith('.md'));
+
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--all', '--env', '.env.test'];
+      await main(argv);
+
+      const targetRepoPath = path.join(WORKSPACE_PATH, 'repo', 'target');
+
+      for (const file of allSourceFiles) {
+        const targetFilePath = path.join(targetRepoPath, file);
+        await expect(fs.pathExists(targetFilePath)).resolves.toBe(true);
+
+        const originalFilePath = path.join(sourceRepoPath, file);
+        const originalContent = await fs.readFile(originalFilePath, 'utf-8');
+
+        const translatedContent = await fs.readFile(targetFilePath, 'utf-8');
+
+        // license.md and readme.md are copied, not translated.
+        if (file === 'license.md' || file === 'readme.md') {
+          expect(translatedContent).toBe(originalContent);
+        } else {
+          const expectedContent = `${originalContent}\n[翻譯成功]`;
+          expect(translatedContent).toBe(expectedContent);
+        }
+      }
+
+      // 驗證 .source_commit 是否存在
+      const commitFilePath = path.join(targetRepoPath, '.source_commit');
+      await expect(fs.pathExists(commitFilePath)).resolves.toBe(true);
+
+      // 驗證 tmp 目錄是否已被清空
+      const tmpFiles = await fs.readdir(path.join(WORKSPACE_PATH, 'tmp'));
+      // .progress file might still exist, but it should be empty of markdown files
+      const markdownFiles = tmpFiles.filter((f: string) => f.endsWith('.md'));
+      expect(markdownFiles.length).toBe(0);
+
+    } finally {
+      process.chdir(originalCwd);
+      spyCreateLlmModel.mockRestore();
+      spyTranslateFile.mockRestore();
+    }
+  });
 });
