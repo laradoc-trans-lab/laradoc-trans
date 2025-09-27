@@ -105,7 +105,7 @@ export function validateInlineCode(sourceSection: Section, targetSection: Sectio
  * @returns 回傳一個包含驗證結果的物件。
  */
 export function validateSpecialMarkers(sourceSection: Section, targetSection: Section): SectionError['specialMarkers'] {
-  const markerRegex = /<!\[A-Z_]+\]/g;
+  const markerRegex = /\[![A-Z_]+\]/g;
   const getMarkers = (content: string) => (content.match(markerRegex) || []);
 
   const sourceMarkers = getMarkers(sourceSection.content);
