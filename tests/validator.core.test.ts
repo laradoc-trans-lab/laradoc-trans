@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { validateCodeBlocks, validateInlineCode, validateSpecialMarkers } from '../src/validator/core';
+import { validateCodeBlocks, validateInlineCode, validateSpecialMarkers, getAnchorFromHtml } from '../src/validator/core';
 import { splitMarkdownIntoSections } from '../src/markdownParser';
 import { Section } from '../src/translator/Section';
 
@@ -37,8 +37,30 @@ describe('Validator Core Functions', () => {
     alertErrorSections = splitMarkdownIntoSections(alertErrorContent);
   });
 
+  describe('1. Regex helpers' , () => {
+    test(`getAnchorFromHtml() : <a name="test-section"> should be '#test-section'` , () => {
+      const html = '<a name="test-section"></a>';
+      expect(getAnchorFromHtml(html)).toBe('#test-section');
+    });
+  
+    test(`getAnchorFromHtml() : <input name="test-section"> should not match` , () => {
+      const html = '<input name="test-section">';
+      expect(getAnchorFromHtml(html)).toBe('');
+    });
+
+    test(`getAnchorFromHtml() : <a> without name attribute should not match` , () => {
+      const html = '<a></a>';
+      expect(getAnchorFromHtml(html)).toBe('');
+    });
+
+    test(`getAnchorFromHtml() : empty string should not match` , () => {
+      const html = '';
+      expect(getAnchorFromHtml(html)).toBe('');
+    });
+  });
+
   // 針對 `validateCodeBlocks` 函式進行測試
-  describe('validateCodeBlocks', () => {
+  describe('2. validateCodeBlocks', () => {
 
     // 測試案例：成功情境
     test('should return valid for a correctly translated file', () => {
@@ -84,7 +106,7 @@ describe('Validator Core Functions', () => {
   });
 
   // 針對 `validateInlineCode` 函式進行測試
-  describe('validateInlineCode', () => {
+  describe('3. validateInlineCode', () => {
 
     // 測試案例：成功情境
     test('should return valid for a correctly translated file', () => {
@@ -119,7 +141,7 @@ describe('Validator Core Functions', () => {
   });
 
   // 針對 `validateSpecialMarkers` 函式進行測試
-  describe('validateSpecialMarkers', () => {
+  describe('4. validateSpecialMarkers', () => {
 
     // 測試案例：成功情境
     test('should return valid for a correctly translated file', () => {
