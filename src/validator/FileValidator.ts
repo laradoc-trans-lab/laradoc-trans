@@ -4,7 +4,7 @@ import { FileValidationResult, ValidationStatus, SectionError } from './types';
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
-import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers } from './core';
+import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml } from './core';
 import  *  as debugKey from '../debugKey';
 
 interface PreambleEntry {
@@ -187,7 +187,7 @@ export class FileValidator {
 
   private findSectionByAnchor(anchor: string, sections: Section[]): Section | undefined {
     return sections.find(s => 
-        (s.anchorOfTitle && this.getAnchorFromHtml(s.anchorOfTitle) === anchor)
+        (s.anchorOfTitle && getAnchorFromHtml(s.anchorOfTitle) === anchor)
     );
   }
 
@@ -281,14 +281,7 @@ export class FileValidator {
     };
   }
 
-  private getAnchorFromHtml(html: string): string {
-    const match = html.match(/name=\"(.*?)\"/);
-    return match ? `#${match[1]}` : '';
-  }
 
-  private getAnchorFromTitle(title: string): string {
-    return title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  }
 
   private validateCodeBlocks(sourceSection: Section, targetSection: Section): SectionError['codeBlocks'] {
     return coreValidateCodeBlocks(sourceSection, targetSection);
