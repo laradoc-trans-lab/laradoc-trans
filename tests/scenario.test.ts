@@ -2,10 +2,14 @@ import { main } from '../src/main';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { RepositoryNotFoundError } from '../src/git';
+import { LlmApiQuotaError } from '../src/translator';
+import { createLlmModel } from '../src/llm';
 
-// 模擬 langchain，使其不真正執行 LLM API 呼叫
-jest.mock('@langchain/core/prompts');
-jest.mock('@langchain/google-genai');
+// 只模擬 llm 模組，以便在測試案例中可以控制其行為
+jest.mock('../src/llm');
+
+// Type-cast the mocked function to control its implementation in tests
+const mockedCreateLlmModel = createLlmModel as jest.Mock;
 
 const PROJECT_ROOT = process.cwd();
 const TESTS_DIR = path.join(PROJECT_ROOT, 'tests');
@@ -17,9 +21,6 @@ const WORKSPACE_TEMPLATE = path.join(TESTS_DIR, 'fixtures', 'workspace-template'
 process.env.WORKSPACE_PATH = WORKSPACE_PATH;
 
 describe('Scenario Testing', () => {
-
-  // 根據 TESTING.md，測試之間共享狀態，不使用 beforeAll/afterAll 清理。
-  // 第一個測試案例負責初始設定。
 
   afterAll(() => {
     // 根據舊測試案例的精神，不清除 tmp 目錄，以便手動檢查
@@ -52,6 +53,33 @@ describe('Scenario Testing', () => {
       if (await fs.pathExists(sourceGitDistPath)) {
         await fs.rename(sourceGitDistPath, sourceGitPath);
       }
+    }
+  });
+
+  // 測試案例 2: 模擬 LLM API 因配額用盡而返回錯誤
+  test('should throw LlmApiQuotaError when LLM API quota is exceeded', async () => {
+    // 準備：模擬 createLlmModel 回傳一個會拋出 LlmApiQuotaError 的模型
+    mockedCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          invoke: jest.fn().mockRejectedValue(new LlmApiQuotaError('API quota exceeded', 'DUMMY_KEY')),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      };
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--limit', '1', '--env', '.env.test'];
+
+      // 驗證：main() 應該會失敗，並拋出 LlmApiQuotaError
+      await expect(main(argv)).rejects.toThrow(LlmApiQuotaError);
+
+    } finally {
+      process.chdir(originalCwd);
     }
   });
 });
