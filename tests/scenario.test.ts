@@ -3,13 +3,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { RepositoryNotFoundError } from '../src/git';
 import { LlmApiQuotaError } from '../src/translator';
-import { createLlmModel } from '../src/llm';
-
-// 只模擬 llm 模組，以便在測試案例中可以控制其行為
-jest.mock('../src/llm');
-
-// Type-cast the mocked function to control its implementation in tests
-const mockedCreateLlmModel = createLlmModel as jest.Mock;
+import * as llm from '../src/llm';
 
 const PROJECT_ROOT = process.cwd();
 const TESTS_DIR = path.join(PROJECT_ROOT, 'tests');
@@ -58,8 +52,9 @@ describe('Scenario Testing', () => {
 
   // 測試案例 2: 模擬 LLM API 因配額用盡而返回錯誤
   test('should throw LlmApiQuotaError when LLM API quota is exceeded', async () => {
-    // 準備：模擬 createLlmModel 回傳一個會拋出 LlmApiQuotaError 的模型
-    mockedCreateLlmModel.mockImplementation(() => {
+    // 準備：使用 spyOn 來監視並修改 createLlmModel 的行為
+    const spy = jest.spyOn(llm, 'createLlmModel');
+    spy.mockImplementation(() => {
       return {
         model: {
           invoke: jest.fn().mockRejectedValue(new LlmApiQuotaError('API quota exceeded', 'DUMMY_KEY')),
@@ -80,6 +75,8 @@ describe('Scenario Testing', () => {
 
     } finally {
       process.chdir(originalCwd);
+      // 還原原始的函式實作
+      spy.mockRestore();
     }
   });
 });
