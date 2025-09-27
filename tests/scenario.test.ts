@@ -4,6 +4,8 @@ import * as path from 'path';
 import { RepositoryNotFoundError } from '../src/git';
 import { LlmApiQuotaError } from '../src/translator';
 import * as llm from '../src/llm';
+import * as translator from '../src/translator';
+import { readProgressFile } from '../src/progress';
 
 const PROJECT_ROOT = process.cwd();
 const TESTS_DIR = path.join(PROJECT_ROOT, 'tests');
@@ -16,13 +18,20 @@ process.env.WORKSPACE_PATH = WORKSPACE_PATH;
 
 describe('Scenario Testing', () => {
 
+  beforeAll(() => {
+    // 隱藏測試期間的 console 輸出，讓結果更乾淨
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
   afterAll(() => {
-    // 根據舊測試案例的精神，不清除 tmp 目錄，以便手動檢查
+    // 恢復所有 mock
+    jest.restoreAllMocks();
     delete process.env.WORKSPACE_PATH;
   });
 
   // 測試案例 1: 模擬用戶沒有準備 `workspace/repo/source`
-  test('should exit with error if workspace/repo/source is not prepared', async () => {
+  test('1. should exit with error if workspace/repo/source is not prepared', async () => {
     // 準備：清理上一次的執行，並建立一個空的 workspace
     await fs.remove(TESTS_TMP_DIR);
     await fs.ensureDir(WORKSPACE_PATH);
@@ -51,7 +60,7 @@ describe('Scenario Testing', () => {
   });
 
   // 測試案例 2: 模擬 LLM API 因配額用盡而返回錯誤
-  test('should throw LlmApiQuotaError when LLM API quota is exceeded', async () => {
+  test('2. should throw LlmApiQuotaError when LLM API quota is exceeded', async () => {
     // 準備：使用 spyOn 來監視並修改 createLlmModel 的行為
     const spy = jest.spyOn(llm, 'createLlmModel');
     spy.mockImplementation(() => {
@@ -61,7 +70,7 @@ describe('Scenario Testing', () => {
         },
         modelInfo: 'mocked model',
         apiKeyUsed: 'DUMMY_KEY',
-      };
+      } as unknown as llm.LlmModel;
     });
 
     const originalCwd = process.cwd();
@@ -77,6 +86,66 @@ describe('Scenario Testing', () => {
       process.chdir(originalCwd);
       // 還原原始的函式實作
       spy.mockRestore();
+    }
+  });
+
+  // 測試案例 3: 模擬成功翻譯一個檔案
+  test('3. should translate one file successfully', async () => {
+    // 準備：如同案例 2，使用 spyOn 模擬 createLlmModel
+    const spyCreateLlmModel = jest.spyOn(llm, 'createLlmModel');
+    spyCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          // 直接回傳一個假的翻譯結果字串
+          invoke: jest.fn().mockResolvedValue('[翻譯成功]'),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      } as unknown as llm.LlmModel;
+    });
+
+    // 根據使用者指示，在第 97 行處加入對 translateContent 的模擬
+    
+
+
+    let translatedFile = '';
+    const spyTranslateFile = jest.spyOn(translator, 'translateFile');
+    spyTranslateFile.mockImplementation(async (sourceFilePath: string, promptFilePath?: string): Promise<string>  => {
+        translatedFile = path.basename(sourceFilePath);
+        const originalContent = await fs.readFile(sourceFilePath, 'utf-8');
+        return `${originalContent}\n[翻譯成功]`;
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      // 執行：再次執行翻譯，這次應該會成功
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--limit', '1', '--env', '.env.test'];
+      await main(argv);
+
+      // 驗證：檢查結果檔案內容是否為我們模擬的假字串
+      const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp', translatedFile);
+      await expect(fs.pathExists(translatedFilePath)).resolves.toBe(true);
+
+      const originalFilePath = path.join(WORKSPACE_PATH, 'repo', 'source', translatedFile);
+      const originalContent = await fs.readFile(originalFilePath, 'utf-8');
+      const expectedContent = `${originalContent}\n[翻譯成功]`;
+      const content = await fs.readFile(translatedFilePath, 'utf-8');
+      expect(content).toBe(expectedContent);
+
+      // 檢查進度檔案
+      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp'));
+      expect(progressAfter?.get(translatedFile)).toBe(1);
+
+      // 驗證 target 目錄不應該存在該檔案
+      const targetFilePath = path.join(WORKSPACE_PATH, 'repo', 'target', translatedFile);
+      await expect(fs.pathExists(targetFilePath)).resolves.toBe(false);
+
+    } finally {
+      process.chdir(originalCwd);
+      spyCreateLlmModel.mockRestore();
+      spyTranslateFile.mockRestore();
     }
   });
 });
