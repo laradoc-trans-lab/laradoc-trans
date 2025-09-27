@@ -185,9 +185,15 @@ export class FileValidator {
     return entries;
   }
 
+  /**
+   * 在 Sections (陣列) 中尋找指定錨點的 Section
+   * @param anchor 
+   * @param sections 
+   * @returns 
+   */
   private findSectionByAnchor(anchor: string, sections: Section[]): Section | undefined {
     return sections.find(s => 
-        (s.anchorOfTitle && getAnchorFromHtml(s.anchorOfTitle) === anchor)
+        (s.anchorOfTitle && ('#' + getAnchorFromHtml(s.anchorOfTitle)) === anchor)
     );
   }
 

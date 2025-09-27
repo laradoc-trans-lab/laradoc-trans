@@ -34,14 +34,14 @@ const extractCodeBlocksFromMarkdown = (section: Section) => {
 /**
  * 由 HTML CODE 提取錨點內容 
  * 
- * 返回錨點時會加上 '#' ，例如 <a name="test"> , 返回 #test
+ * 返回錨點時會加上 例如 <a name="test"> , 返回 test
  * 
  * @param html
  * @returns 
  */
 export function getAnchorFromHtml(html: string): string {
   const match = html.match(/<a[^>]*name=\"(.*?)\"[^>]*>/);
-  return match ? `#${match[1]}` : '';
+  return match ? `${match[1]}` : '';
 }
 
 /**
