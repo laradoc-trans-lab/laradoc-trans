@@ -38,9 +38,9 @@ describe('Validator Core Functions', () => {
   });
 
   describe('1. Regex helpers' , () => {
-    test(`getAnchorFromHtml() : <a name="test-section"> should be '#test-section'` , () => {
+    test(`getAnchorFromHtml() : <a name="test-section"> should be 'test-section'` , () => {
       const html = '<a name="test-section"></a>';
-      expect(getAnchorFromHtml(html)).toBe('#test-section');
+      expect(getAnchorFromHtml(html)).toBe('test-section');
     });
   
     test(`getAnchorFromHtml() : <input name="test-section"> should not match` , () => {
