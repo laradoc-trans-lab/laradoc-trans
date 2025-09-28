@@ -1,6 +1,6 @@
 import { Section } from '../translator/Section';
 import { splitMarkdownIntoSections } from '../markdownParser';
-import { FileValidationResult, ValidationStatus, SectionError } from './types';
+import { FileValidationResult, ValidationStatus, SectionError, HeadingMismatch } from './types';
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
@@ -220,7 +220,7 @@ export class FileValidator {
   }
 
 
-  private validateHeadingsAndAnchors(): ValidationStatus & { missingCount: number; anchorMissingCount: number; } {
+  private validateHeadingsAndAnchors(): ValidationStatus & { missingCount: number; anchorMissingCount: number; mismatches: HeadingMismatch[] } {
     const targetPreamble = this.targetSections[0];
     if (!targetPreamble) return { isValid: true, missingCount: 0, anchorMissingCount: 0, mismatches: [] };
 
@@ -231,8 +231,18 @@ export class FileValidator {
     const mismatches: any[] = [];
     for (const entry of preambleEntries) {
         const targetSection = this.findSectionByAnchor(entry.anchor, this.targetSections);
-        if (!targetSection || targetSection.title.trim() !== entry.title.trim()) {
-            mismatches.push({ type: 'heading', link: `[${entry.title}](${entry.anchor})` });
+        if (!targetSection) {
+            mismatches.push({ 
+                type: 'heading_not_found', 
+                link: `[${entry.title}](${entry.anchor})` 
+            });
+        } else if (targetSection.title.trim() !== entry.title.trim()) {
+            mismatches.push({ 
+                type: 'heading_title_mismatch', 
+                link: `[${entry.title}](${entry.anchor})`,
+                expected: entry.title.trim(),
+                actual: targetSection.title.trim(),
+            });
         }
     }
 

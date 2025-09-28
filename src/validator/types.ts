@@ -1,8 +1,22 @@
+export interface HeadingNotFoundMismatch {
+  type: 'heading_not_found';
+  link: string;
+}
+
+export interface HeadingTitleMismatch {
+  type: 'heading_title_mismatch';
+  link: string;
+  expected: string;
+  actual: string;
+}
+
+export type HeadingMismatch = HeadingNotFoundMismatch | HeadingTitleMismatch;
+
 export interface FileValidationResult {
   fileName: string;
   status: 'Validated' | 'Unverifiable' | 'Skipped';
   preamble: ValidationStatus & { totalHeadings?: number };
-  headings: ValidationStatus & { missingCount: number; anchorMissingCount: number };
+  headings: ValidationStatus & { missingCount: number; anchorMissingCount: number; mismatches: HeadingMismatch[] };
   codeBlocks: ValidationStatus;
   inlineCode: ValidationStatus;
   specialMarkers: ValidationStatus;
