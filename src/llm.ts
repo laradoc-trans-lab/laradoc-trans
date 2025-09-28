@@ -15,6 +15,12 @@ export interface LlmModel {
   apiKeyUsed: string; // 新增：記錄使用的 API 金鑰
 }
 
+export interface ModelDetails {
+  provider: 'openai' | 'gemini';
+  modelName: string;
+  modelInfo: string;
+}
+
 // --- Gemini API Key Management ---
 let geminiApiKeys: string[] | null = null;
 let geminiApiKeyIndex = 0;
@@ -48,41 +54,64 @@ function getNextGeminiApiKey(): string {
 // ---------------------------------
 
 /**
+ * 獲取當前配置的 LLM 模型詳細資訊，但不建立模型實例。
+ * @returns 包含提供商、模型名稱和格式化資訊字串的物件。
+ */
+export function getModelInfo(): ModelDetails {
+  const provider = (process.env.LLM_PROVIDER || 'gemini') as 'openai' | 'gemini';
+
+  if (provider === 'openai') {
+    const modelName = process.env.OPENAI_MODEL || 'gpt-4o';
+    return {
+      provider: 'openai',
+      modelName,
+      modelInfo: `OpenAI (${modelName})`,
+    };
+  }
+
+  if (provider === 'gemini') {
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+    return {
+      provider: 'gemini',
+      modelName,
+      modelInfo: `Gemini (${modelName})`,
+    };
+  }
+
+  throw new Error(`Unsupported LLM_PROVIDER: ${provider}. Please use 'openai' or 'gemini'.`);
+}
+
+/**
  * 根據環境變數決定並建立一個 LLM 實例。
  * 這是唯一負責模型實例化的地方。
  * @returns 一個包含 LangChain 模型實例和模型資訊字串的物件。
  */
 export function createLlmModel(): LlmModel {
-  const provider = process.env.LLM_PROVIDER || 'gemini'; // 預設為 gemini
+  const { provider, modelName, modelInfo } = getModelInfo();
 
   if (provider === 'openai') {
     if (!process.env.OPENAI_API_KEY) {
       // Throw generic error
       throw new ApiKeyNotFoundError("API key for the selected LLM provider is not configured. Please check your .env file.");
     }
-    const modelName = process.env.OPENAI_MODEL || 'gpt-4o';
     return {
       model: new ChatOpenAI({
         modelName: modelName,
         apiKey: process.env.OPENAI_API_KEY,
       }),
-      modelInfo: `OpenAI (${modelName})`,
+      modelInfo: modelInfo,
       apiKeyUsed: process.env.OPENAI_API_KEY, // 回傳使用的 API 金鑰
     };
   }
 
-  if (provider === 'gemini') {
-    const apiKey = getNextGeminiApiKey();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
-    return {
-      model: new ChatGoogleGenerativeAI({
-        model: modelName,
-        apiKey: apiKey,
-      }),
-      modelInfo: `Gemini (${modelName})`,
-      apiKeyUsed: apiKey, // 回傳使用的 API 金鑰
-    };
-  }
-
-  throw new Error(`Unsupported LLM_PROVIDER: ${provider}. Please use 'openai' or 'gemini'.`);
+  // provider === 'gemini'
+  const apiKey = getNextGeminiApiKey();
+  return {
+    model: new ChatGoogleGenerativeAI({
+      model: modelName,
+      apiKey: apiKey,
+    }),
+    modelInfo: modelInfo,
+    apiKeyUsed: apiKey, // 回傳使用的 API 金鑰
+  };
 }

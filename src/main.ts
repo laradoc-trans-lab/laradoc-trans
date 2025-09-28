@@ -30,7 +30,7 @@ import { translateFile, TranslationError } from './translator/index';
 import { initI18n, _ } from './i18n';
 import { checkToolExistence, ToolNotFoundError } from './toolChecker';
 import { parseCliArgs, CliArgs, InitOptions, RunOptions, ValidateOptions } from './cli';
-import { ApiKeyNotFoundError, createLlmModel } from './llm';
+import { ApiKeyNotFoundError, createLlmModel, getModelInfo } from './llm';
 import { validateProject } from './validator/index';
 
 
@@ -155,7 +155,7 @@ async function handleRunCommand(options: RunOptions) {
         : _('Files to translate: {{count}}', { count: translationCount })
     );
     console.log(_('Using .env path: {{path}}', { path: options.env || './.env' }));
-    const { modelInfo } = createLlmModel();
+    const { modelInfo } = getModelInfo();
     console.log(_('Using LLM: {{modelInfo}}', { modelInfo }));
     console.log(_('------------------------------------'));
   } catch (error: unknown) {
