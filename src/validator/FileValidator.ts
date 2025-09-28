@@ -274,7 +274,7 @@ export class FileValidator {
     const mismatches: any[] = [];
     for (const entry of preambleEntries) {
         const targetSection = this.findSectionByAnchor(entry.anchor, this.targetSections);
-        if (!targetSection) {
+        if (!targetSection || targetSection.title.trim() !== entry.title.trim()) {
             mismatches.push({ type: 'heading', link: `[${entry.title}](${entry.anchor})` });
         }
     }
