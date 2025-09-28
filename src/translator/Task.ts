@@ -87,7 +87,10 @@ export class Task {
     // 規則 3: 進行大小判斷
     if (section.depth === 2 && lengthToAdd > BATCH_SIZE_LIMIT) {
       // H2 巨大區塊只能自己成為一個 task
-      return AddSectionStatus.hurgeSectionNeedSplit;
+      if (!this.isEmpty()) {
+        return AddSectionStatus.hurgeSectionNeedSplit;
+      }
+      // 如果任務是空的，則允許加入這個巨大區塊
     } else if(this.parentContext !== null && this.contentLength + lengthToAdd > BATCH_SIZE_LIMIT && !this.isEmpty()) {
       /** 加入的章節超過 BATCH_SIZE_LIMIT ，且有 parentContext , 且任務不只一個章節，需要另外開新任務 */
         return AddSectionStatus.exceedingBatchSizeOfParentContext;
