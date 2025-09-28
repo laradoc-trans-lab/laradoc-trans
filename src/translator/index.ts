@@ -153,7 +153,7 @@ async function translateContent(
         const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
         throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
       }
-      throw error;
+      throw new TranslationError( error.message );
     }
 
     const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -235,7 +235,7 @@ async function translateContent(
           const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
           throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
         }
-        throw error;
+        throw new TranslationError( error.message );
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);
