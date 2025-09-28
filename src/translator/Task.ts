@@ -15,6 +15,8 @@ export enum AddSectionStatus {
   exceedingBatchSize,
   /** 巨大章節必須分割 */
   hurgeSectionNeedSplit,
+  /** 任務是給序言專用的 */
+  taskIsPreamble,
 }
 
 /**
@@ -30,6 +32,7 @@ export class Task {
   public readonly id: number;
   public readonly parentContext: Section | null;
   public notes?: string;
+  private _isPreamble: boolean = false;
 
   /**
    * @param id 由 TaskFactory 分配的唯一 ID。
@@ -48,7 +51,15 @@ export class Task {
    * @param section 要加入的 Section。
    * @returns 如果成功加入則回傳 true，否則回傳 false。
    */
-  addSection(section: Section): AddSectionStatus {
+  addSection(section: Section, isPreamble: boolean = false): AddSectionStatus {
+    if (this._isPreamble) {
+      return AddSectionStatus.taskIsPreamble;
+    }
+
+    if (isPreamble) {
+      this._isPreamble = true;
+    }
+
     // 規則 1: 如果有上下文，檢查 section 是否屬於該上下文。
     // 允許 section 就是 parentContext 本身。
     if (this.parentContext && this.parentContext !== section) {
@@ -117,5 +128,9 @@ export class Task {
 
   isEmpty(): boolean {
     return this.sections.length === 0;
+  }
+
+  isPreamble(): boolean {
+    return this._isPreamble;
   }
 }

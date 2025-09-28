@@ -33,15 +33,19 @@
 
 ## 2. 核心問題
 
-語言模型 (LLM) 如 Gemini，在處理過長的單次請求時，可能會在未達到理論 Token 上限（如 64K）的情況下，無預警地中斷輸出。這是一個必須透過應用層邏輯來規避的外部現實約束。
+1.  **LLM 輸出中斷**：語言模型 (LLM) 如 Gemini，在處理過長的單次請求時，可能會在未達到理論 Token 上限的情況下無預警地中斷輸出。
+2.  **標題翻譯不一致**：當文件被分割翻譯時，序言中的目錄（Table of Contents, TOC）與後續章節的實際標題可能被翻譯成意思相近但文字不同的結果（例如，目錄中的 `[安裝命令](#install-command)` 與章節標題 `## 安裝指令`）。這影響了閱讀體驗和連結的準確性。
 
-## 3. 解決方案：切割文章
+## 3. 解決方案：切割文章並引入序言優先策略
 
-為了確保翻譯的穩定性和完整性，我們不能將整篇 Markdown 文件一次性發送給 LLM。必須將其切割成多個更小的「任務 (Task)」，並分批發送進行翻譯。
+為了確保翻譯的穩定性、完整性與一致性，我們採用了切割任務與「序言優先」的策略。
+
+1.  **切割任務**：將整篇 Markdown 文件切割成多個更小的「任務 (Task)」，並分批發送進行翻譯，以規避 LLM 輸出中斷的問題。
+2.  **序言優先 (Preface-First)**：如果文件的第一個章節 (`Section[0]`) 包含目錄，則優先、獨立地翻譯該章節。然後，將其翻譯結果作為上下文，強制後續所有章節的標題翻譯必須與該目錄中的標題完全一致。此上下文將在任務執行階段被應用。
 
 ## 4. 設計挑戰
 
-切割任務的核心挑戰在於，如何在遵守大小限制（目前為 10KB）的同時，盡可能地保持文章的邏輯完整性，並最大化 API 請求的經濟效益。我們不希望將一個只有三行的小段落也當成一個獨立的 `Task`。
+切割任務的核心挑戰在於，如何在遵守大小限制（目前為 10KB）的同時，盡可能地保持文章的邏輯完整性，並最大化 API 請求的經濟效益。我們不希望將一個只有三行的小段落也當成一個獨立的 `Task`。而「序言優先」策略則引入了對任務分配順序的特殊考量。
 
 ## 5. 最終設計方案詳解
 
@@ -94,44 +98,63 @@ function addSection(section):
     return true
 ```
 
-### 5.4. `translateFile`：雙分支執行者
+### 5.4. `translateFile`：任務分配流程 (含序言優先策略)
 
-與規格書之前版本的簡化模型不同，`translator/index.ts` 中實際的 `translateFile` 函式採用了一種更強大的**雙分支迴圈**邏輯，以應對「普通章節」和「巨大 H2 章節」這兩種情況。
+為了同時解決輸出中斷和標題不一致的問題，`translator/index.ts` 中的 `translateFile` 函式負責**一次性分配所有翻譯任務**。這個分配過程會考量序言的特殊性，並生成一個完整的任務列表，供後續的執行階段使用。
 
-其執行流程的虛擬碼如下：
+其任務分配流程的虛擬碼如下：
 
 ```pseudocode
-function translateFile(all_sections):
+function translateFile(all_sections): // 此函式負責生成所有任務列表
     tasks = []
     task_factory = new TaskFactory()
-    current_task = task_factory.createTask()
+    sections_to_process = all_sections // 初始設定為所有章節
 
-    for section in all_sections:
+    // =================================================
+    // 階段一: 處理 Section[0] 的特殊情況 (序言優先分配)
+    // =================================================
+    const preface_section = all_sections[0]
+    if (preface_section.has_table_of_contents()): // 假設 Section 物件有判斷是否包含目錄的方法
+        // 為序言建立一個獨立的任務，確保 Task[0] 只包含 Section[0]
+        const preface_task = task_factory.createTask()
+        preface_task.add(preface_section)
+        tasks.push(preface_task)
+        
+        // 剩餘的章節從 Section[1] 開始進行批次分配
+        sections_to_process = all_sections.slice(1)
+    
+    // =================================================
+    // 階段二: 處理剩餘章節的正常批次分配
+    // =================================================
+    let current_task = task_factory.createTask() // 建立一個新的任務來收集章節
+
+    for section in sections_to_process:
         // 分支 1: 遇到巨大 H2，進入「子分割」模式
         if section.is_huge_h2():
-            // 結束並儲存目前累積的普通任務
             if not current_task.is_empty():
                 tasks.push(current_task)
-            current_task = null
-
-            // 為這個巨大 H2 建立一個或多個帶有上下文的任務
+            
+            // 為巨大 H2 建立一個或多個帶有上下文的任務
+            // 這裡的上下文是指 Section 的 parentContext，用於確保邏輯結構，而非 LLM 的 prompt_context
             sub_divide_huge_h2_into_tasks(section, tasks)
             
-            // 跳過本次主迴圈的剩餘部分
+            current_task = task_factory.createTask() // 重置 current_task 以收集後續章節
             continue
 
         // 分支 2: 處理普通章節
         if current_task.is_full_with(section):
             tasks.push(current_task)
-            current_task = task_factory.createTask()
+            current_task = task_factory.createTask() // 任務已滿，建立新任務
         
         current_task.add(section)
 
-    // 儲存最後一個任務
+    // =================================================
+    // 階段三: 收尾 (儲存最後一個任務)
+    // =================================================
     if not current_task.is_empty():
         tasks.push(current_task)
 
-    return tasks
+    return tasks // 返回所有已分配好的任務列表，供執行階段使用
 ```
 
 ## 6. 總結：Section 一維化設計的核心優勢

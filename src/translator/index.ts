@@ -9,10 +9,12 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
+import { extractPreambleEntries } from '../validator/core';
 import { debugLog } from '../debugLogger';
 import { debugLlmDetails } from '../debugLlmDetails';
 import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
+import { getPromptTemplate } from './prompts';
 
 // --- 錯誤類別定義 ---
 
@@ -79,6 +81,7 @@ async function translateContent(
   progressManager: ProgressManager,
   sourceFilePath: string,
   apiKeyUsed: string,
+  preambleContext?: string, // 新增可選參數
 ): Promise<{ task: Task; translatedContent: string }> {
   const { model } = createLlmModel();
   const startTime = Date.now();
@@ -88,25 +91,10 @@ async function translateContent(
   
   progressManager.startTask(taskId);
 
-  const initialTemplate = `
-{style_guide}
-
-In order to let you understand the context, below is the full original document, followed by the specific section you need to translate.
-
-<!-- FULL_CONTEXT_START -->
-{full_context}
-<!-- FULL_CONTEXT_END -->
-
-Please translate ONLY the following section into Traditional Chinese. Do not output anything else, just the translated text of this section.
-
-Section to translate:
-
-<!-- SECTION_TO_TRANSLATE_START -->
-{section_to_translate}
-<!-- SECTION_TO_TRANSLATE_END -->
-`;
-
-  const chain = PromptTemplate.fromTemplate(initialTemplate).pipe(model).pipe(new StringOutputParser());
+  const hasPreamble = !!preambleContext;
+  const template = getPromptTemplate({ isRetry: false, hasPreamble });
+  const prompt = PromptTemplate.fromTemplate(template);
+  const chain = prompt.pipe(model).pipe(new StringOutputParser());
 
   let totalBytes = 0;
   let fullResponse = '';
@@ -115,12 +103,20 @@ Section to translate:
     const styleGuidePath = `[From prompt file: ${cachedPromptPath}]`;
     const fullContextPath = `[From source file: ${sourceFilePath}]`;
     const sectionPreview = contentToTranslate.split('\n').slice(0, 5).join('\n') + '\n[...]';
-    
-    const initialPromptFormatted = await PromptTemplate.fromTemplate(initialTemplate).format({
+
+    // 動態建立日誌用的 prompt 變數
+    const formatVariables: any = {
       style_guide: styleGuidePath,
       full_context: fullContextPath,
       section_to_translate: sectionPreview,
-    });
+    };
+    if (preambleContext) {
+      const preambleLogFilename = await debugLlmDetails(preambleContext, 'preamble_context');
+      formatVariables.preamble_context = preambleLogFilename 
+        ? `See debug_llm_details/${preambleLogFilename} for details.`
+        : `[Preamble context could not be logged]`;
+    }
+    const initialPromptFormatted = await prompt.format(formatVariables);
 
     const detailLogFilename = await debugLlmDetails(contentToTranslate);
     const logMessage = detailLogFilename
@@ -130,11 +126,16 @@ Section to translate:
     await debugLog(`Initial prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessage}`);
 
     try {
-      const stream = await chain.stream({
+      // 動態建立 stream 用的變數
+      const streamVariables: any = {
         style_guide: styleGuide,
         full_context: fullContext,
         section_to_translate: contentToTranslate,
-      });
+      };
+      if (preambleContext) {
+        streamVariables.preamble_context = preambleContext;
+      }
+      const stream = await chain.stream(streamVariables);
 
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -155,62 +156,49 @@ Section to translate:
       throw error;
     }
 
-    const validationResult = validateBatch(contentToTranslate, fullResponse);
+    const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
 
     if (!validationResult.isValid) {
       const originalStartTime = progressManager.getStartTime(taskId) || startTime;
       const duration = (Date.now() - originalStartTime) / 1000;
-      // 更新原始任務的狀態與備註
       progressManager.updateTask(taskId, { 
         status: TaskStatus.Retrying,
         time: parseFloat(duration.toFixed(1)),
         notes: _('Validation failed'),
       });
-      task.notes = _('Validation failed'); // 更新 Task 物件本身
+      task.notes = _('Validation failed');
 
       const retryId = `${taskId}-retry`;
       const retryTitle = `(Retry) ${taskTitle}`;
       const newTaskNumber = progressManager.getTaskCount() + 1;
       progressManager.addTask(retryId, retryTitle, newTaskNumber, task.getContentLength());
       
-      // 為重試任務設定備註
       const retryNote = _('Retranslating Task {{id}}', { id: task.id + 1 });
       progressManager.updateTask(retryId, { notes: retryNote });
 
       progressManager.startTask(retryId);
       const retryStartTime = Date.now();
 
-      const retryTemplate = `The previous translation failed validation. Please correct the following errors and re-translate the original text.
-
-Errors:
-- {errors}
-
-Remember to follow these style guides:
-{style_guide}
-
-For context, here is the full original document:
-<!-- FULL_CONTEXT_START -->
-{full_context}
-<!-- FULL_CONTEXT_END -->
-
-Please translate ONLY the following section into Traditional Chinese. Do not output anything else, just the translated text of this section.
-
-Section to translate:
-<!-- SECTION_TO_TRANSLATE_START -->
-{section_to_translate}
-<!-- SECTION_TO_TRANSLATE_END -->
-`;
-      const retryChain = PromptTemplate.fromTemplate(retryTemplate).pipe(model).pipe(new StringOutputParser());
+      const retryTemplate = getPromptTemplate({ isRetry: true, hasPreamble });
+      const retryPrompt = PromptTemplate.fromTemplate(retryTemplate);
+      const retryChain = retryPrompt.pipe(model).pipe(new StringOutputParser());
 
       fullResponse = '';
       totalBytes = 0;
 
-      const retryPromptFormatted = await PromptTemplate.fromTemplate(retryTemplate).format({
+      const retryFormatVariables: any = {
         errors: validationResult.errors.join('\n- '),
         style_guide: styleGuidePath,
         full_context: fullContextPath,
         section_to_translate: sectionPreview,
-      });
+      };
+      if (preambleContext) {
+        const preambleLogFilename = await debugLlmDetails(preambleContext, 'preamble_context_retry');
+        retryFormatVariables.preamble_context = preambleLogFilename
+          ? `See debug_llm_details/${preambleLogFilename} for details.`
+          : `[Preamble context could not be logged]`;
+      }
+      const retryPromptFormatted = await retryPrompt.format(retryFormatVariables);
 
       const detailLogFilenameRetry = await debugLlmDetails(contentToTranslate, 'retry_section_to_translate');
       const logMessageRetry = detailLogFilenameRetry
@@ -220,12 +208,16 @@ Section to translate:
       await debugLog(`Retry prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessageRetry}`);
 
       try {
-        const retryStream = await retryChain.stream({
+        const retryStreamVariables: any = {
           style_guide: styleGuide,
           full_context: fullContext,
           section_to_translate: contentToTranslate,
           errors: validationResult.errors.join('\n- '),
-        });
+        };
+        if (preambleContext) {
+          retryStreamVariables.preamble_context = preambleContext;
+        }
+        const retryStream = await retryChain.stream(retryStreamVariables);
 
         for await (const chunk of retryStream) {
           fullResponse += chunk;
@@ -246,7 +238,7 @@ Section to translate:
         throw error;
       }
 
-      const secondValidation = validateBatch(contentToTranslate, fullResponse);
+      const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);
       if (!secondValidation.isValid) {
         progressManager.collectWarning(_('Re-translation for section "{{sectionTitle}}" failed validation again, but the result will be accepted.', { sectionTitle: taskTitle }));
       }
@@ -290,12 +282,24 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     });
 
     const tasks: Task[] = [];
+    let sectionStartIndex = 0;
+
+    // 檢查是否存在序言
+    const preambleEntries = extractPreambleEntries(allSections[0]);
+    if (preambleEntries.length > 0 && allSections.length > 0) {
+      const preambleTask = taskFactory.createTask(); // This is Task ID 0
+      preambleTask.addSection(allSections[0], true);
+      tasks.push(preambleTask);
+      sectionStartIndex = 1;
+    }
+
+    // 只有在處理完序言後，才為剩餘的 sections 建立第一個 currentTask
     let currentTask: Task = taskFactory.createTask();
 
     // 遍歷所有章節，執行雙分支任務分配邏輯：
     // 1. 如果是普通章節，則嘗試將其加入當前任務。
     // 2. 如果遇到巨大 H2 章節或上下文變更，則結束當前任務，並為新章節建立合適的新任務。
-    for (let i = 0; i < allSections.length; i++) {
+    for (let i = sectionStartIndex; i < allSections.length; i++) {
       const section = allSections[i];
       const addStatus = currentTask.addSection(section);
       if(AddSectionStatus.success !== addStatus) {
@@ -348,7 +352,8 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
         const sectionsLog = task.getSections().map(section =>
           `  * ${'#'.repeat(section.depth)} ${section.title} (contentLength: ${section.contentLength} , totalLength:${section.totalLength}) `
         ).join('\n');
-        return `- Task ${task.id + 1} (Lines ${task.getStartLine()}-${task.getEndLine()}) (contentLength: ${task.getContentLength()}) (parentContext: '${task.parentContext?.title}') \n${sectionsLog}`;
+        const isPreamble = task.isPreamble();
+        return `- Task ${task.id + 1} ${isPreamble ? '(Preamble)' : ''} (Lines ${task.getStartLine()}-${task.getEndLine()}) (contentLength: ${task.getContentLength()}) (parentContext: '${task.parentContext?.title}') \n${sectionsLog}`;
       }),
       '---------------------------------'
     ].join('\n');
@@ -363,14 +368,40 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     // process.exit(1);
   
 
-    // 為所有任務建立翻譯承諾
-    const translationPromises = nonEmptyTasks.map((task) => {
+    // 為所有任務註冊進度條
+    nonEmptyTasks.forEach(task => {
       const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
       progressManager.addTask(taskId, task.getTitle(), task.id + 1, task.getContentLength());
-      return limit(() => translateContent(styleGuide, sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed));
     });
 
-    const translatedTasks = await Promise.all(translationPromises);
+    // 執行翻譯流程
+    let preambleTask: Task | undefined;
+    if (nonEmptyTasks.length > 0 && nonEmptyTasks[0].isPreamble()) {
+      preambleTask = nonEmptyTasks.shift();
+    }
+
+    let preambleTranslationResult = '';
+    let translatedTasks: { task: Task; translatedContent: string }[] = [];
+
+    if (preambleTask) {
+      const result = await translateContent(styleGuide, sanitizedFileContent, preambleTask!, progressManager, sourceFilePath, apiKeyUsed);
+      preambleTranslationResult = result.translatedContent;
+      if (!preambleTranslationResult) {
+        throw new TranslationError(_('Preamble translation failed, stopping the process.'));
+      }
+      // 將序言的翻譯結果先放入最終結果陣列
+      translatedTasks.push(result);
+    }
+
+    if (nonEmptyTasks.length > 0) {
+      const translationPromises = nonEmptyTasks.map((task) => {
+        // 為剩餘任務傳入序言翻譯結果
+        return limit(() => translateContent(styleGuide, sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed, preambleTranslationResult));
+      });
+  
+      const remainingTranslatedTasks = await Promise.all(translationPromises);
+      translatedTasks.push(...remainingTranslatedTasks);
+    }
 
     progressManager.stop();
     progressManager.printCollectedWarnings();

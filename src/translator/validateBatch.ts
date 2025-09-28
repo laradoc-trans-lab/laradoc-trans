@@ -6,6 +6,8 @@ import {
   validateCodeBlocks,
   validateSpecialMarkers,
   validateInlineCode,
+  extractPreambleEntries,
+  getAnchorFromHtml,
 } from '../validator/core';
 import { splitMarkdownIntoSections } from '../markdownParser';
 
@@ -24,16 +26,44 @@ export interface BatchValidationResult {
  * Validates a batch of markdown content in memory.
  * @param originalContent The original markdown content.
  * @param translatedContent The translated markdown content.
+ * @param preambleContext The translated content of the preamble section, if available.
  * @returns A promise that resolves to a BatchValidationResult.
  */
 export function validateBatch(
   originalContent: string,
   translatedContent: string,
+  preambleContext?: string,
 ): BatchValidationResult {
   const errors: string[] = [];
 
   const originalSections = splitMarkdownIntoSections(originalContent);
   const translatedSections = splitMarkdownIntoSections(translatedContent);
+
+  // 0. (New) Preamble-based Title Validation
+  if (preambleContext) {
+    const preambleSections = splitMarkdownIntoSections(preambleContext);
+    if (preambleSections.length > 0) {
+      const preambleToc = extractPreambleEntries(preambleSections[0]);
+      const preambleTitleMap = new Map(preambleToc.map(entry => [entry.anchor, entry.title]));
+
+      if (preambleTitleMap.size > 0) {
+        for (const section of translatedSections) {
+          // It's a heading with an anchor. Use getAnchorFromHtml to extract the clean anchor.
+          if (section.depth > 1 && section.anchorOfTitle) { 
+            const cleanAnchor = getAnchorFromHtml(section.anchorOfTitle);
+            const expectedTitle = preambleTitleMap.get(`#${cleanAnchor}`);
+            
+            // If the anchor exists in the preamble's TOC, its title must match.
+            if (expectedTitle && section.title !== expectedTitle) {
+              errors.push(
+                `Title consistency failed for "${section.title}". The preamble expects it to be "${expectedTitle}". Please correct it.`
+              );
+            }
+          }
+        }
+      }
+    }
+  }
 
   // 1. 驗證標題數量
   if (originalSections.length !== translatedSections.length) {
