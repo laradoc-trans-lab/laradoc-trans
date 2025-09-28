@@ -203,7 +203,7 @@ async function handleRunCommand(options: RunOptions) {
     console.log(_('Resuming previous translation session.'));
   }
 
-  const filesToTranslate = Array.from(progress.entries()).filter(([, status]) => status === 0).map(([file]) => file);
+  const filesToTranslate = Array.from(progress.entries()).filter(([, status]) => status === 0 || status === 2).map(([file]) => file);
   if (filesToTranslate.length === 0) {
     console.log(_('All translations are complete.'));
     return;
@@ -222,8 +222,9 @@ async function handleRunCommand(options: RunOptions) {
 
     if (['license.md', 'readme.md'].includes(file)) {
       await fs.copyFile(sourcePath, targetPath);
-      progress.set(file, 1);
       console.log(_('Skipped translation for {{file}}. Copied directly.', { file }));
+      
+      progress.set(file, 1);
       await writeProgressFile(paths.tmp, progress);
       continue;
     }
@@ -232,17 +233,19 @@ async function handleRunCommand(options: RunOptions) {
       console.log(_('\nTranslating: {{file}}...', { file }));
       const translatedContent = await translateFile(sourcePath, options.promptFile);
       await fs.writeFile(targetPath, translatedContent);
-      progress.set(file, 1);
+
+      progress.set(file , 1);
+      await writeProgressFile(paths.tmp, progress);
     } catch (error: any) {
+      progress.set(file, 2); // Mark as failed
+      await writeProgressFile(paths.tmp, progress);
       const errorMessage = error.message || _('An unknown error occurred.');
       console.error(_('FAILED to translate {{file}}: {{message}}', { file, message: errorMessage }));
-      await writeProgressFile(paths.tmp, progress);
       const logFilePath = path.join(paths.logs, 'error.log');
       await fs.appendFile(logFilePath, `[${new Date().toISOString()}] FAILED to translate ${file}: ${errorMessage}\n\n`);
       console.error(_('Error details logged to {{path}}', { path: logFilePath }));
       throw error;
     }
-    await writeProgressFile(paths.tmp, progress);
   }
 
   const allFilesComplete = Array.from(progress.values()).every(status => status === 1);
@@ -252,6 +255,16 @@ async function handleRunCommand(options: RunOptions) {
     for (const file of files) {
       const source = path.join(paths.tmp, file);
       const destination = path.join(paths.target, file);
+
+      try {
+        // 判斷檔案能不能讀寫，加入這段是確保接下來的複製與刪除都不會出錯
+        // 例如 fs.copyFile 若出錯似乎不會拋出 Error , 但 exit code 是 1
+        await fs.access(source,fs.constants.W_OK);
+      } catch(e) {
+        console.error(`Error ! The file ${source} can not be access. Please check the permissions of ${source} .`);
+        throw e;
+      }
+
       await fs.mkdir(path.dirname(destination), { recursive: true });
       await fs.copyFile(source, destination);
     }
