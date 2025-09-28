@@ -26,8 +26,6 @@ const extractCodeBlocksFromMarkdown = (section: Section) => {
     console.log('------------------------');
   });
   */
-
-
   return codeBlocks;
 };
 
@@ -135,4 +133,57 @@ export function validateSpecialMarkers(sourceSection: Section, targetSection: Se
   const isValid = mismatches.length === 0 && sourceMarkers.length === targetMarkers.length;
 
   return { isValid, sourceCount: sourceMarkers.length, targetCount: targetMarkers.length, mismatches };
+}
+
+export interface PreambleEntry {
+  anchor: string;
+  title: string;
+  depth: number;
+}
+
+/**
+ * 將前言(序言)中的目錄索引轉換為 PreambleEntry[]
+ * 
+ * @param preambleSection 
+ * @returns 
+ */
+export function extractPreambleEntries(preambleSection: Section): PreambleEntry[] {
+  const entries: PreambleEntry[] = [];
+  if (!preambleSection) return entries;
+
+  const ast = remark().parse(preambleSection.content);
+
+  const visitNodes = (node: any, depth: number) => {
+    if (node.type === 'list') {
+      node.children.forEach((listItem: any) => {
+        if (listItem.type !== 'listItem') return;
+
+        let entry: Partial<PreambleEntry> = { depth };
+        let nestedList: any = null;
+
+        listItem.children.forEach((itemChild: any) => {
+          if (itemChild.type === 'paragraph') {
+            const linkNode = itemChild.children?.[0];
+            if (linkNode && linkNode.type === 'link') {
+              entry.title = linkNode.children.map((child: any) => child.value).join('');
+              entry.anchor = linkNode.url;
+            }
+          } else if (itemChild.type === 'list') {
+            nestedList = itemChild;
+          }
+        });
+
+        if (entry.title && entry.anchor) {
+          entries.push(entry as PreambleEntry);
+        }
+
+        if (nestedList) {
+          visitNodes(nestedList, depth + 1);
+        }
+      });
+    }
+  };
+
+  (ast.children || []).forEach(node => visitNodes(node, 1));
+  return entries;
 }

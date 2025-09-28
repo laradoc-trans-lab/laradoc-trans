@@ -4,14 +4,10 @@ import { FileValidationResult, ValidationStatus, SectionError } from './types';
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
-import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml } from './core';
+import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml, extractPreambleEntries, PreambleEntry } from './core';
 import  *  as debugKey from '../debugKey';
 
-interface PreambleEntry {
-  anchor: string;
-  title: string;
-  depth: number;
-}
+
 
 export class FileValidator {
   private sourceContent: string;
@@ -47,7 +43,7 @@ export class FileValidator {
       const headingsResult = this.validateHeadingsAndAnchors();
       const sectionErrors: SectionError[] = [];
 
-      const preambleEntries = this.getPreambleEntries(this.sourceSections[0]);
+      const preambleEntries = extractPreambleEntries(this.sourceSections[0]);
 
 
       // debugKey.execute('currentValidateFile' , 'blade.md' , () => console.log('DEBUG: Parsed Preamble Entries:', JSON.stringify(preambleEntries, null, 2)));
@@ -144,46 +140,7 @@ export class FileValidator {
     return contentParts.join('\n\n');
   }
 
-  private getPreambleEntries(preambleSection: Section): PreambleEntry[] {
-    const entries: PreambleEntry[] = [];
-    if (!preambleSection) return entries;
 
-    const ast = remark().parse(preambleSection.content);
-
-    const visitNodes = (node: any, depth: number) => {
-      if (node.type === 'list') {
-        node.children.forEach((listItem: any) => {
-          if (listItem.type !== 'listItem') return;
-
-          let entry: Partial<PreambleEntry> = { depth };
-          let nestedList: any = null;
-
-          listItem.children.forEach((itemChild: any) => {
-            if (itemChild.type === 'paragraph') {
-              const linkNode = itemChild.children?.[0];
-              if (linkNode && linkNode.type === 'link') {
-                entry.title = linkNode.children.map((child: any) => child.value).join('');
-                entry.anchor = linkNode.url;
-              }
-            } else if (itemChild.type === 'list') {
-              nestedList = itemChild;
-            }
-          });
-
-          if (entry.title && entry.anchor) {
-            entries.push(entry as PreambleEntry);
-          }
-
-          if (nestedList) {
-            visitNodes(nestedList, depth + 1);
-          }
-        });
-      }
-    };
-
-    (ast.children || []).forEach(node => visitNodes(node, 1));
-    return entries;
-  }
 
   /**
    * 在 Sections (陣列) 中尋找指定錨點的 Section
@@ -231,8 +188,8 @@ export class FileValidator {
         return { isValid: false, mismatches: [{type: 'Preamble not found'}] };
     }
 
-    const sourceEntries = this.getPreambleEntries(sourcePreamble);
-    const targetEntries = this.getPreambleEntries(targetPreamble);
+    const sourceEntries = extractPreambleEntries(sourcePreamble);
+    const targetEntries = extractPreambleEntries(targetPreamble);
 
     /*
     debugKey.execute('currentValidateFile', 'blade.md', () => {
@@ -268,7 +225,7 @@ export class FileValidator {
     if (!targetPreamble) return { isValid: true, missingCount: 0, anchorMissingCount: 0, mismatches: [] };
 
     // 取得序言中的條目，並過濾掉非錨點連結 (例如，外部 URL)，因為它們不會出現在文件內文中。
-    const preambleEntries = this.getPreambleEntries(targetPreamble)
+    const preambleEntries = extractPreambleEntries(targetPreamble)
       .filter(entry => entry.anchor.startsWith('#'));
 
     const mismatches: any[] = [];
