@@ -230,7 +230,7 @@ async function handleRunCommand(options: RunOptions) {
     }
 
     try {
-      console.log(_('\nTranslating: {{file}}...', { file }));
+      console.log('\n' + _('Translating: {{file}}...', { file }));
       const translatedContent = await translateFile(sourcePath, options.promptFile);
       await fs.writeFile(targetPath, translatedContent);
 
@@ -250,7 +250,7 @@ async function handleRunCommand(options: RunOptions) {
 
   const allFilesComplete = Array.from(progress.values()).every(status => status === 1);
   if (allFilesComplete) {
-    console.log(_('\nAll translations complete. Finalizing...'));
+    console.log('\n' + _('All translations complete. Finalizing...'));
     const files = Array.from(progress.keys());
     for (const file of files) {
       const source = path.join(paths.tmp, file);
@@ -275,7 +275,7 @@ async function handleRunCommand(options: RunOptions) {
     await cleanTmpDirectory(paths.tmp);
     console.log(_('Translation process completed successfully!'));
   } else {
-    console.log(_('\nTranslation run finished. Not all files are complete. Run again to continue.'));
+    console.log('\n' + _('Translation run finished. Not all files are complete. Run again to continue.'));
   }
 }
 

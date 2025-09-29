@@ -1,6 +1,7 @@
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
+import { _ } from './i18n';
 
 export interface InitOptions {
   workspacePath?: string;
@@ -23,6 +24,13 @@ export interface CliArgs {
   command: 'init' | 'run' | 'validate';
   options: InitOptions | RunOptions | ValidateOptions;
 }
+
+const parseLimit = (value: string): number => {
+  if (!/^[0-9]+$/.test(value)) {
+    throw new InvalidArgumentError(_('The --limit option must be a number.'));
+  }
+  return parseInt(value, 10);
+};
 
 export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
   const program = new Command();
@@ -56,7 +64,7 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
     .option(
       '--limit <number>',
       'Limit the number of files to translate.',
-      (value) => parseInt(value, 10)
+      parseLimit
     )
     .option('--all', 'Translate all remaining files.', false)
     .option('--env <path>', 'Path to the .env file.')
