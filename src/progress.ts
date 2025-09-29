@@ -96,6 +96,14 @@ export async function readProgressFile(tmpPath: string): Promise<Progress | null
 export async function writeProgressFile(tmpPath: string, progress: Progress): Promise<void> {
   const filePath = path.join(tmpPath, PROGRESS_FILE);
   let content = '';
+
+  if(progress.size === 0) {
+    // 有發生過 progress 為 0 的情況，這種情況發生在有 Exception 產生的時候
+    // 不知道是不是 nodeJs bug
+    // 所以當 progress.size 是 0 的情況，不寫入
+    return;
+  }
+
   for (const [file, status] of progress.entries()) {
     content += `${file} = ${status}\n`;
   }
