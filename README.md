@@ -63,13 +63,16 @@
     # 完成後，請查看 `workspace/validate-report` 目錄下的報告
     ```
 
-## 📚 深入了解
+## 深入了解
 
 - **想知道更多的用法？**
   請閱讀 ➡️ **[使用者指南 (User Guide)](./docs/USER_GUIDE.md)**
 
 - **想了解程式內部設計或參與開發？**
   請閱讀 ➡️ **[開發者指南 (Developer Guide)](./docs/DEVELOPER_GUIDE.md)**
+
+- **想知道如何利用 `validate` 命令提升翻譯品質？**
+  請閱讀 ➡️ **[Validate 指南](./docs/VALIDATE_GUIDE.md)**
 
 ## 👨‍💻 作者
 
