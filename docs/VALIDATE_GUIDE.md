@@ -67,22 +67,22 @@
 ### 程式碼區塊不符
 - **問題**: 內容不符 (區塊 1/1)
 - **原文 (來源檔案第 58 行開始)**:
-  ```php
-  use Illuminate\Support\Facades\Cache;
-  Route::get('/cache', function () {
-      $value = Cache::get('key');
-      //
-  });
-  ```
+    ```php
+    use Illuminate\Support\Facades\Cache;
+    Route::get('/cache', function () {
+        $value = Cache::get('key');
+        //
+    });
+    ```
 - **譯文不符(譯文檔案第 60 行開始)**:
-  ```php
-  use Illuminate\Support\Facades\Cache;
-  Route::get('/cache', function () {
-      // 譯註：從快取中獲取 'key' 的值
-      $value = Cache::get('key');
-      //
-  });
-  ```
+    ```php
+    use Illuminate\Support\Facades\Cache;
+    Route::get('/cache', function () {
+        // 譯註：從快取中獲取 'key' 的值
+        $value = Cache::get('key');
+        //
+    });
+    ```
 ```
 > 上例清楚地顯示，譯文的程式碼區塊中被錯誤地加入了一行「譯註」，這就是需要修正的地方。
 
