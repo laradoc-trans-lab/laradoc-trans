@@ -32,7 +32,9 @@ export async function readSourceCommit(targetPath: string): Promise<string | nul
  */
 export async function writeSourceCommit(targetPath: string, hash: string): Promise<void> {
   const filePath = path.join(targetPath, SOURCE_COMMIT_FILE); // Use single constant
-  await fs.writeFile(filePath, hash);
+  const tmpFilePath = `${filePath}.tmp`;
+  await fs.writeFile(tmpFilePath, hash);
+  await fs.rename(tmpFilePath, filePath);
 }
 
 /**
@@ -60,7 +62,9 @@ export async function readTmpSourceCommit(tmpPath: string): Promise<string | nul
  */
 export async function writeTmpSourceCommit(tmpPath: string, hash: string): Promise<void> {
   const filePath = path.join(tmpPath, SOURCE_COMMIT_FILE); // Use single constant
-  await fs.writeFile(filePath, hash);
+  const tmpFilePath = `${filePath}.tmp`;
+  await fs.writeFile(tmpFilePath, hash);
+  await fs.rename(tmpFilePath, filePath);
 }
 
 /**
@@ -95,6 +99,7 @@ export async function readProgressFile(tmpPath: string): Promise<Progress | null
  */
 export async function writeProgressFile(tmpPath: string, progress: Progress): Promise<void> {
   const filePath = path.join(tmpPath, PROGRESS_FILE);
+  const tmpFilePath = `${filePath}.tmp`;
   let content = '';
 
   if(progress.size === 0) {
@@ -107,7 +112,8 @@ export async function writeProgressFile(tmpPath: string, progress: Progress): Pr
   for (const [file, status] of progress.entries()) {
     content += `${file} = ${status}\n`;
   }
-  await fs.writeFile(filePath, content.trim());
+  await fs.writeFile(tmpFilePath, content.trim());
+  await fs.rename(tmpFilePath, filePath);
 }
 
 /**
