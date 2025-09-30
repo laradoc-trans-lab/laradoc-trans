@@ -104,6 +104,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 
 - **選項**:
   - `--branch <branch>` : **必要參數**。指定要驗證的分支，程式會以此比對 `source` 與 `target` 兩個倉庫的檔案。
+  - `--regenerate-progress` : **(可選)** 根據驗證失敗的檔案，重新產生 `workspace/tmp/.progress` 檔案，以便於重新翻譯。
 
 - **功能**:
   - 比對 `source` 與 `target` 兩個倉庫的檔案。

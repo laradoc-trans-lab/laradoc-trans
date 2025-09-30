@@ -18,6 +18,7 @@ export interface RunOptions {
 
 export interface ValidateOptions {
   branch: string;
+  regenerateProgress: boolean;
 }
 
 export interface CliArgs {
@@ -77,6 +78,7 @@ export async function parseCliArgs(argv: string[]): Promise<CliArgs> {
   program.command('validate')
     .description('Validate the translated files.')
     .requiredOption('--branch <branch>', 'The branch to validate against.')
+    .option('--regenerate-progress', 'Regenerate the progress file from validation results to re-translate only the failed files.', false)
     .action((options) => {
       program.cliArgs = { command: 'validate', options };
     });

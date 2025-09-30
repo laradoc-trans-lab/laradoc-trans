@@ -88,5 +88,12 @@
   "Content mismatch": "Content mismatch",
   "Could not validate {{fileName}}. Error: {{error}}": "Could not validate {{fileName}}. Error: {{error}}",
   "Validation complete. Summary report generated at {{reportPath}}": "Validation complete. Summary report generated at {{reportPath}}",
-  "The --limit option must be a number.": "The --limit option must be a number."
+  "The --limit option must be a number.": "The --limit option must be a number.",
+  "Regenerate progress file for failed files": "Regenerate progress file for failed files",
+  "Regenerating progress file for re-translation...": "Regenerating progress file for re-translation...",
+  "Temporary directory cleared.": "Temporary directory cleared.",
+  "Copying passed files from target to temporary directory...": "Copying passed files from target to temporary directory...",
+  "{{count}} passed files copied.": "{{count}} passed files copied.",
+  "New progress file generated successfully.": "New progress file generated successfully.",
+  "You can now run the `run` command to re-translate the files that have validation problems.": "You can now run the `run` command to re-translate the files that have validation problems."
 }

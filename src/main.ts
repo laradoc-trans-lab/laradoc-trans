@@ -306,6 +306,7 @@ async function handleValidateCommand(options: ValidateOptions) {
       targetDir: paths.target,
       reportDir: paths.report,
       branch: options.branch,
+      regenerateProgress: options.regenerateProgress,
     });
   } catch (error: unknown) {
     console.error(_('Error: The validation process failed: {{message}}', { message: (error as Error).message }));

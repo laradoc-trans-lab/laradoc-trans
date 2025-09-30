@@ -115,7 +115,33 @@ laradoc-trans run --branch 12.x --all
 -   `--env <path>`
     指定 `.env` 檔案的位置。預設會自動讀取工作區根目錄下的 `.env`，通常不需要手動設定此項。
 
-## 5. 環境變數設定
+## 5. 第三步：驗證與修正 (`validate` 命令)
+
+翻譯完成後，強烈建議您使用 `validate` 命令來檢查翻譯品質。它能自動找出程式碼被誤譯、標題遺漏等常見問題。
+
+### 基本用法
+
+```bash
+# 驗證 12.x 分支的翻譯成果
+laradoc-trans validate --branch 12.x
+```
+
+執行後，詳細的驗證報告會產生在 `workspace/validate-report/` 目錄下。您可以根據[這份指南](./VALIDATE_GUIDE.md)來解讀和修正報告中指出的問題。
+
+### `validate` 命令選項詳解
+
+- `--branch <branch>` **(必要)**
+  指定要驗證哪個分支的翻譯。
+
+- `--regenerate-progress` **(可選)**
+  這是一個非常實用的進階功能，能讓您快速重翻有問題的檔案。當您執行 `validate` 並加上此選項時，程式會自動根據失敗的報告，為您產生一份新的翻譯進度檔。
+
+  **自動化修正流程範例：**
+  1.  執行 `laradoc-trans validate --branch 12.x --regenerate-progress`
+  2.  接著執行 `laradoc-trans run --branch 12.x --all`
+  3.  此時，程式會自動跳過已通過驗證的檔案，只重新翻譯那些有問題的檔案，大幅簡化修正流程。
+
+## 6. 環境變數設定
 
 `laradoc-trans` 透過 `.env` 檔案來讀取您的設定。此檔案應位於工作區的根目錄。
 
@@ -132,7 +158,7 @@ laradoc-trans run --branch 12.x --all
     -   若使用 `gemini`，預設為 `gemini-2.5-pro`。
     -   若使用 `openai`，預設為 `gpt-4o`。
 
-## 6. 進階用法與範例
+## 7. 進階用法與範例
 
 ### 情境一：我想繼續上次未完成的翻譯
 

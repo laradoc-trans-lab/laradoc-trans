@@ -20,7 +20,7 @@
 
 1.  **`laradoc-trans init`**: 建立工作區。
 2.  **`laradoc-trans run`**: 執行翻譯任務。
-3.  **`laradoc-trans validate`**: 驗證 `run` 命令產生的翻譯結果，確保其結構與內容的完整性。
+3.  **`laradoc-trans validate`**: 驗證 `run` 命令產生的翻譯結果，確保其結構與內容的完整性。同時提供選項，能根據失敗的結果自動準備重新翻譯的任務。
 ---
 
 ## 2. 核心機制詳解

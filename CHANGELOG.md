@@ -14,7 +14,7 @@
 - 新增驗證功能 `validate --branch ..`，並且產生報告於 `workspaces/validation-report`。
 - `mcp.md` 中有 base64 圖片，現在會使用 placehoder 方式處理。
 - 翻譯時會驗證區塊數量，若不符合會提供 LLM 錯誤原因要求重新翻譯(僅限重翻一次)。
-
+- `validate` 命令增加 `--regenerate-progress` 選項可以根據報告產生翻譯進度檔以利下次重新翻譯有問題的檔案。
 
 ## 0.2.3 2025-09-14
 

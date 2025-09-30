@@ -5,17 +5,20 @@ import { ReportGenerator } from './ReportGenerator';
 import { FileValidationResult } from './types';
 import { _ } from '../i18n';
 
+import { regenerateProgressForFailedFiles } from './progressRegenerator';
+
 interface ValidateProjectOptions {
   sourceDir: string;
   targetDir: string;
   reportDir: string;
   branch: string;
+  regenerateProgress: boolean;
 }
 
 const EXCLUDED_FILES = ['license.md', 'readme.md'];
 
 export async function validateProject(options: ValidateProjectOptions): Promise<void> {
-  const { sourceDir, targetDir, reportDir, branch } = options;
+  const { sourceDir, targetDir, reportDir, branch, regenerateProgress } = options;
 
   await fs.rm(reportDir, { recursive: true, force: true });
   await fs.mkdir(path.join(reportDir, 'details'), { recursive: true });
@@ -29,8 +32,8 @@ export async function validateProject(options: ValidateProjectOptions): Promise<
     if (!fileName.endsWith('.md')) continue;
 
     if (EXCLUDED_FILES.includes(fileName)) {
-      validationResults.push({ 
-        fileName, 
+      validationResults.push({
+        fileName,
         status: 'Skipped',
         preamble: { isValid: true },
         headings: { isValid: true, missingCount: 0, anchorMissingCount: 0, mismatches: [] },
@@ -72,4 +75,8 @@ export async function validateProject(options: ValidateProjectOptions): Promise<
   await fs.writeFile(path.join(reportDir, 'SUMMARY.md'), summaryContent);
 
   console.log(_('Validation complete. Summary report generated at {{reportPath}}', { reportPath: path.join(reportDir, 'SUMMARY.md') }));
+
+  if (regenerateProgress) {
+    await regenerateProgressForFailedFiles({ branch, results: validationResults });
+  }
 }

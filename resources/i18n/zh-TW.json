@@ -88,5 +88,12 @@
   "Content mismatch": "內容不符",
   "Could not validate {{fileName}}. Error: {{error}}": "無法驗證 {{fileName}}。錯誤：{{error}}",
   "Validation complete. Summary report generated at {{reportPath}}": "驗證完成。總結報告已生成於 {{reportPath}}",
-  "The --limit option must be a number.": "--limit 選項的值必須是數字。"
+  "The --limit option must be a number.": "--limit 選項的值必須是數字。",
+  "Regenerate progress file for failed files": "為驗證失敗的檔案重新產生進度檔",
+  "Regenerating progress file for re-translation...": "正在為重新翻譯產生進度檔案...",
+  "Temporary directory cleared.": "暫存目錄已清除。",
+  "Copying passed files from target to temporary directory...": "正在從目標目錄複製已通過的檔案至暫存目錄...",
+  "{{count}} passed files copied.": "已複製 {{count}} 個已通過的檔案。",
+  "New progress file generated successfully.": "新的進度檔案已成功產生。",
+  "You can now run the `run` command to re-translate the files that have validation problems.": "您現在可以執行 `run` 命令來重新翻譯驗證有問題的檔案。"
 }
