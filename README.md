@@ -3,7 +3,7 @@
 [![NPM Version](https://img.shields.io/npm/v/laradoc-trans.svg)](https://www.npmjs.com/package/laradoc-trans)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/laradoc-trans-lab/laradoc-trans/ci.yml?branch=main)](https://github.com/laradoc-trans-lab/laradoc-trans/actions)
 
-**一套由 Gemini 驅動，專為 Laravel 官方文件設計的自動化翻譯工具。**
+**一套由 AI 驅動，專為 Laravel 官方文件設計的自動化翻譯工具。**
 
 `laradoc-trans` 旨在簡化繁體中文化 Laravel 文件的繁瑣流程。它能自動比對版本差異、管理翻譯進度，並透過強大的 AI 模型確保翻譯品質，讓您能專注於內容的校對與潤飾。
 
