@@ -87,7 +87,9 @@
 -   `fileUtils.ts`: 封裝了與檔案系統互動的輔助函數，例如建立工作區、確保 `.env` 檔案存在等。
 -   `git/`: 封裝了所有與 `git` 命令列工具互動的邏輯，例如 `clone`, `checkout`, `diff` 等。每個操作都有自己的錯誤類型定義。
 -   `progress.ts`: 負責讀取和寫入翻譯進度檔案 (`.progress`, `.source_commit`) 的相關邏輯。關於進度檔案的具體格式定義，請參考 `specs/FILE_FORMAT.md`。
--   `translator.ts`: 使用 LangChain 函式庫，封裝了建構 Prompt、管理與 LLM 的 API 互動的核心邏輯，並可彈性切換不同的語言模型 (如 Gemini, OpenAI)。
+-   `translator/`: 此目錄封裝了與 LLM 互動的核心翻譯邏輯。
+    -   `index.ts`: 使用 LangChain 函式庫，協調整個翻譯流程，包括任務分配、併發執行與重試。
+    -   `prompts.ts`: 使用 Nunjucks 模板引擎，根據 `resources/TRANSLATE_PROMPT.md` 模板檔案來建構最終發送給 LLM 的提示詞。
 -   `toolChecker.ts`: 一個簡單的輔助工具，用於檢查如 `git` 等必要的外部指令是否存在。
 -   `i18n.ts`: `i18next` 的設定檔，負責初始化多國語言環境。
 

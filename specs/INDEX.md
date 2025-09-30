@@ -94,7 +94,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
   - `--limit <limit>` : 例如 `--limit 5` 代表只需要翻譯尚未翻譯的5個檔案。若未指定 `--all` 且未指定此參數，則預設只翻譯 1 個檔案。
   - `--all` : 翻譯全部尚未完成翻譯的檔案。
   - `--env <file>` : 指定環境變數檔案。若不指定，則預設會使用專案根目錄的 `.env`。
-  - `--prompt-file <file>` : 指定一個檔案作為翻譯的提示詞。若不指定，則預設會使用專案根目錄 `resources/` 下的 `TRANSLATE_PROMPT.md`。
+  - `--prompt-file <file>` : 指定一個檔案作為翻譯的提示詞。若不指定，則預設會使用專案根目錄 `resources/` 下的 `TRANSLATE_PROMPT.md`。此檔案採用 [Nunjucks](https://mozilla.github.io/nunjucks/) 模板引擎進行解析，允許在提示詞中使用 `{{ variable }}` 或 `{% if ... %}` 等語法。
 
 #### `validate` 命令
 

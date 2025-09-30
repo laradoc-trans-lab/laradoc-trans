@@ -110,7 +110,7 @@ laradoc-trans run --branch 12.x --all
     > 如果 `--all` 和 `--limit` 都沒有提供，預設行為是只翻譯 1 個檔案。
 
 -   `--prompt-file <path>`
-    如果您想客製化送給 Gemini 的翻譯提示詞 (Prompt)，可以透過此選項指定一個自己的 `.md` 檔案，範例可以參考本專案的 [提示詞檔案](../resources/TRANSLATE_PROMPT.md)。
+    如果您想客製化送給 LLM (大型語言模型) 的翻譯提示詞 (Prompt)，可以透過此選項指定一個自己的 `.md` 檔案。此檔案是一個模板，可讓您使用如 `{{ section_to_translate }}` 之類的變數來動態插入內容。詳細可用的變數與結構，請參考本專案預設的[提示詞檔案](../resources/TRANSLATE_PROMPT.md)。
 
 -   `--env <path>`
     指定 `.env` 檔案的位置。預設會自動讀取工作區根目錄下的 `.env`，通常不需要手動設定此項。
@@ -119,11 +119,18 @@ laradoc-trans run --branch 12.x --all
 
 `laradoc-trans` 透過 `.env` 檔案來讀取您的設定。此檔案應位於工作區的根目錄。
 
--   `GEMINI_API_KEY` **(必要)**
-    您的 Google Gemini API 金鑰。請至 [Google AI Studio](https://aistudio.google.com/app/apikey) 取得。為了避免因大量請求而觸發速率限制，您也可以提供多組金鑰讓程式輪流使用。除了設定主要的 `GEMINI_API_KEY` 之外，您還可以在 `.env` 檔案中繼續新增 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`，以此類推。
+-   `LLM_PROVIDER` (可選)
+    指定要使用的語言模型供應商。可以是 `gemini` 或 `openai`。如果未設定，預設為 `gemini`。
 
--   `GEMINI_MODEL` (可選)
-    指定要使用的 Gemini 模型。預設為 `gemini-2.5-flash`。
+-   `GEMINI_API_KEY` / `OPENAI_API_KEY` **(必要)**
+    根據您選擇的 `LLM_PROVIDER`，設定對應的 API 金鑰。
+    -   對於 `gemini`，變數為 `GEMINI_API_KEY`。您可以設定多組金鑰（如 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`...）讓程式輪流使用，以避免觸發速率限制。
+    -   對於 `openai`，變數為 `OPENAI_API_KEY`。
+
+-   `GEMINI_MODEL` / `OPENAI_MODEL` (可選)
+    指定要使用的具體模型名稱。
+    -   若使用 `gemini`，預設為 `gemini-2.5-pro`。
+    -   若使用 `openai`，預設為 `gpt-4o`。
 
 ## 6. 進階用法與範例
 
