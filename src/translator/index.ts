@@ -5,8 +5,6 @@ import { _ } from '../i18n';
 import { splitMarkdownIntoSections } from '../markdownParser';
 import { ProgressManager, TaskStatus } from '../progressBar';
 import { createLlmModel } from '../llm';
-import { PromptTemplate } from '@langchain/core/prompts';
-import { StringOutputParser } from '@langchain/core/output_parsers';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
 import { extractPreambleEntries } from '../validator/core';
@@ -14,7 +12,7 @@ import { debugLog } from '../debugLogger';
 import { debugLlmDetails } from '../debugLlmDetails';
 import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
-import { getPromptTemplate } from './prompts';
+import { buildPrompt, PromptContext } from './prompts';
 
 // --- 錯誤類別定義 ---
 
@@ -48,40 +46,18 @@ export class PromptFileReadError extends TranslationError {
   }
 }
 
-// --- 快取與輔助函式 ---
 
-let cachedPromptPath: string | null = null;
-let cachedStyleGuide: string | null = null;
-
-async function getStyleGuide(promptFilePath?: string): Promise<string> {
-  const defaultPromptPath = path.resolve(__dirname, '..', '..', 'resources', 'TRANSLATE_PROMPT.md');
-  const finalPromptPath = promptFilePath ? path.resolve(promptFilePath) : defaultPromptPath;
-
-  if (cachedPromptPath === finalPromptPath && cachedStyleGuide) {
-    return cachedStyleGuide;
-  }
-
-  try {
-    const prompt = await fs.readFile(finalPromptPath, 'utf-8');
-    cachedPromptPath = finalPromptPath;
-    cachedStyleGuide = prompt;
-    return prompt;
-  } catch (error: any) {
-    const errorMessage = _('Failed to read prompt file: {{path}}', { path: finalPromptPath });
-    throw new PromptFileReadError(`${errorMessage}: ${error.message}`, error);
-  }
-}
 
 // --- 核心翻譯邏輯 ---
 
 async function translateContent(
-  styleGuide: string,
   fullContext: string,
   task: Task,
   progressManager: ProgressManager,
   sourceFilePath: string,
   apiKeyUsed: string,
-  preambleContext?: string, // 新增可選參數
+  promptFilePath?: string,
+  preambleContext?: string,
 ): Promise<{ task: Task; translatedContent: string }> {
   const { model } = createLlmModel();
   const startTime = Date.now();
@@ -91,61 +67,34 @@ async function translateContent(
   
   progressManager.startTask(taskId);
 
-  const hasPreamble = !!preambleContext;
-  const template = getPromptTemplate({ isRetry: false, hasPreamble });
-  const prompt = PromptTemplate.fromTemplate(template);
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
-
   let totalBytes = 0;
   let fullResponse = '';
 
   try {
-    const styleGuidePath = `[From prompt file: ${cachedPromptPath}]`;
-    const fullContextPath = `[From source file: ${sourceFilePath}]`;
-    const sectionPreview = contentToTranslate.split('\n').slice(0, 5).join('\n') + '\n[...]';
-
-    // 動態建立日誌用的 prompt 變數
-    const formatVariables: any = {
-      style_guide: styleGuidePath,
-      full_context: fullContextPath,
-      section_to_translate: sectionPreview,
+    // 建立初次翻譯的 Prompt
+    const promptContext: PromptContext = {
+      full_context: fullContext,
+      section_to_translate: contentToTranslate,
+      preamble_context: preambleContext,
     };
-    if (preambleContext) {
-      const preambleLogFilename = await debugLlmDetails(preambleContext, 'preamble_context');
-      formatVariables.preamble_context = preambleLogFilename 
-        ? `See debug_llm_details/${preambleLogFilename} for details.`
-        : `[Preamble context could not be logged]`;
+    const prompt = buildPrompt(promptContext, promptFilePath);
+    
+    const requestLogFile = await debugLlmDetails(prompt, `llm_request_task_${task.id + 1}`);
+    if (requestLogFile) {
+      await debugLog(`LLM request for task ${task.id + 1}: See debug_llm_details/${requestLogFile}`);
     }
-    const initialPromptFormatted = await prompt.format(formatVariables);
-
-    const detailLogFilename = await debugLlmDetails(contentToTranslate);
-    const logMessage = detailLogFilename
-      ? initialPromptFormatted.replace(sectionPreview, `See debug_llm_details/${detailLogFilename} for details.`)
-      : initialPromptFormatted;
-
-    await debugLog(`Initial prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessage}`);
 
     try {
-      // 動態建立 stream 用的變數
-      const streamVariables: any = {
-        style_guide: styleGuide,
-        full_context: fullContext,
-        section_to_translate: contentToTranslate,
-      };
-      if (preambleContext) {
-        streamVariables.preamble_context = preambleContext;
-      }
-      const stream = await chain.stream(streamVariables);
-
+      const stream = await model.stream(prompt);
       for await (const chunk of stream) {
-        fullResponse += chunk;
-        totalBytes += Buffer.byteLength(chunk, 'utf8');
+        fullResponse += chunk.content.toString();
+        totalBytes += Buffer.byteLength(chunk.content.toString(), 'utf8');
         progressManager.updateBytes(taskId, totalBytes);
       }
 
-      const llmResponseLogFile = await debugLlmDetails(fullResponse, 'llm_response');
-      if (llmResponseLogFile) {
-        await debugLog(`LLM response for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]: See debug_llm_details/${llmResponseLogFile} for details.`);
+      const responseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}`);
+      if (responseLogFile) {
+        await debugLog(`LLM response for task ${task.id + 1}: See debug_llm_details/${responseLogFile}`);
       }
 
     } catch (error: any) {
@@ -153,7 +102,7 @@ async function translateContent(
         const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
         throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
       }
-      throw new TranslationError( error.message );
+      throw new TranslationError(error.message);
     }
 
     const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -179,55 +128,32 @@ async function translateContent(
       progressManager.startTask(retryId);
       const retryStartTime = Date.now();
 
-      const retryTemplate = getPromptTemplate({ isRetry: true, hasPreamble });
-      const retryPrompt = PromptTemplate.fromTemplate(retryTemplate);
-      const retryChain = retryPrompt.pipe(model).pipe(new StringOutputParser());
+      // 建立重試的 Prompt
+      const retryContext: PromptContext = {
+        ...promptContext,
+        errors: validationResult.errors,
+      };
+      const retryPrompt = buildPrompt(retryContext, promptFilePath);
 
       fullResponse = '';
       totalBytes = 0;
 
-      const retryFormatVariables: any = {
-        errors: validationResult.errors.join('\n- '),
-        style_guide: styleGuidePath,
-        full_context: fullContextPath,
-        section_to_translate: sectionPreview,
-      };
-      if (preambleContext) {
-        const preambleLogFilename = await debugLlmDetails(preambleContext, 'preamble_context_retry');
-        retryFormatVariables.preamble_context = preambleLogFilename
-          ? `See debug_llm_details/${preambleLogFilename} for details.`
-          : `[Preamble context could not be logged]`;
+      const retryRequestLogFile = await debugLlmDetails(retryPrompt, `llm_request_task_${task.id + 1}`);
+      if (retryRequestLogFile) {
+        await debugLog(`LLM retry request for task ${task.id + 1}: See debug_llm_details/${retryRequestLogFile}`);
       }
-      const retryPromptFormatted = await retryPrompt.format(retryFormatVariables);
-
-      const detailLogFilenameRetry = await debugLlmDetails(contentToTranslate, 'retry_section_to_translate');
-      const logMessageRetry = detailLogFilenameRetry
-        ? retryPromptFormatted.replace(sectionPreview, `See debug_llm_details/${detailLogFilenameRetry} for details.`)
-        : retryPromptFormatted;
-
-      await debugLog(`Retry prompt for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]:\n${logMessageRetry}`);
 
       try {
-        const retryStreamVariables: any = {
-          style_guide: styleGuide,
-          full_context: fullContext,
-          section_to_translate: contentToTranslate,
-          errors: validationResult.errors.join('\n- '),
-        };
-        if (preambleContext) {
-          retryStreamVariables.preamble_context = preambleContext;
-        }
-        const retryStream = await retryChain.stream(retryStreamVariables);
-
+        const retryStream = await model.stream(retryPrompt);
         for await (const chunk of retryStream) {
-          fullResponse += chunk;
-          totalBytes += Buffer.byteLength(chunk, 'utf8');
+          fullResponse += chunk.content.toString();
+          totalBytes += Buffer.byteLength(chunk.content.toString(), 'utf8');
           progressManager.updateBytes(retryId, totalBytes);
         }
 
-        const llmResponseLogFileRetry = await debugLlmDetails(fullResponse, 'llm_retry_response');
-        if (llmResponseLogFileRetry) {
-          await debugLog(`LLM retry response for task ${task.id + 1} [Line ${task.getStartLine()}-${task.getEndLine()}]: See debug_llm_details/${llmResponseLogFileRetry} for details.`);
+        const retryResponseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}`);
+        if (retryResponseLogFile) {
+          await debugLog(`LLM retry response for task ${task.id + 1}: See debug_llm_details/${retryResponseLogFile}`);
         }
 
       } catch (error: any) {
@@ -235,7 +161,7 @@ async function translateContent(
           const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
           throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
         }
-        throw new TranslationError( error.message );
+        throw new TranslationError(error.message);
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -270,7 +196,6 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
   const progressManager = new ProgressManager();
 
   try {
-    const styleGuide = await getStyleGuide(promptFilePath);
     const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
     const { apiKeyUsed } = createLlmModel();
     const allSections = splitMarkdownIntoSections(fileContent);
@@ -384,7 +309,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     let translatedTasks: { task: Task; translatedContent: string }[] = [];
 
     if (preambleTask) {
-      const result = await translateContent(styleGuide, sanitizedFileContent, preambleTask!, progressManager, sourceFilePath, apiKeyUsed);
+      const result = await translateContent(sanitizedFileContent, preambleTask!, progressManager, sourceFilePath, apiKeyUsed, promptFilePath);
       preambleTranslationResult = result.translatedContent;
       if (!preambleTranslationResult) {
         throw new TranslationError(_('Preamble translation failed, stopping the process.'));
@@ -396,7 +321,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     if (nonEmptyTasks.length > 0) {
       const translationPromises = nonEmptyTasks.map((task) => {
         // 為剩餘任務傳入序言翻譯結果
-        return limit(() => translateContent(styleGuide, sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed, preambleTranslationResult));
+        return limit(() => translateContent(sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed, promptFilePath, preambleTranslationResult));
       });
   
       const remainingTranslatedTasks = await Promise.all(translationPromises);

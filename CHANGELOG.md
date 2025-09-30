@@ -9,6 +9,7 @@
 - Issue #10 : 實作記錄 程式與 LLM 傳輸的提示詞內容
 - Issue #11 : 翻譯的即時驗證若發現行內程式碼數量不符合，應該產生兩種修正的提示詞
 - Issue #12 : 實作優先翻譯包含目錄的序言(Section[0])，並且作為即時驗證標題一致性的基準
+- Issue #13 : 現在提示詞檔案已導入模板語法，使程式更簡潔。
 - 以 `cli-progress` 實作進度條顯示併發翻譯章節的進度。
 - 新增驗證功能 `validate --branch ..`，並且產生報告於 `workspaces/validation-report`。
 - `mcp.md` 中有 base64 圖片，現在會使用 placehoder 方式處理。
