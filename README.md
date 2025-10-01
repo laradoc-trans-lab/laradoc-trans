@@ -63,6 +63,24 @@
     # 完成後，請查看 `workspace/validate-report` 目錄下的報告
     ```
 
+## ⚠️⚠️ 注意事項 ⚠️⚠️
+
+### VS Code 使用者
+
+如果您使用 VS Code 開啟翻譯後的 `.md` 檔案，強烈建議您在專案的工作區設定中，關閉 `Markdown All in One` 套件的「儲存時自動更新 TOC」功能。
+
+這個功能可能會在您儲存檔案時，非預期地修改文件的目錄結構，導致後續的 `validate` 驗證失敗。
+
+**解決方案：**
+
+在您的工作區根目錄建立或修改 `.vscode/settings.json` 檔案，並加入以下設定：
+
+```json
+{
+  "markdown.extension.toc.updateOnSave": false
+}
+```
+
 ## 深入了解
 
 - **想知道更多的用法？**
