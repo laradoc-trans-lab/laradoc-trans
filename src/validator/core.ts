@@ -2,7 +2,7 @@ import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
 import { Section } from '../translator/Section';
-import { SectionError, CodeBlockMismatch } from './types';
+import { SectionError, CodeBlockMismatch, InlineCodeSnippet } from './types';
 import  *  as debugKey from '../debugKey';
 
 const extractCodeBlocksFromMarkdown = (section: Section) => {
@@ -79,6 +79,20 @@ export function validateCodeBlocks(sourceSection: Section, targetSection: Sectio
   return { isValid: mismatches.length === 0, total: sourceBlocks.length, mismatches };
 }
 
+const extractInlineCodeSnippets = (section: Section): InlineCodeSnippet[] => {
+  const ast = remark().parse(section.content);
+  const snippets: InlineCodeSnippet[] = [];
+  visit(ast, 'inlineCode', (node: any) => {
+    if (node.position) {
+      snippets.push({
+        content: `\`${node.value}\``,
+        line: section.startLine + node.position.start.line - 1,
+      });
+    }
+  });
+  return snippets;
+};
+
 /**
  * 驗證原始與翻譯後的 Markdown 內容中的行內程式碼 (` `) 是否相符。
  * - 驗證數量是否一致。
@@ -88,16 +102,13 @@ export function validateCodeBlocks(sourceSection: Section, targetSection: Sectio
  * @returns 回傳一個包含驗證結果的物件。
  */
 export function validateInlineCode(sourceSection: Section, targetSection: Section): SectionError['inlineCode'] {
-  const inlineCodeRegex = /`([^`].*?)`/g;
-  const getSnippets = (content: string) => (content.match(inlineCodeRegex) || []);
+  const sourceSnippets = extractInlineCodeSnippets(sourceSection);
+  const targetSnippets = extractInlineCodeSnippets(targetSection);
+  const mismatches: InlineCodeSnippet[] = [];
 
-  const sourceSnippets = getSnippets(sourceSection.content);
-  const targetSnippets = getSnippets(targetSection.content);
-  const mismatches: string[] = [];
-
-  const targetSnippetSet = new Set(targetSnippets);
+  const targetSnippetSet = new Set(targetSnippets.map(s => s.content));
   for (const snippet of sourceSnippets) {
-      if (!targetSnippetSet.has(snippet)) {
+      if (!targetSnippetSet.has(snippet.content)) {
           mismatches.push(snippet);
       }
   }

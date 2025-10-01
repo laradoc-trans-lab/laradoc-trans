@@ -45,14 +45,14 @@ No file-level issues found.
 #### Inline Code Mismatch
 **Issue**: Quantity mismatch (Original: {{ sectionError.inlineCode.sourceCount }}, Translated: {{ sectionError.inlineCode.targetCount }}).
 **Original (Source)**:
-{% for snippet in sectionError.inlineCode.sourceSnippets %} - `` {{ snippet }} ``
+{% for snippet in sectionError.inlineCode.sourceSnippets %} - Line {{ snippet.line }}: `` {{ snippet.content }} ``
 {% endfor %}
 **Translated (Mismatch)**:
-{% for snippet in sectionError.inlineCode.targetSnippets %} - `` {{ snippet }} ``
+{% for snippet in sectionError.inlineCode.targetSnippets %} - Line {{ snippet.line }}: `` {{ snippet.content }} ``
 {% endfor %}
 {% if sectionError.inlineCode.mismatches.length > 0 %}
 **Details**: The following inline code from the source file was not found in the translated document:
-{% for snippet in sectionError.inlineCode.mismatches %} - `{{ snippet }}`
+{% for snippet in sectionError.inlineCode.mismatches %} - Line {{ snippet.line }}: `{{ snippet.content }}`
 {% endfor %}
 {% endif %}
 {% endif %}

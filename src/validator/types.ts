@@ -28,11 +28,16 @@ export interface ValidationStatus {
   mismatches?: any[];
 }
 
+export interface InlineCodeSnippet {
+  content: string;
+  line: number;
+}
+
 export interface SectionError {
   title: string;
   startLine: number;
   codeBlocks: ValidationStatus & { total: number; mismatches: CodeBlockMismatch[] };
-  inlineCode: ValidationStatus & { sourceCount: number; targetCount: number; mismatches: string[]; sourceSnippets?: string[]; targetSnippets?: string[]; };
+  inlineCode: ValidationStatus & { sourceCount: number; targetCount: number; mismatches: InlineCodeSnippet[]; sourceSnippets?: InlineCodeSnippet[]; targetSnippets?: InlineCodeSnippet[]; };
   specialMarkers: ValidationStatus & { sourceCount: number; targetCount: number; mismatches: string[] };
 }
 

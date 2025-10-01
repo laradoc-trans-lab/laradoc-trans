@@ -99,9 +99,13 @@ export function validateBatch(
       if (inlineCodeResult.sourceCount !== inlineCodeResult.targetCount) {
         let errorMessage = `Validation failed in section "${sourceSection.title}": The number of inline code snippets in the original and translated text does not match. Please maintain the original inline code snippets and do not add more.\n`;
 
-        const countOccurrences = (arr: string[]) =>
+        const countOccurrences = (arr: (string | { content: string })[]) =>
           arr.reduce(
-            (acc, val) => acc.set(val, (acc.get(val) || 0) + 1),
+            (acc, val) => {
+              const key = typeof val === 'string' ? val : val.content;
+              acc.set(key, (acc.get(key) || 0) + 1);
+              return acc;
+            },
             new Map<string, number>(),
           );
 
@@ -128,26 +132,29 @@ export function validateBatch(
       else {
         const toHex = (s: string) => Buffer.from(s, 'utf8').toString('hex');
 
+        const sourceContents = new Set(inlineCodeResult.sourceSnippets?.map(s => s.content) || []);
+        const targetContents = new Set(inlineCodeResult.targetSnippets?.map(t => t.content) || []);
+
         const missingInTarget =
           inlineCodeResult.sourceSnippets?.filter(
-            s => !inlineCodeResult.targetSnippets?.includes(s),
+            s => !targetContents.has(s.content),
           ) || [];
 
         const addedInTarget =
           inlineCodeResult.targetSnippets?.filter(
-            t => !inlineCodeResult.sourceSnippets?.includes(t),
+            t => !sourceContents.has(t.content),
           ) || [];
 
         let errorMessage = `Validation failed in section "${sourceSection.title}": Inline code content has been modified, please do not modify any byte.\n`;
 
         errorMessage += '  Original inline code:\n';
         missingInTarget.forEach(s => {
-          errorMessage += `    - ${s}  : (HEX : ${toHex(s)})\n`;
+          errorMessage += `    - ${s.content}  : (HEX : ${toHex(s.content)})\n`;
         });
 
         errorMessage += '\nTranslated inline code:\n';
         addedInTarget.forEach(t => {
-          errorMessage += `    - ${t} : (HEX : ${toHex(t)})\n`;
+          errorMessage += `    - ${t.content} : (HEX : ${toHex(t.content)})\n`;
         });
 
         errors.push(errorMessage);

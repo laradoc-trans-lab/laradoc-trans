@@ -46,14 +46,14 @@
 #### 行內程式碼不符
 **問題**: 數量不符 (原文: {{ sectionError.inlineCode.sourceCount }}, 譯文: {{ sectionError.inlineCode.targetCount }})。
 **原文 (來源)**:
-{% for snippet in sectionError.inlineCode.sourceSnippets %} - `` {{ snippet }} ``
+{% for snippet in sectionError.inlineCode.sourceSnippets %} - 第 {{ snippet.line }} 行: `` {{ snippet.content }} ``
 {% endfor %}
 **譯文 (不符)**:
-{% for snippet in sectionError.inlineCode.targetSnippets %} - `` {{ snippet }} ``
+{% for snippet in sectionError.inlineCode.targetSnippets %} - 第 {{ snippet.line }} 行: `` {{ snippet.content }} ``
 {% endfor %}
 {% if sectionError.inlineCode.mismatches.length > 0 %}
 **細節**: 在譯文中找不到以下來自來源檔案的行內程式碼：
-{% for snippet in sectionError.inlineCode.mismatches %} - `{{ snippet }}`
+{% for snippet in sectionError.inlineCode.mismatches %} - 第 {{ snippet.line }} 行: `{{ snippet.content }}`
 {% endfor %}
 {% endif %}
 {% endif %}
