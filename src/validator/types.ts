@@ -41,11 +41,56 @@ export interface SectionError {
   specialMarkers: ValidationStatus & { sourceCount: number; targetCount: number; mismatches: string[] };
 }
 
-export interface CodeBlockMismatch {
-  type: string;
+/**
+ * 代表一個獨立、乾淨的程式碼區塊資料結構。
+ */
+export interface CodeBlock {
+  /**
+   * 程式碼語言標籤，例如 'php', 'blade'。
+   */
   lang: string;
-  source: string;
-  target: string;
-  sourceStartLine?: number;
-  targetStartLine?: number;
+  /**
+   * 程式碼的純文字內容。
+   */
+  content: string;
+  /**
+   * 此區塊在原始檔案中的起始行號。
+   */
+  startLine: number;
 }
+
+/**
+ * 代表單一程式碼區塊的「內容」不匹配。
+ */
+export interface ContentMismatch {
+  type: 'Content mismatch';
+  /**
+   * 原始的程式碼區塊物件。
+   */
+  source: CodeBlock;
+  /**
+   * 翻譯後的程式碼區塊物件。
+   */
+  target: CodeBlock;
+}
+
+/**
+ * 代表程式碼區塊的「數量」不匹配。
+ */
+export interface QuantityMismatch {
+  type: 'Quantity mismatch';
+  /**
+   * 原始檔案中所有的程式碼區塊【陣列】。
+   */
+  source: CodeBlock[];
+  /**
+   * 翻譯檔案中所有的程式碼區塊【陣列】。
+   */
+  target: CodeBlock[];
+}
+
+/**
+ * CodeBlockMismatch 是一個可辨識聯合類型，
+ * 它要嘛是內容不匹配 (ContentMismatch)，要嘛是數量不匹配 (QuantityMismatch)。
+ */
+export type CodeBlockMismatch = ContentMismatch | QuantityMismatch;

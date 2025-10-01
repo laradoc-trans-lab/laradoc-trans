@@ -2,12 +2,12 @@ import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
 import { Section } from '../translator/Section';
-import { SectionError, CodeBlockMismatch, InlineCodeSnippet } from './types';
+import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch } from './types';
 import  *  as debugKey from '../debugKey';
 
-const extractCodeBlocksFromMarkdown = (section: Section) => {
+const extractCodeBlocksFromMarkdown = (section: Section): CodeBlock[] => {
   const ast = remark().parse(section.content);
-  const codeBlocks: { lang: string; content: string; startLine: number }[] = [];
+  const codeBlocks: CodeBlock[] = [];
   visit(ast, 'code', (node: any) => {
     if (node.lang && node.position) { // Only consider code blocks with a specified language and position
       codeBlocks.push({ lang: node.lang, content: node.value, startLine: section.startLine + node.position.start.line - 1 }); // Adjust for 0-based section content line numbers
@@ -56,23 +56,21 @@ export function validateCodeBlocks(sourceSection: Section, targetSection: Sectio
   const mismatches: CodeBlockMismatch[] = [];
 
   if (sourceBlocks.length !== targetBlocks.length) {
-    mismatches.push({
-      type: _('Quantity mismatch'),
-      lang: '',
-      source: _('Original has {{count}} blocks', { count: sourceBlocks.length }),
-      target: _('Translated has only {{count}} blocks', { count: targetBlocks.length })
-    });
+    const mismatch: QuantityMismatch = {
+      type: 'Quantity mismatch',
+      source: sourceBlocks,
+      target: targetBlocks,
+    };
+    mismatches.push(mismatch);
   } else {
     for (let i = 0; i < sourceBlocks.length; i++) {
       if (sourceBlocks[i].content.trim() !== targetBlocks[i].content.trim() || sourceBlocks[i].lang !== targetBlocks[i].lang) {
-        mismatches.push({
-          type: _('Content mismatch'),
-          lang: sourceBlocks[i].lang,
-          source: sourceBlocks[i].content,
-          target: targetBlocks[i].content,
-          sourceStartLine: sourceBlocks[i].startLine,
-          targetStartLine: targetBlocks[i].startLine,
-        });
+        const mismatch: ContentMismatch = {
+          type: 'Content mismatch',
+          source: sourceBlocks[i],
+          target: targetBlocks[i],
+        };
+        mismatches.push(mismatch);
       }
     }
   }

@@ -26,19 +26,45 @@ No file-level issues found.
 {% if sectionError.codeBlocks.mismatches.length > 0 %}
 #### Code Block Mismatch
 {% for mismatch in sectionError.codeBlocks.mismatches %}
-**Issue**: {{ mismatch.type }} (Block {{ loop.index }}/{{ sectionError.codeBlocks.total }})
-**Original (Starting at line {{ mismatch.sourceStartLine }} in source file)**:
+{% if mismatch.type === 'Content mismatch' %}
+**Issue**: Content mismatch (Block {{ loop.index }}/{{ sectionError.codeBlocks.total }})
+**Original (Starting at line {{ mismatch.source.startLine }} in source file)**:
 <pre>
-```{{ mismatch.lang if mismatch.lang else 'text' }}
-{{ mismatch.source }}
+```{{ mismatch.source.lang }}
+{{ mismatch.source.content }}
 ```
 </pre>
-**Translated Mismatch (Starting at line {{ mismatch.targetStartLine }} in translated file)**:
+**Translated Mismatch (Starting at line {{ mismatch.target.startLine }} in translated file)**:
 <pre>
-```{{ mismatch.lang if mismatch.lang else 'text' }}
-{{ mismatch.target }}
+```{{ mismatch.target.lang }}
+{{ mismatch.target.content }}
 ```
 </pre>
+{% elif mismatch.type === 'Quantity mismatch' %}
+**Issue**: Quantity mismatch (Original: {{ mismatch.source.length }}, Translated: {{ mismatch.target.length }})
+
+**Original Blocks ({{ mismatch.source.length }})**:
+<pre>
+{% for block in mismatch.source %}{% if not loop.first %}
+
+---
+
+{% endif %}```{{ block.lang }}
+{{ block.content }}
+```{% endfor %}
+</pre>
+
+**Translated Blocks ({{ mismatch.target.length }})**:
+<pre>
+{% for block in mismatch.target %}{% if not loop.first %}
+
+---
+
+{% endif %}```{{ block.lang }}
+{{ block.content }}
+```{% endfor %}
+</pre>
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if not sectionError.inlineCode.isValid %}

@@ -27,19 +27,45 @@
 {% if sectionError.codeBlocks.mismatches.length > 0 %}
 #### 程式碼區塊不符
 {% for mismatch in sectionError.codeBlocks.mismatches %}
-**問題**: {{ mismatch.type }} (區塊 {{ loop.index }}/{{ sectionError.codeBlocks.total }})
-**原文 (來源檔案第 {{ mismatch.sourceStartLine }} 行開始)**:
+{% if mismatch.type === 'Content mismatch' %}
+**問題**: 內容不符 (區塊 {{ loop.index }}/{{ sectionError.codeBlocks.total }})
+**原文 (來源檔案第 {{ mismatch.source.startLine }} 行開始)**:
 <pre>
-```{{ mismatch.lang if mismatch.lang else 'text' }}
-{{ mismatch.source }}
+```{{ mismatch.source.lang }}
+{{ mismatch.source.content }}
 ```
 </pre>
-**譯文不符(譯文檔案第 {{ mismatch.targetStartLine }} 行開始)**:
+**譯文不符 (譯文檔案第 {{ mismatch.target.startLine }} 行開始)**:
 <pre>
-```{{ mismatch.lang if mismatch.lang else 'text' }}
-{{ mismatch.target }}
+```{{ mismatch.target.lang }}
+{{ mismatch.target.content }}
 ```
 </pre>
+{% elif mismatch.type === 'Quantity mismatch' %}
+**問題**: 數量不符 (原文: {{ mismatch.source.length }}, 譯文: {{ mismatch.target.length }})
+
+**原文的區塊 ({{ mismatch.source.length }} 個)**:
+<pre>
+{% for block in mismatch.source %}{% if not loop.first %}
+
+---
+
+{% endif %}```{{ block.lang }}
+{{ block.content }}
+```{% endfor %}
+</pre>
+
+**譯文的區塊 ({{ mismatch.target.length }} 個)**:
+<pre>
+{% for block in mismatch.target %}{% if not loop.first %}
+
+---
+
+{% endif %}```{{ block.lang }}
+{{ block.content }}
+```{% endfor %}
+</pre>
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if not sectionError.inlineCode.isValid %}
