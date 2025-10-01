@@ -163,23 +163,26 @@ export function extractPreambleEntries(preambleSection: Section): PreambleEntry[
   if (!preambleSection) return entries;
 
   const ast = remark().parse(preambleSection.content);
+  const lines = preambleSection.content.split('\n');
 
   const visitNodes = (node: any, depth: number) => {
     if (node.type === 'list') {
       node.children.forEach((listItem: any) => {
-        if (listItem.type !== 'listItem') return;
+        if (listItem.type !== 'listItem' || !listItem.position) return;
 
         let entry: Partial<PreambleEntry> = { depth };
         let nestedList: any = null;
 
+        const line = lines[listItem.position.start.line - 1];
+        const match = line.match(/\[(.*)\]\(#(.*)\)/);
+
+        if (match && match[1] && match[2]) {
+          entry.title = match[1];
+          entry.anchor = `#${match[2]}`;
+        }
+
         listItem.children.forEach((itemChild: any) => {
-          if (itemChild.type === 'paragraph') {
-            const linkNode = itemChild.children?.[0];
-            if (linkNode && linkNode.type === 'link') {
-              entry.title = linkNode.children.map((child: any) => child.value).join('');
-              entry.anchor = linkNode.url;
-            }
-          } else if (itemChild.type === 'list') {
+          if (itemChild.type === 'list') {
             nestedList = itemChild;
           }
         });

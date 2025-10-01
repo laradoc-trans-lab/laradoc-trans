@@ -10,7 +10,7 @@
 ### Missing Headings in Content
 According to the preamble, the file should have {{ result.preamble.totalHeadings }} headings, but only {{ result.preamble.totalHeadings - result.headings.missingCount }} were found in the content.
 {% for item in result.headings.mismatches %}{% if item.type == 'heading_not_found' %}- The link `{{ item.link }}` does not have a corresponding heading.
-{% elif item.type == 'heading_title_mismatch' %}- The title for section `{{ item.link }}` has been translated as `{{ item.actual }}`.
+{% elif item.type == 'heading_title_mismatch' %}- The title for section `` {{ item.link }} `` has been translated as `` {{ item.actual }} ``.
 {% endif %}{% endfor %}
 {% elif result.headings.anchorMissingCount > 0 %}
 ### Headings with Missing Anchors
