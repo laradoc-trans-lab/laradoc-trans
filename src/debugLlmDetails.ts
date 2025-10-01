@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import { v7 as uuidv7 } from 'uuid';
 
 /**
  * 在偵錯模式下，將詳細的 LLM 互動內容記錄到一個獨立的檔案中，並返回其檔名。
@@ -19,7 +19,7 @@ export async function debugLlmDetails(
 
   try {
     const workspacePath = process.env.WORKSPACE_PATH || path.resolve(process.cwd(), 'workspace');
-    const uuid = randomUUID();
+    const uuid = uuidv7();
     const detailsDir = path.join(workspacePath, 'logs', 'debug_llm_details');
     const detailLogFilename = `${prefix}_${uuid}.log`;
     const detailLogPath = path.join(detailsDir, detailLogFilename);
