@@ -115,6 +115,6 @@
 ---
 
 {% if not preamble_context %}
-注意 ! 本次要翻譯的段落是文章的序言可能包含目錄 (TOC)，翻譯時要確保 TOC 列表的順序與階層與原文一致，且錨點（例如 `(#heading-name)`）嚴禁修改。
+注意 ! 本次要翻譯的段落是文章的序言可能包含目錄 (TOC)，翻譯時要確保 TOC 列表的順序/階層/數量與原文(英文版)一致，且錨點（例如 `(#heading-name)`）嚴禁修改。
 {% endif %}
 您現在可以進行翻譯了，只需要翻譯 `<!-- SECTION_TO_TRANSLATE_START -->` 與 `<!-- SECTION_TO_TRANSLATE_END -->` 內所包圍內文，請直接輸出翻譯結果，不需要有其他回應。
