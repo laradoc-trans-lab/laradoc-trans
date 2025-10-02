@@ -8,7 +8,7 @@
 **建議**: 請手動比對並修正譯文開頭的目錄列表，使其連結數量、錨點、層級都與原文保持一致。
 {% elif result.headings.missingCount > 0 %}
 ### 內文中缺失的標題
-根據序言，檔案應有 {{ result.preamble.totalHeadings }} 個標題，但內文中只找到 {{ result.preamble.totalHeadings - result.headings.missingCount }} 個。
+根據序言，檔案應有 {{ result.preamble.totalHeadings }} 個標題，但內文中只找到 {{ result.preamble.totalHeadings - result.headings.missingCount }} 個標題吻合。
 {% for item in result.headings.mismatches %}{% if item.type == 'heading_not_found' %}- 連結 `{{ item.link }}` 找不到對應的標題。
 {% elif item.type == 'heading_title_mismatch' %}- `` {{ item.link }} `` 章節的標題被翻譯為 `` {{ item.actual }} ``
 {% endif %}{% endfor %}
