@@ -2,5 +2,6 @@
 *.log
 node_modules
 dist
+.vscode
 workspace
 tests/tmp
