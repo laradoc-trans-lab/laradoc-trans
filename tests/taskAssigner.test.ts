@@ -70,6 +70,7 @@ describe('assignTasks', () => {
             console.log(`Its parent '${errorParent.title}' (depth: ${errorParent.depth}) is in Task ${errorParentTask?.id}`);
             console.log('Parent Task Context:', errorParentTask?.parentContext?.title);
             console.log('Section Task Context:', errorTask?.parentContext?.title);
+
         }
 
         expect(sectionTaskId === parentTaskId || isParentContext).toBe(true);
@@ -83,6 +84,10 @@ describe('assignTasks', () => {
     }
   }
 
+  it('should correctly assign tasks from documentation.md', async () => {
+    await runTaskAssignmentTest('documentation.md');
+  });
+
   it('should correctly assign tasks from authorization.md', async () => {
     await runTaskAssignmentTest('authorization.md');
   });
@@ -91,7 +96,8 @@ describe('assignTasks', () => {
     await runTaskAssignmentTest('mcp.md');
   });
 
-  it('should correctly assign tasks from documentation.md', async () => {
-    await runTaskAssignmentTest('documentation.md');
+  it('should correctly assign tasks from dusk.md', async () => {
+    await runTaskAssignmentTest('dusk.md');
   });
+
 });
