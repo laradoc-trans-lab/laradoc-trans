@@ -7,11 +7,11 @@ import { ProgressManager, TaskStatus } from '../progressBar';
 import { createLlmModel } from '../llm';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
-import { extractPreambleEntries } from '../validator/core';
 import { debugLog } from '../debugLogger';
 import { debugLlmDetails } from '../debugLlmDetails';
-import { Task, AddSectionStatus, BATCH_SIZE_LIMIT } from './Task';
+import { Task, BATCH_SIZE_LIMIT } from './Task';
 import { TaskFactory } from './TaskFactory';
+import { assignTasks } from './taskAssigner';
 import { buildPrompt, PromptContext } from './prompts';
 
 // --- 錯誤類別定義 ---
@@ -206,76 +206,18 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       return g1 + '([IMAGE DATA])' + g3;
     });
 
-    const tasks: Task[] = [];
-    let sectionStartIndex = 0;
+    const tasks = assignTasks(allSections, taskFactory);
 
-    // 檢查是否存在序言
-    const preambleEntries = extractPreambleEntries(allSections[0]);
-    if (preambleEntries.length > 0 && allSections.length > 0) {
-      const preambleTask = taskFactory.createTask(); // This is Task ID 0
-      preambleTask.addSection(allSections[0], true);
-      tasks.push(preambleTask);
-      sectionStartIndex = 1;
-    }
-
-    // 只有在處理完序言後，才為剩餘的 sections 建立第一個 currentTask
-    let currentTask: Task = taskFactory.createTask();
-
-    // 遍歷所有章節，執行雙分支任務分配邏輯：
-    // 1. 如果是普通章節，則嘗試將其加入當前任務。
-    // 2. 如果遇到巨大 H2 章節或上下文變更，則結束當前任務，並為新章節建立合適的新任務。
-    for (let i = sectionStartIndex; i < allSections.length; i++) {
-      const section = allSections[i];
-      const addStatus = currentTask.addSection(section);
-      if(AddSectionStatus.success !== addStatus) {
-
-        if(!currentTask.isEmpty()) {
-          // 無法加入任務，把當前任務推送到 tasks
-          tasks.push(currentTask);
-        }
-
-        if(addStatus === AddSectionStatus.sectionContextNotMatch) {
-          // 加入的章節與 Task 的父章節不同，必須建立新任務
-          if(section.depth === 2 && section.totalLength > BATCH_SIZE_LIMIT) {
-            // 這邊要判斷是不是新的 H2 且超大
-            currentTask = taskFactory.createTask(section);
-          } else {
-            currentTask = taskFactory.createTask();
-          }
-        } else if(addStatus === AddSectionStatus.exceedingBatchSize) {
-          // 加入的章節內容超出任務長度
-          currentTask = taskFactory.createTask();
-        } else if(addStatus === AddSectionStatus.exceedingBatchSizeOfParentContext){
-          currentTask = taskFactory.createTask(currentTask.parentContext);
-        } else if(addStatus === AddSectionStatus.hurgeSectionNeedSplit) {
-          currentTask = taskFactory.createTask(section);
-        } 
-
-        let finalStatus;
-        if( (finalStatus = currentTask.addSection(section)) !== AddSectionStatus.success) {
-          throw new Error(`This is a bug , can not add section, finalStatus: ${finalStatus}, title '${section.title}' , depth: ${section.depth}, contentLength: ${section.contentLength}, totalLength: ${section.totalLength}`);
-        }
-        
-      }
-    }
-
-    // 收尾
-    if (currentTask && !currentTask.isEmpty()) {
-      tasks.push(currentTask);
-    }
-
-    const nonEmptyTasks = tasks.filter(t => !t.isEmpty());
-
-    if (nonEmptyTasks.length === 0) {
+    if (tasks.length === 0) {
       return '';
     }
 
     const taskAssignmentLog = [
       `--- Translation Task Assignment for ${sourceFilePath} ---`,
-      `--- Total Sections: ${allSections.length}, Total Tasks: ${nonEmptyTasks.length} ---`,
-      ...nonEmptyTasks.map(task => {
+      `--- Total Sections: ${allSections.length}, Total Tasks: ${tasks.length} ---`,
+      ...tasks.map(task => {
         const sectionsLog = task.getSections().map(section =>
-          `  * ${'#'.repeat(section.depth)} ${section.title} (contentLength: ${section.contentLength} , totalLength:${section.totalLength}) `
+          `  * ${'#'.repeat(section.depth)} ${section.title} (Lines ${section.startLine}-${section.endLine}) (contentLength: ${section.contentLength} , totalLength:${section.totalLength}) `
         ).join('\n');
         const isPreamble = task.isPreamble();
         return `- Task ${task.id + 1} ${isPreamble ? '(Preamble)' : ''} (Lines ${task.getStartLine()}-${task.getEndLine()}) (contentLength: ${task.getContentLength()}) (parentContext: '${task.parentContext?.title}') \n${sectionsLog}`;
@@ -294,15 +236,15 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
   
 
     // 為所有任務註冊進度條
-    nonEmptyTasks.forEach(task => {
+    tasks.forEach(task => {
       const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
       progressManager.addTask(taskId, task.getTitle(), task.id + 1, task.getContentLength());
     });
 
     // 執行翻譯流程
     let preambleTask: Task | undefined;
-    if (nonEmptyTasks.length > 0 && nonEmptyTasks[0].isPreamble()) {
-      preambleTask = nonEmptyTasks.shift();
+    if (tasks.length > 0 && tasks[0].isPreamble()) {
+      preambleTask = tasks.shift();
     }
 
     let preambleTranslationResult = '';
@@ -318,8 +260,8 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
       translatedTasks.push(result);
     }
 
-    if (nonEmptyTasks.length > 0) {
-      const translationPromises = nonEmptyTasks.map((task) => {
+    if (tasks.length > 0) {
+      const translationPromises = tasks.map((task) => {
         // 為剩餘任務傳入序言翻譯結果
         return limit(() => translateContent(sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed, promptFilePath, preambleTranslationResult));
       });
