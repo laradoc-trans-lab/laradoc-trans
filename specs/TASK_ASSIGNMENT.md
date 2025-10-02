@@ -24,151 +24,146 @@
 `Task` 代表一個準備發送給 LLM 進行翻譯的具體工作單元。它由一個或多個 `Section` 組成。
 
 - **目的**: 將多個小的 `Section` 組合成一個較大的 `Task`，以達到 API 請求的經濟效益。
-- **上下文感知 (Context-Aware)**: `Task` 可以被指定一個 `parentContext` (父章節)。當指定後，該 `Task` 將只接受屬於該父章節後代的 `Section`，以確保翻譯內容的上下文連貫性。
-- **容量限制**: 一個 `Task` 的內容總量不應超過一個預設的上限 (src/translator/Task.ts 中有定義)，以避免觸發 LLM 的輸出中斷問題。
-- **決策中心**: `Task.addSection` 方法是整個分批邏輯的核心，它封裝了所有關於「一個 `Section` 是否能被加入當前 `Task`」的複雜判斷。
+- **上下文感知 (Context-Aware)**: `Task` 可以被指定一個 `parentContext` (父章節)。這在「拆分模式」下至關重要，用於告知處理流程，雖然這個 `Task` 的內容不完整，但它邏輯上隸屬於某個更大的父章節，確保了測試驗證時的結構完整性。
+- **容量限制**: 一個 `Task` 的內容總量不應超過一個預設的上限 (`BATCH_SIZE_LIMIT`)，定義於 `src/translator/Task.ts`。
+- **簡化的 `addSection`**: `Task.addSection` 方法現在只負責將 `Section` 加入任務並更新其內部計數，**不包含任何複雜的打包決策邏輯**。
 - **工廠建立**: 為了確保任務 ID 在處理多個檔案時能被正確管理，`Task` 物件不應直接被實例化，而是應透過 `TaskFactory` 來建立。
 
 ---
 
-## 2. 核心問題
+## 2. 核心挑戰
 
-1.  **LLM 輸出中斷**：語言模型 (LLM) 如 Gemini，在處理過長的單次請求時，可能會在未達到理論 Token 上限的情況下無預警地中斷輸出。
-2.  **標題翻譯不一致**：當文件被分割翻譯時，序言中的目錄（Table of Contents, TOC）與後續章節的實際標題可能被翻譯成意思相近但文字不同的結果（例如，目錄中的 `[安裝命令](#install-command)` 與章節標題 `## 安裝指令`）。這影響了閱讀體驗和連結的準確性。
+1.  **LLM 輸出中斷**：單次請求內容過長，可能導致 LLM 在未達到理論 Token 上限時無預警地中斷輸出。
+2.  **上下文破碎 (Context Fragmentation)**：在拆分巨大章節時，如果隨意拆分，可能會將一個子標題 (`#### H4`) 與其父標題 (`### H3`) 分到不同的任務中，導致 LLM 翻譯時因缺乏上下文而產生幻覺或錯誤。
+3.  **邏輯層級混亂**：在打包多個章節時，若將一個高級別標題（如 H1）附加到一個已經由低級別標題（如 H2）開始的任務中，會造成文件結構的邏輯混亂。
 
-## 3. 解決方案：切割文章並引入序言優先策略
+---
 
-為了確保翻譯的穩定性、完整性與一致性，我們採用了切割任務與「序言優先」的策略。
+## 3. 設計總覽：三情境打包與拆分模式
 
-1.  **切割任務**：將整篇 Markdown 文件切割成多個更小的「任務 (Task)」，並分批發送進行翻譯，以規避 LLM 輸出中斷的問題。
-2.  **序言優先 (Preface-First)**：如果文件的第一個章節 (`Section[0]`) 包含目錄，則優先、獨立地翻譯該章節。然後，將其翻譯結果作為上下文，強制後續所有章節的標題翻譯必須與該目錄中的標題完全一致。此上下文將在任務執行階段被應用。
+為了解決上述挑戰，`assignTasks` 函式採用了一套精密的打包策略。其核心是將文件流視為一系列的「章節群組 (Group)」，並根據群組的大小和當前任務的狀態，決定如何處理它。
 
-## 4. 設計挑戰
+### 3.1. 序言優先處理 (Preamble First)
 
-切割任務的核心挑戰在於，如何在遵守大小限制 (BATCH_SIZE_LIMIT)的同時，盡可能地保持文章的邏輯完整性，並最大化 API 請求的經濟效益。我們不希望將一個只有三行的小段落也當成一個獨立的 `Task`。而「序言優先」策略則引入了對任務分配順序的特殊考量。
+在進入主迴圈、進行大規模的併發翻譯任務之前，程式會執行一個至關重要的前置步驟：「序言優先」策略。
 
-## 5. 最終設計方案詳解
+1.  **獨立分配**: 程式會檢查文件的第一個章節 (`allSections[0]`)。如果它是一個頂層章節（深度為 1，通常是包含目錄的 H1 或文件序言），它會被立即分配到一個獨立的、專屬的 `Task` 中。
 
-在確立目前的設計方案之前，我們曾嘗試過另一種更為傳統的作法：直接遍歷由 `remark` 解析出來的 Markdown AST (抽象語法樹)。然而，實踐證明，直接操作複雜的巢狀樹狀結構，處理節點間的邊界、容量計算與分批邏輯，會讓問題變得異常複雜且容易出錯。因此，我們最終放棄了該作法，並確立了目前這個更為優雅、穩健的設計：其核心就是將問題「降維」，把樹狀結構攤平成一維陣列來處理。
+2.  **串行翻譯，建立基準**: 這個序言任務**不會**與其他任務並行執行。程式會優先、且獨立地完成這個任務的翻譯。其目的是為了先取得一份包含文章目錄（TOC）的、翻譯完成的「基準」版本。
 
-目前的設計方案，透過對 Markdown 文件進行結構化解析，並在 `Task` 層級實現動態的准入判斷，優雅地解決了上述挑戰。
+3.  **注入上下文，確保一致性**: 在序言翻譯完成後，才會開始併發處理剩餘的所有任務。在處理這些後續任務時，程式會將先前翻譯好的「序言基準」作為額外的上下文資訊提供給 LLM，並明確指示模型：「在翻譯新的章節標題時，必須確保其翻譯結果與這份基準序言中的目錄標題完全一致」。
 
-### 5.1. `Section`：一維化的結構
+這個策略雖然犧牲了完全的並行性，但它從根本上解決了因分批翻譯而可能導致的標題不一致問題，是確保整份文件翻譯品質與連結準確性的核心機制。
 
-- **目的**：此為設計基石。`markdownParser.ts` 中的 `splitMarkdownIntoSections` 函式，將一個具有巢狀層級的 Markdown 文件，**攤平**成一個線性的、可依序遍歷的 `Section[]` 一維陣列。
-- **優點**：主流程（`translator/index.ts` 中）不再需要處理複雜的樹狀結構或遞迴，一個簡單的 `for` 迴圈即可從頭到尾處理整個文件流。
-- **結構保留**：雖然陣列是一維的，但每個 `Section` 物件都透過 `depth` 和 `parent` 屬性，完整地保留了它在原始文件中的層級和父子關係。
+### 3.2. 章節群組 (Group)
 
-### 5.2. `contentLength` vs `totalLength`：雙長度驅動
+在進入主迴圈後，程式的第一步是定義「群組」。一個群組由一個起始章節（如 H2）及其所有後代章節（H3, H4...）組成，直到遇到下一個同級或更高級別的章節為止。這個群組代表了一個完整的、邏輯獨立的內容單元。
 
-`Section` 的這兩個長度屬性是實現智能分批的關鍵。
+### 3.3. 打包與拆分的三種情境
 
-- **`contentLength` (物理大小)**: 是 `Task` 容量的「金標準」。一個 `Task` 的實際大小，永遠是其包含的所有 `section.contentLength` 的總和。這個長度是**分批演算法的依據**，但**不完全等同**於最終發送給 LLM 的真實 Payload 大小。為了處理如 base64 內嵌圖片等特殊情況，最終的 Payload 可能會經過預處理（例如，用佔位符替換圖片），導致其大小略小於 `contentLength` 的總和。
+對於每一個識別出來的「群組」，程式會根據以下三種情境進行處理：
 
-- **`totalLength` (邏輯大小)**: 是一個**「預警指標」**，專門用來處理 H2 層級的章節，以判斷其是否過於龐大，不適合與其他章節組合。
+1.  **情境一：能裝入當前任務 (Fits in Current Task)**
+    - **條件**: `當前任務內容` + `群組內容` <= `BATCH_SIZE_LIMIT`。
+    - **動作**: 直接將該群組的所有章節加入當前任務。
+    - **額外規則**: 在加入前，會進行「層級檢查」。
 
-### 5.3. `Task.addSection`：動態決策中心
+2.  **情境二：能裝入新任務 (Fits in New Task)**
+    - **條件**: 不滿足情境一，但 `群組內容` <= `BATCH_SIZE_LIMIT`。
+    - **動作**: 將當前任務結束並儲存，然後建立一個全新的任務，並將該群組完整地加入這個新任務。
 
-`Task.ts` 中的 `addSection` 方法是整個分批邏輯的精髓所在，它透過一系列規則，判斷一個章節 (`Section`) 能否被加入目前的任務 (`Task`)。
+3.  **情境三：群組過大，必須拆分 (Splitting Mode)**
+    - **條件**: `群組內容` > `BATCH_SIZE_LIMIT`。
+    - **動作**: 觸發「拆分模式」，對這個巨大群組進行內部再切分。
 
-其核心規則如下：
+---
 
-1.  **上下文連貫性檢查**：如果一個 `Task` 被指定了 `parentContext` (通常是一個巨大的 H2 章節)，那麼在加入任何新的 `section` 之前，它會向上遍歷 `section` 的所有祖先，確保 `parentContext` 是其祖先之一。這確保了在「子分割」模式下，任務內容不會混入不相關的章節。
+## 4. 核心規則詳解
 
-2.  **動態長度評估**：
-    -   對於 H2 章節 (`depth === 2`)，使用其 `totalLength` (邏輯大小) 來進行容量評估。
-    -   對於所有其他層級的章節，則使用其 `contentLength` (物理大小)。
+### 4.1. 層級檢查規則 (Heading Level Constraint)
 
-3.  **容量判斷**：`Task` 內部使用 `contentLength` 屬性來追蹤其大小。`addSection` 會判斷加入 `lengthToAdd` (動態評估出的長度) 後，是否會超過 `BATCH_SIZE_LIMIT`。
+此規則在**情境一**中觸發，是為了防止邏輯混亂。
+
+- **規則**: 不允許在一個任務中，加入比該任務**第一個章節**層級更「高」的章節（層級數值更小）。
+- **舉例**: 如果一個 `Task` 的第一個章節是 H3 (`depth: 3`)，那麼任何以 H1 (`depth: 1`) 或 H2 (`depth: 2`) 開頭的新群組都不能被加入這個 `Task`。如果發生這種情況，將會強制結束當前任務，為這個新群組開啟一個新任務（行為類似情境二）。
+
+### 4.2. 拆分模式詳解 (Splitting Mode)
+
+此模式在**情境三**中觸發，是為了處理像 `dusk.md` 這樣的巨大文件，同時避免上下文破碎。
+
+1.  **結束當前任務**: 如果當前任務有內容，先將其儲存。
+2.  **設定父上下文**: 建立一個新任務，並將這個巨大群組的起始章節（通常是 H2 標頭）設定為 `parentContext`。這個設定對於後續的測試驗證至關重要。
+
+3.  **單獨處理群組標頭**: 將巨大群組的起始章節（H2 標頭本身）先單獨放入新任務中。
+
+4.  **內部再分組**: 從巨大群組的第二個章節（即 H2 的第一個子章節）開始遍歷，並再次應用「群組」邏輯，但這次是在 H3 或更低的層級上形成「子群組」。
+
+5.  **打包子群組**: 將這些「子群組」逐一嘗試放入當前任務。如果放不下，就結束當前任務，建立一個新的、同樣帶有 `parentContext` 的任務，再將子群組放入。
+
+6.  **處理巨大子群組**: 根據規則，如果一個「子群組」（例如一個 H3 及其所有後代）本身就超過 `BATCH_SIZE_LIMIT`，我們不再對其進行更深層次的遞迴拆分。而是直接將這個巨大的子群組完整地放入一個全新的、帶有 `parentContext` 的任務中。
+
+---
+
+## 5. 虛擬碼 (Pseudocode)
 
 ```pseudocode
-function addSection(section):
-    // 規則 1: 檢查祖先是否匹配 parentContext
-    if task.has_context and not section.is_descendant_of(task.context):
-        return false
+function assignTasks(allSections):
+    // ... 序言處理 ...
+    let currentTask = createTask()
 
-    // 規則 2 & 3: 根據容量判斷
-    length_to_add = (section.is_h2) ? section.total_length : section.content_length
-    if task.content_length + length_to_add > LIMIT:
-        return false
+    for each section starting from index 1:
+        // 1. 建立一個包含後代的章節群組 (group)
+        group = createGroupFrom(section)
 
-    // 成功加入
-    task.add(section)
-    task.content_length += section.content_length
-    return true
+        // 2. 判斷屬於何種情境
+        fitsInCurrent = currentTask.length + group.length <= LIMIT
+        fitsInNew = group.length <= LIMIT
+
+        if fitsInCurrent:
+            // **情境一**
+            // 檢查層級規則 (group.startDepth < currentTask.startDepth)
+            if constraintViolated:
+                // 規則衝突，轉為情境二處理
+                finalizeAndCreateNewTaskFor(group)
+            else:
+                // 正常加入
+                currentTask.add(group)
+        else if fitsInNew:
+            // **情境二**
+            finalizeAndCreateNewTaskFor(group)
+        else:
+            // **情境三：拆分模式**
+            finalizeAndStartNewTaskWithContext(group[0])
+            
+            // 單獨處理群組標頭
+            currentTask.add(group[0])
+
+            // 從子章節開始，進行內部再分組和打包
+            for each childSection in group (from index 1):
+                subGroup = createGroupFrom(childSection)
+                if currentTask.length + subGroup.length > LIMIT:
+                    finalizeAndStartNewTaskWithContext(group[0])
+                
+                // 即使 subGroup > LIMIT，也直接加入，形成獨立大任務
+                currentTask.add(subGroup)
 ```
 
-### 5.4. `translateFile`：任務分配流程 (含序言優先策略)
+這個經過多次迭代的複雜邏輯，最終確保了在處理各種型別的 Markdown 文件時，任務分配都能兼顧`效能`、`上下文完整性`和`結構邏輯正確性`。
 
-為了同時解決輸出中斷和標題不一致的問題，`translator/index.ts` 中的 `translateFile` 函式負責**一次性分配所有翻譯任務**。這個分配過程會考量序言的特殊性，並生成一個完整的任務列表，供後續的執行階段使用。
+## 6. 總結：一維化與多階段迭代設計的核心優勢
 
-其任務分配流程的虛擬碼如下：
+本專案的最終設計，其精髓與穩健性根植於一個核心原則：**先將巢狀的樹狀結構「降維」成線性的陣列，再透過一個多階段的迭代器對其進行精密的處理**。
 
-```pseudocode
-function translateFile(all_sections): // 此函式負責生成所有任務列表
-    tasks = []
-    task_factory = new TaskFactory()
-    sections_to_process = all_sections // 初始設定為所有章節
+雖然我們最初的目標是追求極致的簡潔（例如用一個簡單的 `for` 迴圈處理所有事情），但在實踐中我們發現，為了應對巨大章節的拆分、同時保證上下文的連貫性，必須引入更複雜的處理邏輯。
 
-    // =================================================
-    // 階段一: 處理 Section[0] 的特殊情況 (序言優先分配)
-    // =================================================
-    const preface_section = all_sections[0]
-    if (preface_section.has_table_of_contents()): // 假設 Section 物件有判斷是否包含目錄的方法
-        // 為序言建立一個獨立的任務，確保 Task[0] 只包含 Section[0]
-        const preface_task = task_factory.createTask()
-        preface_task.add(preface_section)
-        tasks.push(preface_task)
-        
-        // 剩餘的章節從 Section[1] 開始進行批次分配
-        sections_to_process = all_sections.slice(1)
-    
-    // =================================================
-    // 階段二: 處理剩餘章節的正常批次分配
-    // =================================================
-    let current_task = task_factory.createTask() // 建立一個新的任務來收集章節
+最終確立的「一維 `Section` 陣列」加上「多情境打包器」的設計，其優勢在於：
 
-    for section in sections_to_process:
-        // 分支 1: 遇到巨大 H2，進入「子分割」模式
-        if section.is_huge_h2():
-            if not current_task.is_empty():
-                tasks.push(current_task)
-            
-            // 為巨大 H2 建立一個或多個帶有上下文的任務
-            // 這裡的上下文是指 Section 的 parentContext，用於確保邏輯結構，而非 LLM 的 prompt_context
-            sub_divide_huge_h2_into_tasks(section, tasks)
-            
-            current_task = task_factory.createTask() // 重置 current_task 以收集後續章節
-            continue
+1.  **基礎模型的簡潔性**：`markdownParser.ts` 將文件攤平成 `Section[]` 陣列，這一步極大地簡化了問題的基礎模型。它預先處理了所有父子關係和尺寸計算，為後續的複雜分批提供了乾淨、標準化的輸入。
 
-        // 分支 2: 處理普通章節
-        if current_task.is_full_with(section):
-            tasks.push(current_task)
-            current_task = task_factory.createTask() // 任務已滿，建立新任務
-        
-        current_task.add(section)
+2.  **職責的精準分離**：
+    *   `markdownParser.ts` 專注於扮演「結構專家」。
+    *   `taskAssigner.ts` 則作為一個「分批策略家」。它雖然內部邏輯複雜（包含三種打包情境和一個帶有內迴圈的拆分模式），但它面對的仍然是一個清晰的一維陣列，使其可以完全專注於實現分批的商業邏輯，而無需關心任何 Markdown 的語法細節。
 
-    // =================================================
-    // 階段三: 收尾 (儲存最後一個任務)
-    // =================================================
-    if not current_task.is_empty():
-        tasks.push(current_task)
+3.  **兼顧穩健性與可控性**：我們最終的 `taskAssigner.ts` 雖然不再是「單純的 `for` 迴圈」，但它是一個高度結構化的、可預測的迭代演算法。它透過明確的 `if/else` 分支處理不同的打包情境，並在需要時才進入層次化的「拆分模式」。這種設計雖然複雜，但避免了直接操作 AST 可能導致的、難以追蹤的遞迴問題，在穩健性和邏輯複雜度之間取得了一個理想的平衡。
 
-    return tasks // 返回所有已分配好的任務列表，供執行階段使用
-```
-
-## 6. 總結：Section 一維化設計的核心優勢
-
-本專案的最終設計，其精髓與穩健性根植於一個核心原則：**將巢狀的樹狀結構問題，降維成線性的陣列問題來處理**。
-
-在開發初期，我們曾嘗試直接操作 Markdown AST（抽象語法樹），但很快就發現這會使分批、合併、計算邊界的邏輯變得極度複雜且難以維護。
-
-最終確立的「一維 `Section` 陣列」設計，其優勢在於：
-
-1.  **迭代邏輯極簡化**：一旦 `markdownParser.ts` 將文件攤平成 `Section[]`，主流程 `translator/index.ts` 就不再需要任何遞迴或複雜的樹狀遍歷。一個單純的 `for` 迴圈，就能從頭到尾處理所有章節，使得核心的分批邏輯可以保持驚人的簡潔與清晰。
-
-2.  **職責徹底分離**：此設計將「理解文件結構」和「執行分批邏輯」兩個複雜問題徹底解耦。
-    *   `markdownParser.ts` 專注於扮演「結構專家」，它負責所有的髒活累活，將 Markdown 的巢狀關係、邏輯大小 (`totalLength`) 等資訊，預先計算並儲存到每一個 `Section` 物件中。
-    *   `translator/index.ts` 則作為一個「分批策略家」，它面對的是一個極其簡單的、帶有預處理資訊的一維陣列，因此它可以完全專注於實現分批的核心商業邏輯，而無需關心任何 Markdown 的語法細節。
-
-這種「先降維，再處理」的思維，是整個系統得以保持穩健、可擴展且易於理解的根本原因。
+這種「先降維，再分階段精細處理」的思維，是整個系統得以保持穩健、可擴展且易於理解的根本原因。
