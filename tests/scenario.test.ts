@@ -2,9 +2,11 @@ import { main } from '../src/main';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { RepositoryNotFoundError, getCurrentCommitHash } from '../src/git';
+import { GoogleGenerativeAIError } from '@google/generative-ai';
 import { LlmApiQuotaError } from '../src/translator';
 import * as llm from '../src/llm';
 import * as translator from '../src/translator';
+import { ProgressManager } from '../src/progressBar';
 import { readProgressFile } from '../src/progress';
 import { executeGit } from '../src/git/executor';
 
@@ -23,6 +25,17 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
     // 隱藏測試期間的 console 輸出，讓結果更乾淨
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    // 徹底模擬 ProgressManager 以隱藏進度條輸出
+    jest.spyOn(ProgressManager.prototype, 'addTask').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'startTask').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'updateTask').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'updateStatus').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'updateBytes').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'completeTask').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'failTask').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'stop').mockImplementation(() => {});
+    jest.spyOn(ProgressManager.prototype, 'printCollectedWarnings').mockImplementation(() => {});
   });
 
   afterAll(() => {
@@ -65,9 +78,13 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
     // 準備：使用 spyOn 來監視並修改 createLlmModel 的行為
     const spy = jest.spyOn(llm, 'createLlmModel');
     spy.mockImplementation(() => {
+      // 模擬 GoogleGenerativeAIError
+      const mockGoogleError = new GoogleGenerativeAIError('429 Too Many Requests');
+
       return {
         model: {
-          invoke: jest.fn().mockRejectedValue(new LlmApiQuotaError('API quota exceeded', 'DUMMY_KEY')),
+          // 確保模擬 stream 方法，因為這是實際使用的
+          stream: jest.fn().mockRejectedValue(mockGoogleError),
         },
         modelInfo: 'mocked model',
         apiKeyUsed: 'DUMMY_KEY',
