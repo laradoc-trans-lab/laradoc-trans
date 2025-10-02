@@ -85,8 +85,7 @@ export function assignTasks(allSections: Section[], taskFactory: TaskFactory): T
       }
 
       const context = group[0]; // H2 標頭是共享的上下文
-      currentTask = taskFactory.createTask();
-      currentTask.parentContext = context;
+      currentTask = taskFactory.createTask(context);
       
       // **最終修正**：先單獨處理巨大群組的 H2 標頭，然後從子章節開始遍歷
       currentTask.addSection(group[0]);
@@ -108,8 +107,7 @@ export function assignTasks(allSections: Section[], taskFactory: TaskFactory): T
 
         if (!currentTask.isEmpty() && currentTask.getContentLength() + subGroupContentLength > BATCH_SIZE_LIMIT) {
           tasks.push(currentTask);
-          currentTask = taskFactory.createTask();
-          currentTask.parentContext = context;
+          currentTask = taskFactory.createTask(context);
         }
 
         for (const section of subGroup) {
