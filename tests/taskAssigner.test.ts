@@ -1,13 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { assignTasks } from '../../src/translator/taskAssigner';
-import { TaskFactory } from '../../src/translator/TaskFactory';
-import { splitMarkdownIntoSections } from '../../src/markdownParser';
-import { Section } from '../../src/translator/Section';
+import { assignTasks } from '../src/translator/taskAssigner';
+import { TaskFactory } from '../src/translator/TaskFactory';
+import { splitMarkdownIntoSections } from '../src/markdownParser';
+import { Section } from '../src/translator/Section';
 
 describe('assignTasks', () => {
   async function runTaskAssignmentTest(fileName: string) {
-    const filePath = path.resolve(__dirname, `../fixtures/validator/source/${fileName}`);
+    const filePath = path.resolve(__dirname, `fixtures/validator/source/${fileName}`);
     const fileContent = await fs.readFile(filePath, 'utf-8');
     const sections = splitMarkdownIntoSections(fileContent);
     const taskFactory = new TaskFactory();
