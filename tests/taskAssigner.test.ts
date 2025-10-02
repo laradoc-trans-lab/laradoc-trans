@@ -84,18 +84,30 @@ describe('assignTasks', () => {
     }
   }
 
+  /**
+   * documentation.md 是一個只有 TOC 的文件，所以單獨驗證會不會出錯
+   */
   it('should correctly assign tasks from documentation.md', async () => {
     await runTaskAssignmentTest('documentation.md');
   });
 
+  /**
+   * authorization.md 是一個巨大 H2 包含了許多 H3/H4 參雜的章節，必須測試 H3+H4 的獨立性
+   */
   it('should correctly assign tasks from authorization.md', async () => {
     await runTaskAssignmentTest('authorization.md');
   });
 
+  /**
+   * mcp.md 包含了一張很大的 base64 圖片，有採用 placeHolder 技術替代內容
+   */
   it('should correctly assign tasks from mcp.md', async () => {
     await runTaskAssignmentTest('mcp.md');
   });
 
+  /**
+   * dusk.md 的章節層級與其他檔案不同，會有很多 H1 層級
+   */
   it('should correctly assign tasks from dusk.md', async () => {
     await runTaskAssignmentTest('dusk.md');
   });
