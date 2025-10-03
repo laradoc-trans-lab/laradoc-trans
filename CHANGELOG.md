@@ -1,6 +1,6 @@
 # laradoc-trans 更新紀錄
 
-## 0.3.0 2025-
+## 0.3.0 2025-10-03
 
 - Issue #6 : 放棄使用 `gemini cli` 改用 `langchain`。
 - Issue #6 : 實作切割章節翻譯避免超過最大輸出 tokens，並利用 `p-limit` 併發進行提升翻譯速度。
