@@ -22,6 +22,7 @@
     範例:
     <pre>
         ```php
+        // This is a comment
         Route::get('/', function () {
             return view('greeting', ['name' => 'Finn']);
         });
@@ -60,7 +61,7 @@
 
 以下列表皆於前一章節 「[定義 Definitions](#definitions) 」中有詳細說明，屬於嚴禁翻的部分，須與原文完全一致(每一個byte皆須與原文一模一樣。)
 
-- 程式碼區塊 (Code Block) : 程式碼區塊內的所有內容，皆嚴禁翻譯或進行轉換，每一個byte皆須與原文一模一樣。
+- 程式碼區塊 (Code Block) : 程式碼區塊內的所有文字，皆嚴禁翻譯或進行轉換，每一個byte皆須與原文一模一樣。
 - 行內程式碼 (Inline Code)
 - Blade 註解 (Blade Comment)
 - 提示區塊 (Admonition Block)
@@ -78,6 +79,7 @@
 - 將技術術語翻譯成通用的繁體中文對應詞（例如："request" 翻譯成 "請求"，"middleware" 翻譯成 "中介層"）。
 - 保留所有的 Markdown 格式與排版，包括連結和表格和列表的階層。
 - 確保翻譯後章節中的程式碼區塊數量與原始章節完全相符。
+- 原文出現幾次行內程式碼，譯文也必須一致，不能多也不能少，**不要雞婆，擅自添加或減少行內程式碼**。
 - 圖片替代文字 (Image Alt Text): 你必須翻譯 Markdown 圖片語法 `![...]` 中的替代文字。例如，`![An example image](image.png)` 應該被翻譯為 `![一個範例圖片](image.png)`。
 - 保留所有 Laravel 專有名詞為原文英文，且必須**完整保留其原始形式，包含單複數與大小寫**。例如，若原文是 `Gates`，譯文必須是 `Gates`；若原文是 `gate`，譯文必須是 `gate`。此規則適用於以下詞彙及其各種形式：`Blade`, `Eloquent`, `Artisan`, `Livewire`, `Reverb`, `Gate`, `Policy`, `Facade`, `Echo`, `Vite`, `Pint`, `Sail`, `Homestead`, `Valet`, `Octane`, `Horizon`, `Telescope`, `Passport`, `Sanctum`, `Cashier`, `Scout`, `Socialite`, `Fortify`。
 
