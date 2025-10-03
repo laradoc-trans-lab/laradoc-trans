@@ -137,7 +137,7 @@ export class FileValidator {
         break;
       }
     }
-    return contentParts.join('\n\n');
+    return contentParts.join('\n');
   }
 
 
