@@ -30,7 +30,7 @@ export async function initializeWorkspace(customWorkspacePath?: string): Promise
   // Ensure all necessary directories exist
   await fs.mkdir(paths.source, { recursive: true }); // Ensure source directory exists
   await fs.mkdir(paths.target, { recursive: true });
-  await fs.mkdir(paths.tmp, { recursive: true });
+
   await fs.mkdir(paths.logs, { recursive: true });
 
   console.log(_('Workspace paths resolved at: {{path}}', { path: workspacePath }));

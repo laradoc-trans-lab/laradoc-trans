@@ -1,5 +1,9 @@
 # laradoc-trans 更新紀錄
 
+## 0.3.1 2025-
+
+- Bug fixed : 修正切換分支翻譯，會因為 tmp 內的 .source_commit 是前一分支，造成差異比對錯誤而要全部重新翻譯的問題。
+
 ## 0.3.0 2025-10-03
 
 - Issue #6 : 放棄使用 `gemini cli` 改用 `langchain`。

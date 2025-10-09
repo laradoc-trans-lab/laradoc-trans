@@ -136,7 +136,7 @@ async function handleRunCommand(options: RunOptions) {
     root: workspacePath,
     source: path.join(workspacePath, 'repo', 'source'),
     target: path.join(workspacePath, 'repo', 'target'),
-    tmp: path.join(workspacePath, 'tmp'),
+    tmp: path.join(workspacePath, 'tmp', options.branch),
     logs: path.join(workspacePath, 'logs'),
   };
 
@@ -176,6 +176,7 @@ async function handleRunCommand(options: RunOptions) {
     throw error;
   }
   console.log(_('Git repositories synchronized to the correct branch.'));
+  await fs.mkdir(paths.tmp, { recursive: true });
 
   let progress = await readProgressFile(paths.tmp);
   if (!progress) {
