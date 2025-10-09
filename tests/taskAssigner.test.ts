@@ -26,7 +26,7 @@ describe('assignTasks', () => {
       }),
       '---------------------------------'
     ].join('\n');
-    console.log(taskAssignmentLog);
+    // console.log(taskAssignmentLog);
 
     // 1. 驗證行號連貫性
     for (const task of tasks) {
