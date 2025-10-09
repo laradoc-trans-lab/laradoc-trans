@@ -57,7 +57,7 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 - `workspace`: 工作區，此目錄為使用者自行建立，但程式需要用到，為了彈性，也可以建立在專案之外的路徑並藉由參數指定。
 - `workspace/repo/source` : 使用者必須以 `git clone` 命令將官方文件下載放這。
 - `workspace/repo/target` : 翻譯完成的檔案會存放於此。
-- `workspace/tmp` : 工作暫存目錄，翻譯時會預先使用此目錄進行翻譯進度管理，待全部的進度完成才會將翻譯好的所有檔案複製到 `workspace/repo/target` 。
+- `workspace/tmp/<branch_name>` : 工作暫存目錄，翻譯時會預先使用此目錄進行翻譯進度管理，待全部的進度完成才會將翻譯好的所有檔案複製到 `workspace/repo/target` 。`<branch_name>` 會是當前翻譯的分支名稱，例如 `11.x` 或 `12.x`。
 - `workspace/logs` : 記錄檔存放區， `error.log` 可用於檢視錯誤。
 - `workspace/validate-report`: 存放 `validate` 命令產生的驗證報告。
   - `SUMMARY.md`: 總結所有檔案的驗證結果。
