@@ -10,8 +10,7 @@ import { ProgressManager } from '../src/progressBar';
 import { readProgressFile } from '../src/progress';
 import { executeGit } from '../src/git/executor';
 
-const PROJECT_ROOT = process.cwd();
-const TESTS_DIR = path.join(PROJECT_ROOT, 'tests');
+const TESTS_DIR = __dirname
 const TESTS_TMP_DIR = path.join(TESTS_DIR, 'tmp');
 const WORKSPACE_PATH = path.join(TESTS_TMP_DIR, 'workspace');
 const WORKSPACE_TEMPLATE = path.join(TESTS_DIR, 'fixtures', 'workspace-template');
@@ -143,7 +142,7 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
       await main(argv);
 
       // 驗證：檢查結果檔案內容是否為我們模擬的假字串
-      const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp', translatedFile);
+      const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp' , 'test1-branch', translatedFile);
       await expect(fs.pathExists(translatedFilePath)).resolves.toBe(true);
 
       const originalFilePath = path.join(WORKSPACE_PATH, 'repo', 'source', translatedFile);
@@ -153,7 +152,7 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
       expect(content).toBe(expectedContent);
 
       // 檢查進度檔案
-      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp'));
+      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp' , 'test1-branch'));
       expect(progressAfter?.get(translatedFile)).toBe(1);
 
       // 驗證 target 目錄不應該存在該檔案
@@ -200,7 +199,7 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
 
       for (const translatedFile of translatedFiles) {
         // 驗證 tmp 檔案
-        const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp', translatedFile);
+        const translatedFilePath = path.join(WORKSPACE_PATH, 'tmp', 'test1-branch', translatedFile);
         await expect(fs.pathExists(translatedFilePath)).resolves.toBe(true);
 
         const originalFilePath = path.join(WORKSPACE_PATH, 'repo', 'source', translatedFile);
@@ -215,7 +214,7 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
       }
 
       // 檢查進度檔案
-      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp'));
+      const progressAfter = await readProgressFile(path.join(WORKSPACE_PATH, 'tmp' , 'test1-branch'));
       // 案例 3 翻譯了一個，案例 4 翻譯了兩個，所以總共應該有 3 個檔案狀態為 1
       const completedCount = Array.from(progressAfter?.values() || []).filter(status => status === 1).length;
       expect(completedCount).toBe(3);
