@@ -1,12 +1,13 @@
 import { remark } from 'remark';
+import gfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
 import { Section } from '../translator/Section';
 import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch } from './types';
 import  *  as debugKey from '../debugKey';
 
-const extractCodeBlocksFromMarkdown = (section: Section): CodeBlock[] => {
-  const ast = remark().parse(section.content);
+export const extractCodeBlocksFromMarkdown = (section: Section): CodeBlock[] => {
+  const ast = remark().use(gfm).parse(section.content);
   const codeBlocks: CodeBlock[] = [];
   visit(ast, 'code', (node: any) => {
     if (node.lang && node.position) { // Only consider code blocks with a specified language and position
