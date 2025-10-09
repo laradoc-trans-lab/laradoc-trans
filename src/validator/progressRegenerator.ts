@@ -21,7 +21,7 @@ export async function regenerateProgressForFailedFiles(options: RegenerateOption
     root: workspacePath,
     sourceRepo: path.join(workspacePath, 'repo', 'source'),
     targetRepo: path.join(workspacePath, 'repo', 'target'),
-    tmp: path.join(workspacePath, 'tmp'),
+    tmp: path.join(workspacePath, 'tmp' , branch),
     progressFile: path.join(workspacePath, 'tmp', '.progress'),
   };
 
