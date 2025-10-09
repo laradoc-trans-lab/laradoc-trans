@@ -51,6 +51,7 @@
     "nunjucks": "^3.2.4",
     "p-limit": "^7.1.1",
     "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
     "unist-util-visit": "^5.0.0",
     "uuid": "^13.0.0"
   },
@@ -59,6 +60,7 @@
     "@babel/preset-env": "^7.28.3",
     "@babel/preset-typescript": "^7.27.1",
     "@types/cli-progress": "^3.11.6",
+    "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/mdast": "^4.0.4",
     "@types/node": "^24.3.0",
