@@ -39,22 +39,6 @@
     範例:
     <pre>`{{-- This comment will not be present in the rendered HTML --}}`</pre>
 
-
-4.  提示區塊 (Admonition Block): 指的是以 `[!` 開頭，並以 `]` 結尾的特殊標記。
-
-    範例:
-    <pre>
-        > [!WARNING] Warning title
-        > Warning description
-    </pre>
-
-    <pre>
-        > [!INFO] Info title
-        > Info description
-    </pre>
-
-    上述兩個範例所指的提示詞區塊是 `[!WARNING]` 與 `[!INFO]`，其他文字內容則與提示詞區塊無關。
-
 ---
 
 ### 不需要翻譯的部分 (翻譯規則中的權重最高，須要完全遵守)
@@ -64,11 +48,11 @@
 - 程式碼區塊 (Code Block) : 程式碼區塊內的所有文字，皆嚴禁翻譯或進行轉換，每一個byte皆須與原文一模一樣。
 - 行內程式碼 (Inline Code)
 - Blade 註解 (Blade Comment)
-- 提示區塊 (Admonition Block)
 
 其他不須翻譯的部分 :
 
 - 縮寫詞 : 如 CSRF, API, CSV 等常見縮寫詞。
+- GitHub-flavored Alerts : 如 `[!INFO]` , `[!WARNING]`，此標記必須保留，以利將來渲染網頁能識別。
 
 ### 翻譯風格
 
@@ -80,7 +64,7 @@
 - 保留所有的 Markdown 格式與排版，包括連結和表格和列表的階層。
 - 確保翻譯後章節中的程式碼區塊數量與原始章節完全相符。
 - 原文出現幾次行內程式碼，譯文也必須一致，不能多也不能少，**不要雞婆，擅自添加或減少行內程式碼**。
-- 圖片替代文字 (Image Alt Text): 你必須翻譯 Markdown 圖片語法 `![...]` 中的替代文字。例如，`![An example image](image.png)` 應該被翻譯為 `![一個範例圖片](image.png)`。
+- 圖片替代文字 (Image Alt Text): 你必須翻譯 Markdown 圖片語法 `![...]` 中的替代文字。例如，`![An example image](image.png)` 應該被翻譯為 `![一張範例圖片](image.png)`。
 - 保留所有 Laravel 專有名詞為原文英文，且必須**完整保留其原始形式，包含單複數與大小寫**。例如，若原文是 `Gates`，譯文必須是 `Gates`；若原文是 `gate`，譯文必須是 `gate`。此規則適用於以下詞彙及其各種形式：`Blade`, `Eloquent`, `Artisan`, `Livewire`, `Reverb`, `Gate`, `Policy`, `Facade`, `Echo`, `Vite`, `Pint`, `Sail`, `Homestead`, `Valet`, `Octane`, `Horizon`, `Telescope`, `Passport`, `Sanctum`, `Cashier`, `Scout`, `Socialite`, `Fortify`。
 
 
