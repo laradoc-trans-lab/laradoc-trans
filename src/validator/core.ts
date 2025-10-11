@@ -156,10 +156,18 @@ export function validateSpecialMarkers(sourceSection: Section, targetSection: Se
   const mismatches: string[] = [];
 
   const targetMarkerSet = new Set(targetMarkers);
+  const sourceMarkerSet = new Set(sourceMarkers);
   for (const marker of sourceMarkers) {
       if (!targetMarkerSet.has(marker)) {
           mismatches.push(marker);
       }
+  }
+
+  // 檢查是否有在 target 中但不在 source 中的標記
+  for (const marker of targetMarkers) {
+    if (!sourceMarkerSet.has(marker)) {
+      mismatches.push(marker);
+    }
   }
   
   const isValid = mismatches.length === 0 && sourceMarkers.length === targetMarkers.length;
