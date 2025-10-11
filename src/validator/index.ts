@@ -37,6 +37,7 @@ export async function validateProject(options: ValidateProjectOptions): Promise<
         status: 'Skipped',
         preamble: { isValid: true },
         headings: { isValid: true, missingCount: 0, anchorMissingCount: 0, mismatches: [] },
+        headingCount: { isValid: true, sourceCount: 0, targetCount: 0, headings: [] },
         codeBlocks: { isValid: true },
         inlineCode: { isValid: true },
         specialMarkers: { isValid: true },

@@ -1,6 +1,16 @@
 # 驗證報告：{{ result.fileName }}
 
 ## 檔案層級問題
+{% if not result.headingCount.isValid %}
+### 標題數量不符
+**問題**: 譯文檔案中的標題總數 ({{ result.headingCount.targetCount }}) 與原文 ({{ result.headingCount.sourceCount }}) 不符。
+
+| 原文標題 | 譯文標題 |
+|:---|:---|
+{% for item in result.headingCount.headings %}| {% if item.source %}``{{ '#'.repeat(item.source.depth) }} {{ item.source.text }}`` (L{{ item.source.line }}){% endif %} | {% if item.target %}``{{ '#'.repeat(item.target.depth) }} {{ item.target.text }}`` (L{{ item.target.line }}){% endif %} |
+{% endfor %}
+
+{% endif %}
 {% if result.status === 'Unverifiable' %}
 ### 序言結構不符
 **問題**: 譯文的序言（目錄列表）與原文的結構不一致。

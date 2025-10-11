@@ -12,11 +12,28 @@ export interface HeadingTitleMismatch {
 
 export type HeadingMismatch = HeadingNotFoundMismatch | HeadingTitleMismatch;
 
+export interface HeadingData {
+  text: string;
+  line: number;
+  depth: number;
+}
+
+export interface HeadingCountResult {
+  isValid: boolean;
+  sourceCount: number;
+  targetCount: number;
+  headings: {
+    source: HeadingData | null;
+    target: HeadingData | null;
+  }[];
+}
+
 export interface FileValidationResult {
   fileName: string;
   status: 'Validated' | 'Unverifiable' | 'Skipped';
   preamble: ValidationStatus & { totalHeadings?: number };
   headings: ValidationStatus & { missingCount: number; anchorMissingCount: number; mismatches: HeadingMismatch[] };
+  headingCount: HeadingCountResult;
   codeBlocks: ValidationStatus;
   inlineCode: ValidationStatus;
   specialMarkers: ValidationStatus;

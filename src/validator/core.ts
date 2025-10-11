@@ -3,8 +3,30 @@ import gfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
 import { Section } from '../translator/Section';
-import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch } from './types';
+import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch, HeadingCountResult, HeadingData } from './types';
 import  *  as debugKey from '../debugKey';
+
+export function validateHeadingCount(sourceSections: Section[], targetSections: Section[]): HeadingCountResult {
+  const sourceCount = sourceSections.length;
+  const targetCount = targetSections.length;
+  const isValid = sourceCount === targetCount;
+
+  const headings: { source: HeadingData | null; target: HeadingData | null }[] = [];
+  if (!isValid) {
+    const maxCount = Math.max(sourceCount, targetCount);
+    for (let i = 0; i < maxCount; i++) {
+      const sourceSection = sourceSections[i];
+      const targetSection = targetSections[i];
+
+      headings.push({
+        source: sourceSection ? { text: sourceSection.title, line: sourceSection.startLine, depth: sourceSection.depth } : null,
+        target: targetSection ? { text: targetSection.title, line: targetSection.startLine, depth: targetSection.depth } : null,
+      });
+    }
+  }
+
+  return { isValid, sourceCount, targetCount, headings };
+}
 
 export const extractCodeBlocksFromMarkdown = (section: Section): CodeBlock[] => {
   const ast = remark().use(gfm).parse(section.content);

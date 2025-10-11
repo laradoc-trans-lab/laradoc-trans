@@ -1,10 +1,10 @@
 import { Section } from '../translator/Section';
 import { splitMarkdownIntoSections } from '../markdownParser';
-import { FileValidationResult, ValidationStatus, SectionError, HeadingMismatch } from './types';
+import { FileValidationResult, ValidationStatus, SectionError, HeadingMismatch, HeadingCountResult, HeadingData } from './types';
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
-import { validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml, extractPreambleEntries, PreambleEntry } from './core';
+import { validateHeadingCount, validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml, extractPreambleEntries, PreambleEntry } from './core';
 import  *  as debugKey from '../debugKey';
 
 
@@ -41,6 +41,7 @@ export class FileValidator {
       }
 
       const headingsResult = this.validateHeadingsAndAnchors();
+      const headingCountResult = validateHeadingCount(this.sourceSections, this.targetSections);
       const sectionErrors: SectionError[] = [];
 
       const preambleEntries = extractPreambleEntries(this.sourceSections[0]);
@@ -106,6 +107,7 @@ export class FileValidator {
         status: 'Validated',
         preamble: preambleResult,
         headings: headingsResult,
+        headingCount: headingCountResult,
         codeBlocks: { isValid: sectionErrors.every(e => e.codeBlocks.isValid) },
         inlineCode: { isValid: sectionErrors.every(e => e.inlineCode.isValid) },
         specialMarkers: { isValid: sectionErrors.every(e => e.specialMarkers.isValid) },
@@ -160,6 +162,7 @@ export class FileValidator {
       status,
       preamble,
       headings: { isValid: false, missingCount: 0, anchorMissingCount: 0, mismatches: [] },
+      headingCount: { isValid: true, sourceCount: 0, targetCount: 0, headings: [] },
       codeBlocks: { isValid: false },
       inlineCode: { isValid: false },
       specialMarkers: { isValid: false },
@@ -173,6 +176,7 @@ export class FileValidator {
       status: 'Validated',
       preamble,
       headings: { isValid: true, missingCount: 0, anchorMissingCount: 0, mismatches: [] },
+      headingCount: { isValid: true, sourceCount: 0, targetCount: 0, headings: [] },
       codeBlocks: { isValid: true },
       inlineCode: { isValid: true },
       specialMarkers: { isValid: true },

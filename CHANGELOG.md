@@ -1,5 +1,9 @@
 # laradoc-trans 更新紀錄
 
+## 0.3.2 2025-
+
+- 驗證報告增加驗證原文與譯文的總標題數量
+
 ## 0.3.1 2025-10-09
 
 - Issue #15 : 重構 markdownParser.ts 解決 shell block 的註解被誤判為標題。
