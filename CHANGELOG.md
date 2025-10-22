@@ -1,6 +1,6 @@
 # laradoc-trans 更新紀錄
 
-## 0.3.2 2025-
+## 0.3.2 2025-10-22
 
 - 驗證報告增加驗證原文與譯文的總標題數量
 - 修復 validate `GitHub-flavored Alerts ` 報告錯誤的問題
