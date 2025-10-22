@@ -138,7 +138,7 @@ async function translateContent(
       fullResponse = '';
       totalBytes = 0;
 
-      const retryRequestLogFile = await debugLlmDetails(retryPrompt, `llm_request_task_${task.id + 1}`);
+      const retryRequestLogFile = await debugLlmDetails(retryPrompt, `llm_request_task_${task.id + 1}_retry`);
       if (retryRequestLogFile) {
         await debugLog(`LLM retry request for task ${task.id + 1}: See debug_llm_details/${retryRequestLogFile}`);
       }
@@ -151,7 +151,7 @@ async function translateContent(
           progressManager.updateBytes(retryId, totalBytes);
         }
 
-        const retryResponseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}`);
+        const retryResponseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}_retry`);
         if (retryResponseLogFile) {
           await debugLog(`LLM retry response for task ${task.id + 1}: See debug_llm_details/${retryResponseLogFile}`);
         }
