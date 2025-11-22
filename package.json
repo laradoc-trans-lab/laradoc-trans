@@ -1,6 +1,6 @@
 {
   "name": "laradoc-trans",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Translate Laravel docs using Gemini CLI.",
   "main": "dist/main.js",
   "files": [
@@ -38,16 +38,16 @@
     "node": "^22.0.0"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.77",
-    "@langchain/google-genai": "^0.2.18",
-    "@langchain/openai": "^0.6.13",
+    "@langchain/core": "^1.0.6",
+    "@langchain/google-genai": "^1.0.3",
+    "@langchain/openai": "^1.1.2",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.1",
     "dotenv": "^17.2.1",
     "i18next": "^25.5.2",
     "i18next-cli-language-detector": "^1.1.8",
     "i18next-fs-backend": "^2.6.0",
-    "langchain": "^0.3.34",
+    "langchain": "^1.0.6",
     "nunjucks": "^3.2.4",
     "p-limit": "^7.1.1",
     "remark": "^15.0.1",
