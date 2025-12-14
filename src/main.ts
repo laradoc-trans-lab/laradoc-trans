@@ -244,6 +244,10 @@ async function handleRunCommand(options: RunOptions) {
       console.error(_('FAILED to translate {{file}}: {{message}}', { file, message: errorMessage }));
       const logFilePath = path.join(paths.logs, 'error.log');
       await fs.appendFile(logFilePath, `[${new Date().toISOString()}] FAILED to translate ${file}: ${errorMessage}\n\n`);
+      if(error.stack) {
+        console.error(`${error.stack}`);
+        await fs.appendFile(logFilePath, `${error.stack}\n\n`);
+      }
       console.error(_('Error details logged to {{path}}', { path: logFilePath }));
       throw error;
     }
