@@ -4,7 +4,7 @@ import pLimit from 'p-limit';
 import { _ } from '../i18n';
 import { splitMarkdownIntoSections } from '../markdownParser';
 import { ProgressManager, TaskStatus } from '../progressBar';
-import { createLlmModel } from '../llm';
+import { createLlmModel, LlmModel } from '../llm';
 import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
 import { debugLog } from '../debugLogger';
@@ -17,9 +17,12 @@ import { buildPrompt, PromptContext } from './prompts';
 // --- 錯誤類別定義 ---
 
 export class TranslationError extends Error {
-  constructor(message: string) {
+  constructor(message: string, originalError?: Error) {
     super(message);
     this.name = 'TranslationError';
+    if (originalError && originalError.stack) {
+      this.stack = originalError.stack;
+    }
   }
 }
 
@@ -27,22 +30,16 @@ export class LlmApiQuotaError extends TranslationError {
   public readonly maskedApiKey: string;
 
   constructor(message: string, maskedApiKey: string, originalError?: Error) {
-    super(message);
+    super(message, originalError);
     this.name = 'LlmApiQuotaError';
     this.maskedApiKey = maskedApiKey;
-    if (originalError && originalError.stack) {
-      this.stack = originalError.stack;
-    }
   }
 }
 
 export class PromptFileReadError extends TranslationError {
   constructor(message: string, originalError?: Error) {
-    super(message);
+    super(message, originalError);
     this.name = 'PromptFileReadError';
-    if (originalError) {
-      this.stack = originalError.stack;
-    }
   }
 }
 
@@ -55,17 +52,22 @@ async function translateContent(
   task: Task,
   progressManager: ProgressManager,
   sourceFilePath: string,
-  apiKeyUsed: string,
+  llmModel: LlmModel, // 修改：接收完整的 LlmModel 物件
   promptFilePath?: string,
   preambleContext?: string,
 ): Promise<{ task: Task; translatedContent: string }> {
-  const { model } = createLlmModel();
+  const { model, apiKeyUsed } = llmModel; // 修改：從傳入的物件中解構
   const startTime = Date.now();
   const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
   const taskTitle = task.getTitle();
   const contentToTranslate = task.getContent();
+
+  // 遮罩 API Key 以便顯示
+  const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
   
   progressManager.startTask(taskId);
+  // 更新進度條以顯示正在使用的 Key
+  progressManager.updateTask(taskId, { notes: `🔑 ${maskedKey}` });
 
   let totalBytes = 0;
   let fullResponse = '';
@@ -99,10 +101,9 @@ async function translateContent(
 
     } catch (error: any) {
       if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
-        const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
         throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
       }
-      throw new TranslationError(error.message);
+      throw new TranslationError(error.message, error);
     }
 
     const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -122,7 +123,7 @@ async function translateContent(
       const newTaskNumber = progressManager.getTaskCount() + 1;
       progressManager.addTask(retryId, retryTitle, newTaskNumber, task.getContentLength());
       
-      const retryNote = _('Retranslating Task {{id}}', { id: task.id + 1 });
+      const retryNote = _('Retranslating Task {{id}} (🔑 {{maskedKey}})', { id: task.id + 1, maskedKey });
       progressManager.updateTask(retryId, { notes: retryNote });
 
       progressManager.startTask(retryId);
@@ -158,10 +159,9 @@ async function translateContent(
 
       } catch (error: any) {
         if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
-          const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
           throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
         }
-        throw new TranslationError(error.message);
+        throw new TranslationError(error.message, error);
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -171,6 +171,8 @@ async function translateContent(
       
       const retryEndTime = Date.now();
       const retryDuration = parseFloat(((retryEndTime - retryStartTime) / 1000).toFixed(1));
+      // 在完成重試任務前清除 note
+      progressManager.updateTask(retryId, { notes: '' });
       progressManager.completeTask(retryId, retryDuration);
 
       return { task, translatedContent: fullResponse };
@@ -178,6 +180,8 @@ async function translateContent(
 
     const endTime = Date.now();
     const duration = parseFloat(((endTime - startTime) / 1000).toFixed(1));
+    // 在完成任務前清除 note
+    progressManager.updateTask(taskId, { notes: '' });
     progressManager.completeTask(taskId, duration);
 
     return { task, translatedContent: fullResponse };
@@ -197,7 +201,6 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
   try {
     const fileContent = await fs.readFile(sourceFilePath, 'utf-8');
-    const { apiKeyUsed } = createLlmModel();
     const allSections = splitMarkdownIntoSections(fileContent);
 
     // Sanitize the full file content for context to save tokens
@@ -251,7 +254,8 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     let translatedTasks: { task: Task; translatedContent: string }[] = [];
 
     if (preambleTask) {
-      const result = await translateContent(sanitizedFileContent, preambleTask!, progressManager, sourceFilePath, apiKeyUsed, promptFilePath);
+      const llmModel = createLlmModel(); // 為序言任務建立模型
+      const result = await translateContent(sanitizedFileContent, preambleTask!, progressManager, sourceFilePath, llmModel, promptFilePath);
       preambleTranslationResult = result.translatedContent;
       if (!preambleTranslationResult) {
         throw new TranslationError(_('Preamble translation failed, stopping the process.'));
@@ -263,7 +267,10 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
     if (tasks.length > 0) {
       const translationPromises = tasks.map((task) => {
         // 為剩餘任務傳入序言翻譯結果
-        return limit(() => translateContent(sanitizedFileContent, task, progressManager, sourceFilePath, apiKeyUsed, promptFilePath, preambleTranslationResult));
+        return limit(() => {
+          const llmModel = createLlmModel(); // 為每個併發任務建立獨立的模型
+          return translateContent(sanitizedFileContent, task, progressManager, sourceFilePath, llmModel, promptFilePath, preambleTranslationResult);
+        });
       });
   
       const remainingTranslatedTasks = await Promise.all(translationPromises);
@@ -290,7 +297,7 @@ export async function translateFile(sourceFilePath: string, promptFilePath?: str
 
     return finalContent;
 
-  } catch (error) {
+  } catch (error:any) {
     progressManager.stop();
     if (error instanceof LlmApiQuotaError) {
       console.error(_('Translation failed: LLM API quota exceeded for key: {{maskedKey}}', { maskedKey: error.maskedApiKey }));
