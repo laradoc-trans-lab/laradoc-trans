@@ -1,5 +1,8 @@
 # laradoc-trans 更新紀錄
 
+# 0.3.5 202X-XX-XX
+- gemini model 預設採用 `gemini-3-flash-preview`
+
 ## 0.3.4 2025-12-14
 - Bug fixed: 有時候出現 Cannot read properties of undefined (reading 'reduce') , 是 langchain 問題，升級最新版後已經修復
 - package.json 修改 engines.node 設定不然會跳出安裝警告

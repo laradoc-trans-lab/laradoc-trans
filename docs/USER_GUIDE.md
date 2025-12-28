@@ -155,7 +155,7 @@ laradoc-trans validate --branch 12.x
 
 -   `GEMINI_MODEL` / `OPENAI_MODEL` (可選)
     指定要使用的具體模型名稱。
-    -   若使用 `gemini`，預設為 `gemini-2.5-pro`。
+    -   若使用 `gemini`，預設為 `gemini-3-flash-preview`。
     -   若使用 `openai`，預設為 `gpt-4o`。
 
 ## 7. 進階用法與範例

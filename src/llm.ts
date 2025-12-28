@@ -70,7 +70,7 @@ export function getModelInfo(): ModelDetails {
   }
 
   if (provider === 'gemini') {
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
     return {
       provider: 'gemini',
       modelName,
