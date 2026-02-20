@@ -1,7 +1,10 @@
 # laradoc-trans 更新紀錄
 
-# 0.3.5 202X-XX-XX
+
+
+# 0.3.5 2026-02
 - gemini model 預設採用 `gemini-3-flash-preview`
+- Issue #19 : 修復來源 git repo 有檔案刪除時，會中斷翻譯進度。
 
 ## 0.3.4 2025-12-14
 - Bug fixed: 有時候出現 Cannot read properties of undefined (reading 'reduce') , 是 langchain 問題，升級最新版後已經修復

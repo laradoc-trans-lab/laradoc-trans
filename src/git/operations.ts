@@ -11,6 +11,11 @@ import {
   CloneError,
 } from './';
 
+export interface DiffMarkdownFile {
+  file: string;
+  deleted: boolean;
+}
+
 /**
  * Checks if a given directory path is a Git repository.
  */
@@ -94,12 +99,47 @@ export async function listMarkdownFiles(repoPath: string): Promise<string[]> {
 /**
  * Gets a list of changed markdown files between two commits.
  */
-export async function getDiffFiles(repoPath: string, oldHash: string, newHash: string): Promise<string[]> {
-  const { stdout, stderr, exitCode } = await executeGit(['diff', '--name-only', oldHash, newHash], repoPath);
+export async function getDiffFiles(repoPath: string, oldHash: string, newHash: string): Promise<DiffMarkdownFile[]> {
+  const { stdout, stderr, exitCode } = await executeGit(['diff', '--name-status', oldHash, newHash], repoPath);
   if (exitCode !== 0) {
     throw new DiffError(stderr);
   }
-  return stdout.trim().split('\n').filter(line => line.endsWith('.md'));
+
+  const isMarkdown = (filePath: string) => filePath.toLowerCase().endsWith('.md');
+  const files = new Map<string, DiffMarkdownFile>();
+  const lines = stdout.trim().split('\n').filter(Boolean);
+
+  for (const line of lines) {
+    const parts = line.split('\t');
+    if (parts.length < 2) {
+      continue;
+    }
+
+    const status = parts[0];
+
+    if (status.startsWith('R') || status.startsWith('C')) {
+      const oldPath = parts[1];
+      const newPath = parts[2];
+
+      if (status.startsWith('R') && oldPath && isMarkdown(oldPath)) {
+        files.set(oldPath, { file: oldPath, deleted: true });
+      }
+
+      if (newPath && isMarkdown(newPath)) {
+        files.set(newPath, { file: newPath, deleted: false });
+      }
+      continue;
+    }
+
+    const filePath = parts[1];
+    if (!filePath || !isMarkdown(filePath)) {
+      continue;
+    }
+
+    files.set(filePath, { file: filePath, deleted: status === 'D' });
+  }
+
+  return Array.from(files.values()).sort((a, b) => a.file.localeCompare(b.file));
 }
 
 /**

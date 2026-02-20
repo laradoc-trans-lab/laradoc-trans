@@ -23,6 +23,7 @@ export {
   initRepository,
   cloneRepository,
 } from './operations';
+export type { DiffMarkdownFile } from './operations';
 
 /**
  * It also re-exports all error types for consumers who need to handle

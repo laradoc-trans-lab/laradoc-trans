@@ -366,4 +366,57 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
       spyTranslateFile.mockRestore();
     }
   });
+
+  // 測試案例 7: 當 source 刪除檔案時，應在完成後同步刪除 target 檔案
+  test('7. should remove deleted files from target after translation run completes', async () => {
+    const sourceRepoPath = path.join(WORKSPACE_PATH, 'repo', 'source');
+    const targetRepoPath = path.join(WORKSPACE_PATH, 'repo', 'target');
+    const deletedFile = 'test8.md';
+
+    await expect(fs.pathExists(path.join(sourceRepoPath, deletedFile))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(targetRepoPath, deletedFile))).resolves.toBe(true);
+
+    await executeGit(['checkout', 'test1-branch'], sourceRepoPath);
+    await fs.remove(path.join(sourceRepoPath, deletedFile));
+    await executeGit(['add', '-A'], sourceRepoPath);
+    await executeGit(['commit', '-m', 'Delete one source file'], sourceRepoPath);
+
+    const spyCreateLlmModel = jest.spyOn(llm, 'createLlmModel');
+    spyCreateLlmModel.mockImplementation(() => {
+      return {
+        model: {
+          invoke: jest.fn().mockResolvedValue('[翻譯成功]'),
+        },
+        modelInfo: 'mocked model',
+        apiKeyUsed: 'DUMMY_KEY',
+      } as unknown as llm.LlmModel;
+    });
+
+    const translatedFiles: string[] = [];
+    const spyTranslateFile = jest.spyOn(translator, 'translateFile');
+    spyTranslateFile.mockImplementation(async (sourceFilePath: string, promptFilePath?: string): Promise<string> => {
+      translatedFiles.push(path.basename(sourceFilePath));
+      const originalContent = await fs.readFile(sourceFilePath, 'utf-8');
+      return `${originalContent}\n[翻譯成功]`;
+    });
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(TESTS_DIR);
+
+      const argv = ['node', '../dist/main.js', 'run', '--branch', 'test1-branch', '--all', '--env', '.env.test'];
+      await main(argv);
+
+      expect(translatedFiles.length).toBe(0);
+      await expect(fs.pathExists(path.join(targetRepoPath, deletedFile))).resolves.toBe(false);
+
+      const sourceCommitHash = await getCurrentCommitHash(sourceRepoPath);
+      const targetCommitHash = await fs.readFile(path.join(targetRepoPath, '.source_commit'), 'utf-8');
+      expect(targetCommitHash.trim()).toBe(sourceCommitHash);
+    } finally {
+      process.chdir(originalCwd);
+      spyCreateLlmModel.mockRestore();
+      spyTranslateFile.mockRestore();
+    }
+  });
 });

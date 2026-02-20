@@ -189,75 +189,109 @@ async function handleRunCommand(options: RunOptions) {
       return;
     }
 
-    const files = oldHash ? await getDiffFiles(paths.source, oldHash, newHash) : await listMarkdownFiles(paths.source);
-    if (files.length === 0) {
+    const fileChanges = oldHash
+      ? await getDiffFiles(paths.source, oldHash, newHash)
+      : (await listMarkdownFiles(paths.source)).map((file) => ({ file, deleted: false }));
+
+    if (fileChanges.length === 0) {
       console.log(_('No markdown files have changed.'));
       return;
     }
 
-    console.log(_('Found {{count}} files to translate.', { count: files.length }));
+    const filesToProcessCount = fileChanges.filter((change) => !change.deleted).length;
+    const deletedFilesCount = fileChanges.length - filesToProcessCount;
+    console.log(_('Found {{count}} files to translate.', { count: filesToProcessCount }));
+    if (deletedFilesCount > 0) {
+      console.log(_('Found {{count}} deleted file(s) to remove from target after completion.', { count: deletedFilesCount }));
+    }
     await cleanTmpDirectory(paths.tmp);
-    progress = new Map(files.map((file) => [file, 0]));
+    progress = new Map<string, 0 | 1 | 2 | 3>(
+      fileChanges.map((change) => [change.file, change.deleted ? 3 : 0])
+    );
     await writeProgressFile(paths.tmp, progress);
     await writeTmpSourceCommit(paths.tmp, newHash);
   } else {
     console.log(_('Resuming previous translation session.'));
   }
 
-  const filesToTranslate = Array.from(progress.entries()).filter(([, status]) => status === 0 || status === 2).map(([file]) => file);
-  if (filesToTranslate.length === 0) {
-    console.log(_('All translations are complete.'));
-    return;
-  }
-
-  const limitedFiles = translationCount === 'all' ? filesToTranslate : filesToTranslate.slice(0, translationCount);
-
-  console.log(_('--- Translation Plan ---'));
-  console.log(_('{{count}} file(s) will be translated in this run:', { count: limitedFiles.length }));
-  limitedFiles.forEach((file) => console.log(`- ${file}`));
-  console.log(_('------------------------------------'));
-
-  for (const file of limitedFiles) {
-    const sourcePath = path.join(paths.source, file);
-    const targetPath = path.join(paths.tmp, file);
-
-    if (['license.md', 'readme.md'].includes(file)) {
-      await fs.copyFile(sourcePath, targetPath);
-      console.log(_('Skipped translation for {{file}}. Copied directly.', { file }));
-      
-      progress.set(file, 1);
-      await writeProgressFile(paths.tmp, progress);
+  let progressUpdated = false;
+  for (const [file, status] of progress.entries()) {
+    if (status !== 0 && status !== 2) {
       continue;
     }
 
     try {
-      console.log('\n' + _('Translating: {{file}}...', { file }));
-      const translatedContent = await translateFile(sourcePath, options.promptFile);
-      await fs.writeFile(targetPath, translatedContent);
-
-      progress.set(file , 1);
-      await writeProgressFile(paths.tmp, progress);
+      await fs.access(path.join(paths.source, file), fs.constants.F_OK);
     } catch (error: any) {
-      progress.set(file, 2); // Mark as failed
-      await writeProgressFile(paths.tmp, progress);
-      const errorMessage = error.message || _('An unknown error occurred.');
-      console.error(_('FAILED to translate {{file}}: {{message}}', { file, message: errorMessage }));
-      const logFilePath = path.join(paths.logs, 'error.log');
-      await fs.appendFile(logFilePath, `[${new Date().toISOString()}] FAILED to translate ${file}: ${errorMessage}\n\n`);
-      if(error.stack) {
-        console.error(`${error.stack}`);
-        await fs.appendFile(logFilePath, `${error.stack}\n\n`);
+      if (error.code === 'ENOENT') {
+        progress.set(file, 3);
+        progressUpdated = true;
+        console.log(_('Detected deleted source file: {{file}}. Marked for target cleanup.', { file }));
+      } else {
+        throw error;
       }
-      console.error(_('Error details logged to {{path}}', { path: logFilePath }));
-      throw error;
     }
   }
 
-  const allFilesComplete = Array.from(progress.values()).every(status => status === 1);
+  if (progressUpdated) {
+    await writeProgressFile(paths.tmp, progress);
+  }
+
+  const filesToTranslate = Array.from(progress.entries()).filter(([, status]) => status === 0 || status === 2).map(([file]) => file);
+  const limitedFiles = translationCount === 'all' ? filesToTranslate : filesToTranslate.slice(0, translationCount);
+
+  if (limitedFiles.length > 0) {
+    console.log(_('--- Translation Plan ---'));
+    console.log(_('{{count}} file(s) will be translated in this run:', { count: limitedFiles.length }));
+    limitedFiles.forEach((file) => console.log(`- ${file}`));
+    console.log(_('------------------------------------'));
+
+    for (const file of limitedFiles) {
+      const sourcePath = path.join(paths.source, file);
+      const targetPath = path.join(paths.tmp, file);
+
+      if (['license.md', 'readme.md'].includes(file)) {
+        await fs.copyFile(sourcePath, targetPath);
+        console.log(_('Skipped translation for {{file}}. Copied directly.', { file }));
+        
+        progress.set(file, 1);
+        await writeProgressFile(paths.tmp, progress);
+        continue;
+      }
+
+      try {
+        console.log('\n' + _('Translating: {{file}}...', { file }));
+        const translatedContent = await translateFile(sourcePath, options.promptFile);
+        await fs.writeFile(targetPath, translatedContent);
+
+        progress.set(file, 1);
+        await writeProgressFile(paths.tmp, progress);
+      } catch (error: any) {
+        progress.set(file, 2); // Mark as failed
+        await writeProgressFile(paths.tmp, progress);
+        const errorMessage = error.message || _('An unknown error occurred.');
+        console.error(_('FAILED to translate {{file}}: {{message}}', { file, message: errorMessage }));
+        const logFilePath = path.join(paths.logs, 'error.log');
+        await fs.appendFile(logFilePath, `[${new Date().toISOString()}] FAILED to translate ${file}: ${errorMessage}\n\n`);
+        if(error.stack) {
+          console.error(`${error.stack}`);
+          await fs.appendFile(logFilePath, `${error.stack}\n\n`);
+        }
+        console.error(_('Error details logged to {{path}}', { path: logFilePath }));
+        throw error;
+      }
+    }
+  } else {
+    console.log(_('No files require translation in this run.'));
+  }
+
+  const allFilesComplete = Array.from(progress.values()).every(status => status === 1 || status === 3);
   if (allFilesComplete) {
     console.log('\n' + _('All translations complete. Finalizing...'));
-    const files = Array.from(progress.keys());
-    for (const file of files) {
+    const translatedFiles = Array.from(progress.entries())
+      .filter(([, status]) => status === 1)
+      .map(([file]) => file);
+    for (const file of translatedFiles) {
       const source = path.join(paths.tmp, file);
       const destination = path.join(paths.target, file);
 
@@ -273,6 +307,14 @@ async function handleRunCommand(options: RunOptions) {
       await fs.mkdir(path.dirname(destination), { recursive: true });
       await fs.copyFile(source, destination);
     }
+
+    const deletedFiles = Array.from(progress.entries())
+      .filter(([, status]) => status === 3)
+      .map(([file]) => file);
+    for (const file of deletedFiles) {
+      await fs.rm(path.join(paths.target, file), { force: true });
+    }
+
     const tmpSourceCommitPath = path.join(paths.tmp, '.source_commit');
     const targetSourceCommitPath = path.join(paths.target, '.source_commit');
     await fs.copyFile(tmpSourceCommitPath, targetSourceCommitPath);

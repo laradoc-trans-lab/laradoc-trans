@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { _ } from './i18n';
 
-export type Progress = Map<string, 0 | 1 | 2>; // 0: 待處理, 1: 已完成, 2: 失敗
+export type Progress = Map<string, 0 | 1 | 2 | 3>; // 0: 待處理, 1: 已完成, 2: 失敗, 3: 待刪除(來源已刪)
 
 const SOURCE_COMMIT_FILE = '.source_commit'; // Use a single constant
 const PROGRESS_FILE = '.progress';
@@ -81,7 +81,7 @@ export async function readProgressFile(tmpPath: string): Promise<Progress | null
     for (const line of lines) {
       if (!line) continue;
       const [file, status] = line.split(' = ');
-      progress.set(file, parseInt(status, 10) as 0 | 1 | 2);
+      progress.set(file, parseInt(status, 10) as 0 | 1 | 2 | 3);
     }
     return progress;
   } catch (error: any) {
