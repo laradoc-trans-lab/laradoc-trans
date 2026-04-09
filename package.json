@@ -38,7 +38,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@google/gemini-cli": "^0.37.0",
     "@langchain/core": "^1.1.39",
     "@langchain/google": "^0.1.10",
     "@langchain/openai": "^1.4.3",
