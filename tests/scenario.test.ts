@@ -2,7 +2,6 @@ import { main } from '../src/main';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { RepositoryNotFoundError, getCurrentCommitHash } from '../src/git';
-import { GoogleGenerativeAIError } from '@google/generative-ai';
 import { LlmApiQuotaError } from '../src/translator';
 import * as llm from '../src/llm';
 import * as translator from '../src/translator';
@@ -77,8 +76,8 @@ describe('Scenario Testing for command `laradoc-trans run ...`', () => {
     // 準備：使用 spyOn 來監視並修改 createLlmModel 的行為
     const spy = jest.spyOn(llm, 'createLlmModel');
     spy.mockImplementation(() => {
-      // 模擬 GoogleGenerativeAIError
-      const mockGoogleError = new GoogleGenerativeAIError('429 Too Many Requests');
+      // 模擬 LLM API 回傳 429 錯誤
+      const mockGoogleError = Object.assign(new Error('429 Too Many Requests'), { status: 429 });
 
       return {
         model: {

@@ -5,7 +5,6 @@ import { _ } from '../i18n';
 import { splitMarkdownIntoSections } from '../markdownParser';
 import { ProgressManager, TaskStatus } from '../progressBar';
 import { createLlmModel, LlmModel } from '../llm';
-import { GoogleGenerativeAIError } from "@google/generative-ai";
 import { validateBatch } from './validateBatch';
 import { debugLog } from '../debugLogger';
 import { debugLlmDetails } from '../debugLlmDetails';
@@ -41,6 +40,90 @@ export class PromptFileReadError extends TranslationError {
     super(message, originalError);
     this.name = 'PromptFileReadError';
   }
+}
+
+function extractVisibleTextFromChunk(chunk: any): string {
+  const content = chunk?.content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part: any) => {
+        if (typeof part === 'string') {
+          return part;
+        }
+
+        if (!part || typeof part !== 'object') {
+          return '';
+        }
+
+        if (part.type === 'text' && typeof part.text === 'string' && part.thought !== true) {
+          return part.text;
+        }
+
+        return '';
+      })
+      .join('');
+  }
+
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (typeof chunk?.text === 'string') {
+    return chunk.text;
+  }
+
+  return '';
+}
+
+function parseErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+  const unknownError = error as Record<string, unknown>;
+  const status = unknownError.status;
+  const code = unknownError.code;
+  const response = unknownError.response as Record<string, unknown> | undefined;
+
+  if (typeof status === 'number') {
+    return status;
+  }
+  if (typeof code === 'number') {
+    return code;
+  }
+  if (response && typeof response.status === 'number') {
+    return response.status;
+  }
+  return undefined;
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (!error || typeof error !== 'object') {
+    return String(error ?? '');
+  }
+  const maybeMessage = (error as Record<string, unknown>).message;
+  if (typeof maybeMessage === 'string') {
+    return maybeMessage;
+  }
+  return String(error);
+}
+
+function isLlmRateLimitError(error: unknown): boolean {
+  const status = parseErrorStatus(error);
+  if (status === 429) {
+    return true;
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  return (
+    message.includes('429') ||
+    message.includes('too many requests') ||
+    message.includes('rate limit') ||
+    message.includes('resource_exhausted')
+  );
 }
 
 
@@ -89,8 +172,9 @@ async function translateContent(
     try {
       const stream = await model.stream(prompt);
       for await (const chunk of stream) {
-        fullResponse += chunk.content.toString();
-        totalBytes += Buffer.byteLength(chunk.content.toString(), 'utf8');
+        const visibleText = extractVisibleTextFromChunk(chunk);
+        fullResponse += visibleText;
+        totalBytes += Buffer.byteLength(visibleText, 'utf8');
         progressManager.updateBytes(taskId, totalBytes);
       }
 
@@ -100,10 +184,10 @@ async function translateContent(
       }
 
     } catch (error: any) {
-      if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
+      if (isLlmRateLimitError(error)) {
         throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
       }
-      throw new TranslationError(error.message, error);
+      throw new TranslationError(extractErrorMessage(error), error);
     }
 
     const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -147,8 +231,9 @@ async function translateContent(
       try {
         const retryStream = await model.stream(retryPrompt);
         for await (const chunk of retryStream) {
-          fullResponse += chunk.content.toString();
-          totalBytes += Buffer.byteLength(chunk.content.toString(), 'utf8');
+          const visibleText = extractVisibleTextFromChunk(chunk);
+          fullResponse += visibleText;
+          totalBytes += Buffer.byteLength(visibleText, 'utf8');
           progressManager.updateBytes(retryId, totalBytes);
         }
 
@@ -158,10 +243,10 @@ async function translateContent(
         }
 
       } catch (error: any) {
-        if (error instanceof GoogleGenerativeAIError && error.message.includes('429 Too Many Requests')) {
+        if (isLlmRateLimitError(error)) {
           throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
         }
-        throw new TranslationError(error.message, error);
+        throw new TranslationError(extractErrorMessage(error), error);
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);

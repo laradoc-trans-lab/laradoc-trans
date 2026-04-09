@@ -18,7 +18,7 @@
     *   模板中不包含 `repo/target`、`tmp` 和 `logs`，這些目錄將在測試執行時由程式動態建立。
 
 2.  **模擬 LLM API**
-    *   本專案使用 `langchain` 與 LLM API 互動。在測試中，我們使用 `jest.mock` 來模擬 `langchain` 的相關模組（例如 `@langchain/google-genai`）。
+    *   本專案使用 `langchain` 與 LLM API 互動。在測試中，我們使用 `jest.mock` 來模擬 `langchain` 的相關模組（例如 `@langchain/google`）。
     *   透過模擬，我們可以精確控制 API 的回應，以測試以下情境：
         *   **成功翻譯**：模擬 API 返回預期的翻譯內容。
         *   **翻譯失敗**：模擬 API 返回錯誤訊息或拋出異常。

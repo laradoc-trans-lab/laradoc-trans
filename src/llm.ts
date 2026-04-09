@@ -1,4 +1,4 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatGoogle } from "@langchain/google";
 import { ChatOpenAI } from "@langchain/openai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
@@ -107,7 +107,7 @@ export function createLlmModel(): LlmModel {
   // provider === 'gemini'
   const apiKey = getNextGeminiApiKey();
   return {
-    model: new ChatGoogleGenerativeAI({
+    model: new ChatGoogle({
       model: modelName,
       apiKey: apiKey,
     }),
