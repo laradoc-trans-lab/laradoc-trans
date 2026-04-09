@@ -1,0 +1,8 @@
+approval_policy = "on-request"
+
+[agents]
+max_threads = 6
+max_depth = 1
+
+[sandbox_workspace_write]
+network_access = true
