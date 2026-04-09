@@ -82,17 +82,39 @@ function parseErrorStatus(error: unknown): number | undefined {
   }
   const unknownError = error as Record<string, unknown>;
   const status = unknownError.status;
+  const statusCode = unknownError.statusCode;
   const code = unknownError.code;
   const response = unknownError.response as Record<string, unknown> | undefined;
 
   if (typeof status === 'number') {
     return status;
   }
+  if (typeof statusCode === 'number') {
+    return statusCode;
+  }
+  if (typeof status === 'string' && /^\d+$/.test(status)) {
+    return Number(status);
+  }
+  if (typeof statusCode === 'string' && /^\d+$/.test(statusCode)) {
+    return Number(statusCode);
+  }
   if (typeof code === 'number') {
     return code;
   }
+  if (typeof code === 'string' && /^\d+$/.test(code)) {
+    return Number(code);
+  }
   if (response && typeof response.status === 'number') {
     return response.status;
+  }
+  if (response && typeof response.statusCode === 'number') {
+    return response.statusCode;
+  }
+  if (response && typeof response.status === 'string' && /^\d+$/.test(response.status)) {
+    return Number(response.status);
+  }
+  if (response && typeof response.statusCode === 'string' && /^\d+$/.test(response.statusCode)) {
+    return Number(response.statusCode);
   }
   return undefined;
 }
@@ -126,6 +148,195 @@ function isLlmRateLimitError(error: unknown): boolean {
   );
 }
 
+const MAX_LLM_SERVER_ERROR_RETRIES = 2;
+const LLM_SERVER_ERROR_RETRY_DELAY_MS = 1500;
+
+function maskApiKey(apiKey: string): string {
+  return apiKey.substring(0, 4) + '****' + apiKey.substring(apiKey.length - 4);
+}
+
+function isLlmServerError(error: unknown): boolean {
+  const status = parseErrorStatus(error);
+  return typeof status === 'number' && status >= 500 && status <= 599;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function safeJsonStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(
+    value,
+    (_key, currentValue) => {
+      if (typeof currentValue === 'bigint') {
+        return currentValue.toString();
+      }
+      if (typeof currentValue === 'function') {
+        return `[Function: ${currentValue.name || 'anonymous'}]`;
+      }
+      if (typeof currentValue === 'object' && currentValue !== null) {
+        if (seen.has(currentValue)) {
+          return '[Circular]';
+        }
+        seen.add(currentValue);
+      }
+      return currentValue;
+    },
+    2
+  );
+}
+
+function extractErrorDebugDetails(error: unknown): Record<string, unknown> {
+  const details: Record<string, unknown> = {
+    message: extractErrorMessage(error),
+    parsedStatus: parseErrorStatus(error),
+    isRateLimit: isLlmRateLimitError(error),
+  };
+
+  if (error instanceof Error) {
+    details.name = error.name;
+    details.stack = error.stack;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return details;
+  }
+
+  const unknownError = error as Record<string, unknown>;
+  const directFields = ['status', 'statusCode', 'statusText', 'code', 'url', 'headers', 'data'] as const;
+  for (const field of directFields) {
+    if (unknownError[field] !== undefined) {
+      details[field] = unknownError[field];
+    }
+  }
+
+  const response = unknownError.response;
+  if (response && typeof response === 'object') {
+    const responseObject = response as Record<string, unknown>;
+    details.response = {
+      status: responseObject.status,
+      statusCode: responseObject.statusCode,
+      statusText: responseObject.statusText,
+      url: responseObject.url,
+      headers: responseObject.headers,
+    };
+  }
+
+  return details;
+}
+
+async function logLlmStreamError(params: {
+  task: Task;
+  sourceFilePath: string;
+  modelInfo: string;
+  maskedKey: string;
+  attempt: 'initial' | 'retry';
+  promptCharLength: number;
+  sectionCharLength: number;
+  preambleCharLength: number;
+  requestLogFile: string | null;
+  error: unknown;
+  serverRetryCount?: number;
+}): Promise<void> {
+  const errorSnapshot = {
+    event: 'llm_stream_error',
+    attempt: params.attempt,
+    taskId: params.task.id + 1,
+    taskTitle: params.task.getTitle(),
+    sourceFilePath: params.sourceFilePath,
+    modelInfo: params.modelInfo,
+    maskedKey: params.maskedKey,
+    promptCharLength: params.promptCharLength,
+    sectionCharLength: params.sectionCharLength,
+    preambleCharLength: params.preambleCharLength,
+    serverRetryCount: params.serverRetryCount ?? 0,
+    requestLogFile: params.requestLogFile,
+    error: extractErrorDebugDetails(params.error),
+  };
+
+  const errorLogFile = await debugLlmDetails(
+    safeJsonStringify(errorSnapshot),
+    `llm_error_task_${params.task.id + 1}_${params.attempt}`
+  );
+
+  if (errorLogFile) {
+    await debugLog(
+      `LLM ${params.attempt} error for task ${params.task.id + 1}: See debug_llm_details/${errorLogFile}`
+    );
+  } else {
+    await debugLog(
+      `LLM ${params.attempt} error for task ${params.task.id + 1}: ${extractErrorMessage(params.error)}`
+    );
+  }
+}
+
+async function streamPromptWithServerRetry(params: {
+  llmModel: LlmModel;
+  recreateLlmModel: () => LlmModel;
+  prompt: string;
+  task: Task;
+  sourceFilePath: string;
+  attempt: 'initial' | 'retry';
+  requestLogFile: string | null;
+  sectionCharLength: number;
+  preambleCharLength: number;
+  onChunk: (visibleText: string) => void;
+  onBeforeRetry?: () => void;
+  onModelRecreated?: (llmModel: LlmModel) => void;
+}): Promise<void> {
+  let currentLlmModel = params.llmModel;
+
+  for (let retryCount = 0; retryCount <= MAX_LLM_SERVER_ERROR_RETRIES; retryCount++) {
+    try {
+      const stream = await currentLlmModel.model.stream(params.prompt);
+      for await (const chunk of stream) {
+        const visibleText = extractVisibleTextFromChunk(chunk);
+        params.onChunk(visibleText);
+      }
+      return;
+    } catch (error) {
+      const canRetry =
+        isLlmServerError(error) &&
+        retryCount < MAX_LLM_SERVER_ERROR_RETRIES;
+
+      if (canRetry) {
+        const status = parseErrorStatus(error) ?? 'unknown';
+        const oldMaskedKey = maskApiKey(currentLlmModel.apiKeyUsed);
+        await debugLog(
+          `LLM ${params.attempt} server error for task ${params.task.id + 1} (status: ${status}). Retrying (${retryCount + 1}/${MAX_LLM_SERVER_ERROR_RETRIES}) after ${LLM_SERVER_ERROR_RETRY_DELAY_MS}ms. Current key: ${oldMaskedKey}.`
+        );
+        params.onBeforeRetry?.();
+        await sleep(LLM_SERVER_ERROR_RETRY_DELAY_MS);
+
+        currentLlmModel = params.recreateLlmModel();
+        const newMaskedKey = maskApiKey(currentLlmModel.apiKeyUsed);
+        await debugLog(
+          `LLM ${params.attempt} retry for task ${params.task.id + 1} rebuilt client with key ${newMaskedKey}.`
+        );
+        params.onModelRecreated?.(currentLlmModel);
+        continue;
+      }
+
+      await logLlmStreamError({
+        task: params.task,
+        sourceFilePath: params.sourceFilePath,
+        modelInfo: currentLlmModel.modelInfo,
+        maskedKey: maskApiKey(currentLlmModel.apiKeyUsed),
+        attempt: params.attempt,
+        promptCharLength: params.prompt.length,
+        sectionCharLength: params.sectionCharLength,
+        preambleCharLength: params.preambleCharLength,
+        requestLogFile: params.requestLogFile,
+        error,
+        serverRetryCount: retryCount,
+      });
+
+      throw error;
+    }
+  }
+}
+
 
 
 // --- 核心翻譯邏輯 ---
@@ -139,14 +350,14 @@ async function translateContent(
   promptFilePath?: string,
   preambleContext?: string,
 ): Promise<{ task: Task; translatedContent: string }> {
-  const { model, apiKeyUsed } = llmModel; // 修改：從傳入的物件中解構
+  let currentLlmModel = llmModel;
   const startTime = Date.now();
   const taskId = `${path.basename(sourceFilePath)}-task-${task.id}`;
   const taskTitle = task.getTitle();
   const contentToTranslate = task.getContent();
 
   // 遮罩 API Key 以便顯示
-  const maskedKey = apiKeyUsed.substring(0, 4) + '****' + apiKeyUsed.substring(apiKeyUsed.length - 4);
+  let maskedKey = maskApiKey(currentLlmModel.apiKeyUsed);
   
   progressManager.startTask(taskId);
   // 更新進度條以顯示正在使用的 Key
@@ -169,25 +380,36 @@ async function translateContent(
       await debugLog(`LLM request for task ${task.id + 1}: See debug_llm_details/${requestLogFile}`);
     }
 
-    try {
-      const stream = await model.stream(prompt);
-      for await (const chunk of stream) {
-        const visibleText = extractVisibleTextFromChunk(chunk);
+    await streamPromptWithServerRetry({
+      llmModel: currentLlmModel,
+      recreateLlmModel: createLlmModel,
+      prompt,
+      task,
+      sourceFilePath,
+      attempt: 'initial',
+      requestLogFile,
+      sectionCharLength: contentToTranslate.length,
+      preambleCharLength: preambleContext?.length ?? 0,
+      onChunk: (visibleText: string) => {
         fullResponse += visibleText;
         totalBytes += Buffer.byteLength(visibleText, 'utf8');
         progressManager.updateBytes(taskId, totalBytes);
-      }
+      },
+      onBeforeRetry: () => {
+        fullResponse = '';
+        totalBytes = 0;
+        progressManager.updateBytes(taskId, 0);
+      },
+      onModelRecreated: (recreatedModel: LlmModel) => {
+        currentLlmModel = recreatedModel;
+        maskedKey = maskApiKey(recreatedModel.apiKeyUsed);
+        progressManager.updateTask(taskId, { notes: `🔑 ${maskedKey}` });
+      },
+    });
 
-      const responseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}`);
-      if (responseLogFile) {
-        await debugLog(`LLM response for task ${task.id + 1}: See debug_llm_details/${responseLogFile}`);
-      }
-
-    } catch (error: any) {
-      if (isLlmRateLimitError(error)) {
-        throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
-      }
-      throw new TranslationError(extractErrorMessage(error), error);
+    const responseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}`);
+    if (responseLogFile) {
+      await debugLog(`LLM response for task ${task.id + 1}: See debug_llm_details/${responseLogFile}`);
     }
 
     const validationResult = validateBatch(contentToTranslate, fullResponse, preambleContext);
@@ -228,25 +450,37 @@ async function translateContent(
         await debugLog(`LLM retry request for task ${task.id + 1}: See debug_llm_details/${retryRequestLogFile}`);
       }
 
-      try {
-        const retryStream = await model.stream(retryPrompt);
-        for await (const chunk of retryStream) {
-          const visibleText = extractVisibleTextFromChunk(chunk);
+      await streamPromptWithServerRetry({
+        llmModel: currentLlmModel,
+        recreateLlmModel: createLlmModel,
+        prompt: retryPrompt,
+        task,
+        sourceFilePath,
+        attempt: 'retry',
+        requestLogFile: retryRequestLogFile,
+        sectionCharLength: contentToTranslate.length,
+        preambleCharLength: preambleContext?.length ?? 0,
+        onChunk: (visibleText: string) => {
           fullResponse += visibleText;
           totalBytes += Buffer.byteLength(visibleText, 'utf8');
           progressManager.updateBytes(retryId, totalBytes);
-        }
+        },
+        onBeforeRetry: () => {
+          fullResponse = '';
+          totalBytes = 0;
+          progressManager.updateBytes(retryId, 0);
+        },
+        onModelRecreated: (recreatedModel: LlmModel) => {
+          currentLlmModel = recreatedModel;
+          maskedKey = maskApiKey(recreatedModel.apiKeyUsed);
+          const recreatedRetryNote = _('Retranslating Task {{id}} (🔑 {{maskedKey}})', { id: task.id + 1, maskedKey });
+          progressManager.updateTask(retryId, { notes: recreatedRetryNote });
+        },
+      });
 
-        const retryResponseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}_retry`);
-        if (retryResponseLogFile) {
-          await debugLog(`LLM retry response for task ${task.id + 1}: See debug_llm_details/${retryResponseLogFile}`);
-        }
-
-      } catch (error: any) {
-        if (isLlmRateLimitError(error)) {
-          throw new LlmApiQuotaError(_('LLM API quota exceeded for key: {{maskedKey}}', { maskedKey }), maskedKey, error);
-        }
-        throw new TranslationError(extractErrorMessage(error), error);
+      const retryResponseLogFile = await debugLlmDetails(fullResponse, `llm_response_task_${task.id + 1}_retry`);
+      if (retryResponseLogFile) {
+        await debugLog(`LLM retry response for task ${task.id + 1}: See debug_llm_details/${retryResponseLogFile}`);
       }
 
       const secondValidation = validateBatch(contentToTranslate, fullResponse, preambleContext);
