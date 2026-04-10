@@ -1,8 +1,12 @@
 # laradoc-trans 更新紀錄
 
-
-
-# 0.3.5 2026-02
+## 0.3.5 2026-04-10
+- 升級 Google LangChain 整合套件：`@langchain/google-genai` -> `@langchain/google`。
+- 修正 Gemini / Gemma 串流內容解析：避免因內容區塊物件轉字串導致 `[object Object]` 混入翻譯結果。
+- 修正 Gemma 4 可能回傳 thought/reasoning 區塊時，會混入最終譯文的問題；目前僅合併可見文字區塊（排除 `thought: true`）。
+- 調整 LLM 配額錯誤判斷為通用 429 / rate limit 檢測，不再依賴舊版 Google SDK 錯誤類別。
+- 同步更新相關測試與規格文件中舊套件名稱。
+- 提示詞加入翻譯對照表，提升用語一致性。
 - gemini model 預設採用 `gemini-3-flash-preview`
 - Issue #19 : 修復來源 git repo 有檔案刪除時，會中斷翻譯進度。
 
