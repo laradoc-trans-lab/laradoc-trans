@@ -1,5 +1,11 @@
 # laradoc-trans 更新紀錄
 
+## 0.3.7 2026-04-10
+- 修正 target repo 分支初始化流程：移除 `git checkout -B`，避免切換版本時意外重設既有分支歷史。
+- 當 target 分支不存在時，改為建立孤島分支（`git checkout --orphan <branch>`），確保各版本分支維持獨立提交鏈。
+- 建立 orphan 分支後補上 `git reset --hard`，避免沿用前一分支工作樹內容。
+- 新增 `checkoutOrCreateBranch` 單元測試，涵蓋既有分支、建立 orphan 分支與失敗情境。
+
 ## 0.3.6 2026-04-10
 - 提示詞增加更多翻譯對照表，使 gemma4 模型翻譯更加一致性
 

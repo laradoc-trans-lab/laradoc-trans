@@ -57,9 +57,25 @@ export async function cloneRepository(repoUrl: string, targetPath: string): Prom
  * Switches the Git repository to a specific branch, creating it if it doesn't exist.
  */
 export async function checkoutOrCreateBranch(repoPath: string, branch: string): Promise<void> {
-  const { stderr, exitCode } = await executeGit(['checkout', '-B', branch], repoPath);
-  if (exitCode !== 0) {
-    throw new CheckoutFailedError(repoPath,branch, stderr);
+  const checkoutResult = await executeGit(['checkout', branch], repoPath);
+  if (checkoutResult.exitCode === 0) {
+    return;
+  }
+
+  const localBranchRef = `refs/heads/${branch}`;
+  const localBranchExistsResult = await executeGit(['show-ref', '--verify', '--quiet', localBranchRef], repoPath);
+  if (localBranchExistsResult.exitCode === 0) {
+    throw new CheckoutFailedError(repoPath, branch, checkoutResult.stderr);
+  }
+
+  const orphanCheckoutResult = await executeGit(['checkout', '--orphan', branch], repoPath);
+  if (orphanCheckoutResult.exitCode !== 0) {
+    throw new CheckoutFailedError(repoPath, branch, orphanCheckoutResult.stderr || checkoutResult.stderr);
+  }
+
+  const resetResult = await executeGit(['reset', '--hard'], repoPath);
+  if (resetResult.exitCode !== 0) {
+    throw new CheckoutFailedError(repoPath, branch, resetResult.stderr);
   }
 }
 
