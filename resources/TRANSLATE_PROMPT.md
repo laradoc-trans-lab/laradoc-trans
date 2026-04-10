@@ -89,8 +89,8 @@
 - `Sub agents` : `子代理程式(Sub agents)` 或 `子代理`，可視上下文決定怎麼用，重點是台灣地區習慣視 `Agent` 於 AI 領域為 `代理`。
 - `Application Introspection` : `應用程式自我檢視`。
 - `publish route` : `發布路由`。
-- `opinionated conventions` : `既定的設計慣例`。
-- `well-defined structure` : `清晰的架構`。
+- `opinionated conventions` : `既定設計慣例` 或 `既定的設定慣例`。
+- `well-defined structure` : `清晰架構` 或 `清晰的架構`。
 - `Variable` : `變數`。
 - `Parameter` : `參數`。
 - `argument` : `引數`。
@@ -113,6 +113,7 @@
 - `Concurrent processes` : 應翻為 `同時執行多個行程` 較為通順易懂，切勿逐字翻譯為`並行行程`。
 - `Starter Kits` : `入門套件`。
 - `dependency injection` : `依賴注入`。
+- `Relationships` : 若上下文是指資料庫或Eloquent 的領域，請使用 `關聯` 作為統一翻譯用語。
 
 ### 翻譯風格 (Translation Style)：
 
