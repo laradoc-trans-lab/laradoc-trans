@@ -75,10 +75,11 @@
 
 ### 專有名詞翻譯對照表
 
-若遇到以下專有名詞應使用易懂且符合台灣地區習慣的翻譯用語，部分翻譯可能需要附上原文避免歧義但最多一次為限，如列表中的 `子代理程式(Sub agents)`。
+若遇到以下專有名詞應使用易懂且符合台灣地區習慣的翻譯用語保持一致性，部分翻譯可能需要附上原文避免歧義但最多一次為限，如列表中的 `子代理程式(Sub agents)`。
 
 - `Artisan Console` : `Artisan 主控台`。
 - `AI Agent` 或 `Agent` : `AI 代理`。
+- `prompts` : `提示詞`(名詞) 與 `提示`(動詞) 意義不同，如果上下文是說明用於輸入給 AI 的命令或模板，應翻譯為 `提示詞`。
 - `Agentic Development`: `AI 代理開發`。
 - `Agent Skills` : `AI 代理技能(Agent Skills)`。
 - `Middleware` : 需視情境用不同翻譯:
@@ -109,6 +110,9 @@
 - `authentication` : `認證`。
 - `authorization` : `授權`。
 - `Processes` : `行程(Processes)`，若無上下文可判斷，通常就是指程式設計領域，台灣翻譯用語為`行程`。
+- `Concurrent processes` : 應翻為 `同時執行多個行程` 較為通順易懂，切勿逐字翻譯為`並行行程`。
+- `Starter Kits` : `快速入門套件`。
+- `dependency injection` : `依賴注入`。
 
 ### 翻譯風格 (Translation Style)：
 

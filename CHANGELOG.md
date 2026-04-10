@@ -1,5 +1,8 @@
 # laradoc-trans 更新紀錄
 
+## 0.3.6 2026-04-10
+- 提示詞增加更多翻譯對照表，使 gemma4 模型翻譯更加一致性
+
 ## 0.3.5 2026-04-10
 - 升級 Google LangChain 整合套件：`@langchain/google-genai` -> `@langchain/google`。
 - 修正 Gemini / Gemma 串流內容解析：避免因內容區塊物件轉字串導致 `[object Object]` 混入翻譯結果。
