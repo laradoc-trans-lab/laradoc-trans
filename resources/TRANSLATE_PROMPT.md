@@ -111,7 +111,7 @@
 - `authorization` : `授權`。
 - `Processes` : `行程(Processes)`，若無上下文可判斷，通常就是指程式設計領域，台灣翻譯用語為`行程`。
 - `Concurrent processes` : 應翻為 `同時執行多個行程` 較為通順易懂，切勿逐字翻譯為`並行行程`。
-- `Starter Kits` : `快速入門套件`。
+- `Starter Kits` : `入門套件`。
 - `dependency injection` : `依賴注入`。
 
 ### 翻譯風格 (Translation Style)：
