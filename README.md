@@ -41,6 +41,9 @@
     # 如果使用 gemini
     GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 
+    # 每組 Gemini API 金鑰每分鐘最多請求次數，預設為 5
+    # GEMINI_RATE_LIMIT_PER_MINUTE=5
+
     # 如果使用 openai
     # OPENAI_API_KEY=YOUR_OPENAI_API_KEY
     ```

@@ -1,6 +1,9 @@
 import { ChatGoogle } from "@langchain/google";
 import { ChatOpenAI } from "@langchain/openai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { PerKeyRateLimiter } from './geminiRateLimiter';
+
+export const DEFAULT_GEMINI_RATE_LIMIT_PER_MINUTE = 5;
 
 export class ApiKeyNotFoundError extends Error {
   constructor(message: string) {
@@ -13,6 +16,7 @@ export interface LlmModel {
   model: BaseChatModel;
   modelInfo: string;
   apiKeyUsed: string; // 新增：記錄使用的 API 金鑰
+  prepareForRequest?: () => Promise<LlmModel>;
 }
 
 export interface ModelDetails {
@@ -24,18 +28,28 @@ export interface ModelDetails {
 // --- Gemini API Key Management ---
 let geminiApiKeys: string[] | null = null;
 let geminiApiKeyIndex = 0;
+let geminiRateLimiter: PerKeyRateLimiter | null = null;
+let geminiRateLimitPerMinute: number | null = null;
 
 function loadGeminiApiKeys(): void {
   const keys: string[] = [];
   if (process.env.GEMINI_API_KEY) {
     keys.push(process.env.GEMINI_API_KEY);
   }
-  let i = 0;
-  while (process.env[`GEMINI_API_KEY_${i}`]) {
-    keys.push(process.env[`GEMINI_API_KEY_${i}`] as string);
-    i++;
+
+  const numberedKeys = Object.entries(process.env)
+    .filter(([name, value]) => /^GEMINI_API_KEY_\d+$/.test(name) && Boolean(value))
+    .sort(([firstName], [secondName]) => {
+      const firstIndex = Number(firstName.replace('GEMINI_API_KEY_', ''));
+      const secondIndex = Number(secondName.replace('GEMINI_API_KEY_', ''));
+      return firstIndex - secondIndex;
+    });
+
+  for (const [, key] of numberedKeys) {
+    keys.push(key as string);
   }
-  geminiApiKeys = keys;
+
+  geminiApiKeys = [...new Set(keys)];
 }
 
 function getNextGeminiApiKey(): string {
@@ -50,6 +64,71 @@ function getNextGeminiApiKey(): string {
   const key = geminiApiKeys![geminiApiKeyIndex];
   geminiApiKeyIndex = (geminiApiKeyIndex + 1) % geminiApiKeys!.length;
   return key;
+}
+
+function getGeminiRateLimitPerMinute(): number {
+  const configuredLimit = process.env.GEMINI_RATE_LIMIT_PER_MINUTE?.trim();
+  if (!configuredLimit) {
+    return DEFAULT_GEMINI_RATE_LIMIT_PER_MINUTE;
+  }
+
+  const rateLimit = Number(configuredLimit);
+  if (!Number.isSafeInteger(rateLimit) || rateLimit <= 0) {
+    throw new Error('GEMINI_RATE_LIMIT_PER_MINUTE must be a positive integer.');
+  }
+
+  return rateLimit;
+}
+
+function getGeminiRateLimiter(): PerKeyRateLimiter {
+  const rateLimit = getGeminiRateLimitPerMinute();
+  if (geminiRateLimiter === null || geminiRateLimitPerMinute !== rateLimit) {
+    geminiRateLimiter = new PerKeyRateLimiter(rateLimit);
+    geminiRateLimitPerMinute = rateLimit;
+  }
+
+  return geminiRateLimiter;
+}
+
+async function reserveGeminiRequest(preferredKey: string): Promise<string> {
+  if (geminiApiKeys === null) {
+    loadGeminiApiKeys();
+  }
+
+  return getGeminiRateLimiter().acquireAny(geminiApiKeys!, preferredKey);
+}
+
+function createGeminiLlmModel(apiKey: string, modelName: string, modelInfo: string): LlmModel {
+  const llmModel: LlmModel = {
+    model: new ChatGoogle({
+      model: modelName,
+      apiKey,
+    }),
+    modelInfo,
+    apiKeyUsed: apiKey,
+  };
+
+  llmModel.prepareForRequest = async () => {
+    const requestApiKey = await reserveGeminiRequest(llmModel.apiKeyUsed);
+    if (requestApiKey === llmModel.apiKeyUsed) {
+      return llmModel;
+    }
+
+    return createGeminiLlmModel(requestApiKey, modelName, modelInfo);
+  };
+
+  return llmModel;
+}
+
+/**
+ * 重設 Gemini 金鑰輪替與速率限制狀態，主要供測試使用。
+ */
+export function resetGeminiApiKeyState(): void {
+  geminiApiKeys = null;
+  geminiApiKeyIndex = 0;
+  geminiRateLimiter?.reset();
+  geminiRateLimiter = null;
+  geminiRateLimitPerMinute = null;
 }
 // ---------------------------------
 
@@ -106,12 +185,5 @@ export function createLlmModel(): LlmModel {
 
   // provider === 'gemini'
   const apiKey = getNextGeminiApiKey();
-  return {
-    model: new ChatGoogle({
-      model: modelName,
-      apiKey: apiKey,
-    }),
-    modelInfo: modelInfo,
-    apiKeyUsed: apiKey, // 回傳使用的 API 金鑰
-  };
+  return createGeminiLlmModel(apiKey, modelName, modelInfo);
 }

@@ -1,5 +1,9 @@
 # laradoc-trans 更新紀錄
 
+## 0.3.8 2026-08-15
+- 新增每組 Gemini API 金鑰獨立的滑動一分鐘速率限制，預設每分鐘 5 次。
+- 新增 `GEMINI_RATE_LIMIT_PER_MINUTE` 環境變數，可依 API 方案調整每組金鑰的每分鐘請求上限。
+
 ## 0.3.7 2026-04-10
 - 修正 target repo 分支初始化流程：移除 `git checkout -B`，避免切換版本時意外重設既有分支歷史。
 - 當 target 分支不存在時，改為建立孤島分支（`git checkout --orphan <branch>`），確保各版本分支維持獨立提交鏈。

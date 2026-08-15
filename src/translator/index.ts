@@ -289,6 +289,14 @@ async function streamPromptWithServerRetry(params: {
 
   for (let retryCount = 0; retryCount <= MAX_LLM_SERVER_ERROR_RETRIES; retryCount++) {
     try {
+      if (currentLlmModel.prepareForRequest) {
+        const preparedLlmModel = await currentLlmModel.prepareForRequest();
+        if (preparedLlmModel !== currentLlmModel) {
+          currentLlmModel = preparedLlmModel;
+          params.onModelRecreated?.(currentLlmModel);
+        }
+      }
+
       const stream = await currentLlmModel.model.stream(params.prompt);
       for await (const chunk of stream) {
         const visibleText = extractVisibleTextFromChunk(chunk);
@@ -506,6 +514,15 @@ async function translateContent(
     return { task, translatedContent: fullResponse };
   } catch (error) {
     progressManager.failTask(taskId);
+    if (isLlmRateLimitError(error)) {
+      throw new LlmApiQuotaError(
+        _('Translation failed: LLM API quota exceeded for key: {{maskedKey}}', {
+          maskedKey: maskApiKey(currentLlmModel.apiKeyUsed),
+        }),
+        maskApiKey(currentLlmModel.apiKeyUsed),
+        error instanceof Error ? error : undefined,
+      );
+    }
     throw error;
   }
 }

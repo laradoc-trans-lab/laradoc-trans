@@ -150,13 +150,16 @@ laradoc-trans validate --branch 12.x
 
 -   `GEMINI_API_KEY` / `OPENAI_API_KEY` **(必要)**
     根據您選擇的 `LLM_PROVIDER`，設定對應的 API 金鑰。
-    -   對於 `gemini`，變數為 `GEMINI_API_KEY`。您可以設定多組金鑰（如 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`...）讓程式輪流使用，以避免觸發速率限制。
+    -   對於 `gemini`，變數為 `GEMINI_API_KEY`。您可以設定多組金鑰（如 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`...），每組金鑰會獨立計算速率限制。
     -   對於 `openai`，變數為 `OPENAI_API_KEY`。
 
 -   `GEMINI_MODEL` / `OPENAI_MODEL` (可選)
     指定要使用的具體模型名稱。
     -   若使用 `gemini`，預設為 `gemini-3-flash-preview`。
     -   若使用 `openai`，預設為 `gpt-4o`。
+
+-   `GEMINI_RATE_LIMIT_PER_MINUTE` (可選)
+    設定每組 Gemini API 金鑰在滑動一分鐘內允許的請求次數，預設為 `5`。例如付費方案可設定為 `20`。當所有金鑰都達到限制時，程式會等待最早一筆請求超過一分鐘後再繼續。
 
 ## 7. 進階用法與範例
 

@@ -118,7 +118,8 @@ laradoc-trans 主要是以 nodeJS 運作並使用 TypeScript 來開發最後進�
 ### 4.2 可用的環境變數
 
 - `LLM_PROVIDER`: 指定要使用的 LLM 供應商。可以是 `openai` 或 `gemini`。若未指定，預設為 `gemini`。
-- `GEMINI_API_KEY` / `OPENAI_API_KEY`: 對應供應商的 API 金鑰。為了避免觸及速率限制，`GEMINI_API_KEY` 支援多金鑰輪換機制：除了主要的 `GEMINI_API_KEY` 之外，您還可以設定 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2` 等等。程式會自動收集所有這些金鑰並在翻譯過程中輪流使用。
+- `GEMINI_API_KEY` / `OPENAI_API_KEY`: 對應供應商的 API 金鑰。`GEMINI_API_KEY` 支援多金鑰機制：除了主要的 `GEMINI_API_KEY` 之外，您還可以設定 `GEMINI_API_KEY_0`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2` 等等。每組 Gemini 金鑰會獨立計算請求次數，程式會優先使用仍有額度的金鑰。
+- `GEMINI_RATE_LIMIT_PER_MINUTE`: 每組 Gemini API 金鑰在滑動一分鐘內允許的請求次數，預設為 `5`。當所有金鑰都達到限制時，程式會延遲至最早一筆請求超過一分鐘後再繼續；可依方案設定為 `20` 等數值。
 - `GEMINI_MODEL` / `OPENAI_MODEL`: 指定要使用的模型名稱。若未指定，`gemini` 預設為 `gemini-3-flash-preview`，`openai` 預設為 `gpt-4o`。
 - `TRANSLATION_CONCURRENCY`: 指定翻譯任務的併發數量。若未指定，預設為 `3`。
 - `WORKSPACE_PATH`: 工作區路徑，若沒指定則預設是專案根目錄的 `workspace`。
