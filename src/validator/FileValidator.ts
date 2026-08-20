@@ -4,7 +4,7 @@ import { FileValidationResult, ValidationStatus, SectionError, HeadingMismatch, 
 import { remark } from 'remark';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
-import { validateHeadingCount, validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, getAnchorFromHtml, extractPreambleEntries, PreambleEntry } from './core';
+import { validateHeadingCount, validateCodeBlocks as coreValidateCodeBlocks, validateInlineCode as coreValidateInlineCode, validateSpecialMarkers as coreValidateSpecialMarkers, validateToc, getAnchorFromHtml, extractPreambleEntries, PreambleEntry } from './core';
 import  *  as debugKey from '../debugKey';
 
 
@@ -192,35 +192,16 @@ export class FileValidator {
         return { isValid: false, mismatches: [{type: 'Preamble not found'}] };
     }
 
-    const sourceEntries = extractPreambleEntries(sourcePreamble);
-    const targetEntries = extractPreambleEntries(targetPreamble);
-
-    /*
-    debugKey.execute('currentValidateFile', 'blade.md', () => {
-      console.log('--- DEBUG PREAMBLE VALIDATION for blade.md ---');
-      console.log('Source Preamble Entries (Count:', sourceEntries.length, '):');
-      console.log(JSON.stringify(sourceEntries, null, 2));
-      console.log('Target Preamble Entries (Count:', targetEntries.length, '):');
-      console.log(JSON.stringify(targetEntries, null, 2));
-      console.log('-------------------------------------------------');
-    });
-    */
-
-    if (sourceEntries.length === 0 && sourcePreamble.content.length > 0) {
-        return { isValid: true, totalHeadings: 0 };
+    const tocResult = validateToc(sourcePreamble, targetPreamble);
+    if (!tocResult.isValid) {
+      return {
+        isValid: false,
+        totalHeadings: tocResult.sourceCount,
+        mismatches: tocResult.mismatches,
+      };
     }
 
-    if (sourceEntries.length !== targetEntries.length) {
-        return { isValid: false, mismatches: [{type: 'Preamble link count mismatch'}] };
-    }
-
-    for (let i = 0; i < sourceEntries.length; i++) {
-      if (sourceEntries[i].anchor !== targetEntries[i].anchor) {
-        return { isValid: false, mismatches: [{type: 'Preamble anchor mismatch'}] };
-      }
-    }
-
-    return { isValid: true, totalHeadings: sourceEntries.length };
+    return { isValid: true, totalHeadings: tocResult.sourceCount };
   }
 
 

@@ -3,7 +3,7 @@ import gfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import { _ } from '../i18n';
 import { Section } from '../translator/Section';
-import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch, HeadingCountResult, HeadingData } from './types';
+import { SectionError, CodeBlockMismatch, InlineCodeSnippet, CodeBlock, QuantityMismatch, ContentMismatch, HeadingCountResult, HeadingData, TocMismatch, TocValidationResult } from './types';
 import  *  as debugKey from '../debugKey';
 
 export function validateHeadingCount(sourceSections: Section[], targetSections: Section[]): HeadingCountResult {
@@ -189,7 +189,7 @@ export interface PreambleEntry {
  */
 export function extractPreambleEntries(preambleSection: Section): PreambleEntry[] {
   const entries: PreambleEntry[] = [];
-  if (!preambleSection) return entries;
+  if (!preambleSection || !preambleSection.content) return entries;
 
   const ast = remark().parse(preambleSection.content);
   const lines = preambleSection.content.split('\n');
@@ -203,11 +203,30 @@ export function extractPreambleEntries(preambleSection: Section): PreambleEntry[
         let nestedList: any = null;
 
         const line = lines[listItem.position.start.line - 1];
-        const match = line.match(/\[(.*)\]\(#(.*)\)/);
+        const match = line ? (line.match(/\[(.*?)\]\((#[^)]+)\)/) || line.match(/\[(.*)\]\(#(.*)\)/)) : null;
 
         if (match && match[1] && match[2]) {
-          entry.title = match[1];
-          entry.anchor = `#${match[2]}`;
+          entry.title = match[1].trim();
+          entry.anchor = match[2].startsWith('#') ? match[2].trim() : `#${match[2].trim()}`;
+        } else {
+          // Fallback: 檢查 listItem 中的 AST link 節點
+          for (const child of (listItem.children || [])) {
+            if (child.type === 'paragraph') {
+              for (const pChild of (child.children || [])) {
+                if (pChild.type === 'link' && pChild.url && pChild.url.startsWith('#')) {
+                  let title = '';
+                  if (pChild.children && pChild.children.length > 0) {
+                    title = pChild.children.map((c: any) => c.value || '').join('');
+                  }
+                  if (title && pChild.url) {
+                    entry.title = title.trim();
+                    entry.anchor = pChild.url.trim();
+                    break;
+                  }
+                }
+              }
+            }
+          }
         }
 
         listItem.children.forEach((itemChild: any) => {
@@ -229,4 +248,141 @@ export function extractPreambleEntries(preambleSection: Section): PreambleEntry[
 
   (ast.children || []).forEach(node => visitNodes(node, 1));
   return entries;
+}
+
+/**
+ * 驗證原始與翻譯後的章節內容中的目錄 (TOC) 是否相符。
+ * - 判斷是否為真 TOC 章節：只有當原文的 Section 中包含目錄樹狀清單時，才視為 TOC 章節並進行驗證。
+ * - 驗證項目：
+ *   1. TOC 項目是否存在、數量是否一致。
+ *   2. 每個項目的樹狀層級 (depth) 是否與原文一致。
+ *   3. 每個項目的錨點 (anchor) 是否與原文一致。
+ *   4. 翻譯後的標題不可為空。
+ * @param sourceSection 原始 Section 物件。
+ * @param targetSection 翻譯後 Section 物件。
+ * @returns 回傳包含驗證結果與錯誤訊息的 TocValidationResult 物件。
+ */
+export function validateToc(sourceSection: Section, targetSection: Section): TocValidationResult {
+  const sourceEntries = extractPreambleEntries(sourceSection);
+  const targetEntries = extractPreambleEntries(targetSection);
+  const mismatches: TocMismatch[] = [];
+  const errors: string[] = [];
+
+  // 原文沒有任何 TOC 條目，表示此章節不是 TOC 章節，不需要進行 TOC 檢查
+  if (sourceEntries.length === 0) {
+    return {
+      isValid: true,
+      isToc: false,
+      sourceCount: 0,
+      targetCount: targetEntries.length,
+      errors: [],
+      mismatches: [],
+    };
+  }
+
+  const isToc = true;
+
+  // 1. 譯文完全遺漏 TOC 列表
+  if (targetEntries.length === 0) {
+    const errorMsg = `Validation failed in section "${sourceSection.title}": Table of Contents (TOC) is missing in translated text. The original contains ${sourceEntries.length} TOC items, but none were found.`;
+    errors.push(errorMsg);
+    mismatches.push({
+      type: 'missing_toc',
+      message: errorMsg,
+    });
+    return {
+      isValid: false,
+      isToc: true,
+      sourceCount: sourceEntries.length,
+      targetCount: 0,
+      errors,
+      mismatches,
+    };
+  }
+
+  // 2. TOC 項目總數量不符
+  if (sourceEntries.length !== targetEntries.length) {
+    let errorMsg = `Validation failed in section "${sourceSection.title}": TOC item count mismatch. Original: ${sourceEntries.length}, Translated: ${targetEntries.length}.\n`;
+
+    const targetAnchorSet = new Set(targetEntries.map(t => t.anchor));
+    const sourceAnchorSet = new Set(sourceEntries.map(s => s.anchor));
+
+    const missingInTarget = sourceEntries.filter(s => !targetAnchorSet.has(s.anchor));
+    const extraInTarget = targetEntries.filter(t => !sourceAnchorSet.has(t.anchor));
+
+    if (missingInTarget.length > 0) {
+      errorMsg += '  Missing TOC items in translation:\n';
+      missingInTarget.forEach(item => {
+        errorMsg += `    - [${item.title}](${item.anchor})\n`;
+      });
+    }
+
+    if (extraInTarget.length > 0) {
+      errorMsg += '  Unexpected TOC items in translation:\n';
+      extraInTarget.forEach(item => {
+        errorMsg += `    - [${item.title}](${item.anchor})\n`;
+      });
+    }
+
+    errors.push(errorMsg.trimEnd());
+    mismatches.push({
+      type: 'count_mismatch',
+      message: errorMsg,
+    });
+  }
+
+  // 3. 逐項比對：錨點 (Anchor)、樹狀深度 (Depth)、標題 (Title)
+  const compareCount = Math.min(sourceEntries.length, targetEntries.length);
+  for (let i = 0; i < compareCount; i++) {
+    const sourceItem = sourceEntries[i];
+    const targetItem = targetEntries[i];
+
+    // 錨點比對：嚴禁修改錨點
+    if (sourceItem.anchor !== targetItem.anchor) {
+      const errorMsg = `Validation failed in section "${sourceSection.title}": TOC anchor mismatch at item ${i + 1}. Expected anchor "${sourceItem.anchor}" (for "${sourceItem.title}"), but got "${targetItem.anchor}" (for "${targetItem.title}"). Do not modify TOC anchors.`;
+      errors.push(errorMsg);
+      mismatches.push({
+        type: 'anchor_mismatch',
+        index: i,
+        source: sourceItem,
+        target: targetItem,
+        message: errorMsg,
+      });
+    }
+
+    // 樹狀層級 (Depth) 比對
+    if (sourceItem.depth !== targetItem.depth) {
+      const errorMsg = `Validation failed in section "${sourceSection.title}": TOC hierarchy depth mismatch for item ${i + 1} ("${targetItem.title}", ${targetItem.anchor}). Expected depth ${sourceItem.depth}, but got ${targetItem.depth}. Please preserve the nested list indentation structure.`;
+      errors.push(errorMsg);
+      mismatches.push({
+        type: 'depth_mismatch',
+        index: i,
+        source: sourceItem,
+        target: targetItem,
+        message: errorMsg,
+      });
+    }
+
+    // 標題非空檢查
+    if (!targetItem.title || targetItem.title.trim() === '') {
+      const errorMsg = `Validation failed in section "${sourceSection.title}": TOC title at item ${i + 1} for anchor "${targetItem.anchor}" is empty.`;
+      errors.push(errorMsg);
+      mismatches.push({
+        type: 'empty_title',
+        index: i,
+        source: sourceItem,
+        target: targetItem,
+        message: errorMsg,
+      });
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    isToc,
+    sourceCount: sourceEntries.length,
+    targetCount: targetEntries.length,
+    errors,
+    mismatches,
+  };
 }

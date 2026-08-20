@@ -6,6 +6,7 @@ import {
   validateCodeBlocks,
   validateSpecialMarkers,
   validateInlineCode,
+  validateToc,
   extractPreambleEntries,
   getAnchorFromHtml,
 } from '../validator/core';
@@ -86,7 +87,15 @@ export function validateBatch(
       continue;
     }
 
-    // 2. 驗證程式碼區塊
+    // 2. 驗證 TOC（僅針對第一個章節 Section[0]，且原文包含 TOC 樹狀清單時進行驗證）
+    if (!preambleContext && sourceSection === originalSections[0]) {
+      const tocResult = validateToc(sourceSection, targetSection);
+      if (!tocResult.isValid) {
+        errors.push(...tocResult.errors);
+      }
+    }
+
+    // 3. 驗證程式碼區塊
     const codeBlockResult = validateCodeBlocks(sourceSection, targetSection);
     if (!codeBlockResult.isValid) {
         errors.push(`Validation failed in section "${sourceSection.title}": Code block mismatch. Do not modify any byte inside the Code Block.`);

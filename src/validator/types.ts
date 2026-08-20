@@ -111,3 +111,27 @@ export interface QuantityMismatch {
  * 它要嘛是內容不匹配 (ContentMismatch)，要嘛是數量不匹配 (QuantityMismatch)。
  */
 export type CodeBlockMismatch = ContentMismatch | QuantityMismatch;
+
+/**
+ * 代表 TOC (目錄) 驗證中的不匹配項目
+ */
+export interface TocMismatch {
+  type: 'missing_toc' | 'count_mismatch' | 'anchor_mismatch' | 'depth_mismatch' | 'empty_title';
+  source?: { anchor: string; title: string; depth: number };
+  target?: { anchor: string; title: string; depth: number };
+  index?: number;
+  message?: string;
+}
+
+/**
+ * 代表 TOC (目錄) 驗證的結果
+ */
+export interface TocValidationResult {
+  isValid: boolean;
+  isToc: boolean;
+  sourceCount: number;
+  targetCount: number;
+  errors: string[];
+  mismatches: TocMismatch[];
+}
+
